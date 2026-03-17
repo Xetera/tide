@@ -91,13 +91,7 @@ export class HTMLParser {
   #parseMeta(document: Document, selectors: S.NodeSelector[]) {
     const meta: { locale?: string; [key: string]: unknown } = {}
     for (const selector of selectors) {
-      const nodeValues = this.#selectNode(
-        // this is required to make selectNode happy.
-        // there's definitely a way to fix it with a refactor but
-        // I can't figure it our right now
-        document as unknown as HTMLElement,
-        selector,
-      )
+      const nodeValues = this.#selectNode(document, selector)
 
       Object.assign(meta, nodeValues)
     }
@@ -129,7 +123,7 @@ export class HTMLParser {
   }
 
   #selectNode(
-    element: HTMLElement,
+    element: ParentNode,
     selector: S.NodeSelector,
   ): Record<string, unknown> {
     const node = element.querySelector(selector.selector) as HTMLElement | undefined
