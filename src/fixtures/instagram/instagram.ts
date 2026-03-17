@@ -86,8 +86,7 @@ export const instagram: Resource = {
       key: 'posts',
       fields: [
         {
-          kind: 'selector:node',
-          selector: null,
+          kind: 'selector:self',
           extractors: [
             {
               kind: 'extractor:attribute',

@@ -39,7 +39,7 @@ export interface Resource {
   hash: string
 }
 
-export type Selector = NodeSelector | ArraySelector
+export type Selector = NodeSelector | SelfSelector | ArraySelector
 
 // export interface ComputedKey {
 //   kind: 'computed'
@@ -58,8 +58,13 @@ export type Selector = NodeSelector | ArraySelector
 export interface NodeSelector {
   extractors: Extractor[]
   kind: 'selector:node'
-  // null if node represents parent field
-  selector?: string | null
+  selector: string
+  if_missing?: Recovery
+}
+
+export interface SelfSelector {
+  extractors: Extractor[]
+  kind: 'selector:self'
   if_missing?: Recovery
 }
 

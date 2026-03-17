@@ -60,8 +60,7 @@ export const sahibinden: Resource = {
       selector: '#searchResultsTable thead td',
       fields: [
         {
-          kind: 'selector:node',
-          selector: null,
+          kind: 'selector:self',
           extractors: [
             {
               kind: 'extractor:text',
@@ -121,8 +120,7 @@ export const sahibinden: Resource = {
     {
       fields: [
         {
-          kind: 'selector:node',
-          selector: null,
+          kind: 'selector:self',
           extractors: [
             {
               kind: 'extractor:attribute',
@@ -163,7 +161,7 @@ export const sahibinden: Resource = {
           if_missing: { kind: 'recovery:omit' },
           fields: [
             {
-              kind: 'selector:node',
+              kind: 'selector:self',
               extractors: [
                 {
                   kind: 'extractor:attribute',
@@ -183,7 +181,7 @@ export const sahibinden: Resource = {
           selector: 'td',
           fields: [
             {
-              kind: 'selector:node',
+              kind: 'selector:self',
               extractors: [
                 {
                   kind: 'extractor:text',

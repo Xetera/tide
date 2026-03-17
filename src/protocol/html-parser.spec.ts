@@ -142,7 +142,7 @@ describe.concurrent('html-parser', () => {
           selector: 'a',
           fields: [
             {
-              kind: 'selector:node',
+              kind: 'selector:self',
               extractors: [
                 {
                   kind: 'extractor:attribute',

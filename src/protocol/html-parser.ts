@@ -74,6 +74,8 @@ export class HTMLParser {
         output[selector.key] = this.#selectArray(document.body, selector)
       } else if (selector.kind === 'selector:node') {
         Object.assign(output, this.#selectNode(document.body, selector))
+      } else if (selector.kind === 'selector:self') {
+        Object.assign(output, this.#selectSelf(document.body, selector))
       }
     }
     return output
@@ -112,6 +114,8 @@ export class HTMLParser {
         switch (field.kind) {
           case 'selector:node':
             return this.#selectNode(item, field)
+          case 'selector:self':
+            return this.#selectSelf(item, field)
           case 'selector:array':
             return { [field.key]: this.#selectArray(item, field) }
         }
@@ -128,9 +132,7 @@ export class HTMLParser {
     element: HTMLElement,
     selector: S.NodeSelector,
   ): Record<string, unknown> {
-    const node = selector.selector
-      ? (element.querySelector(selector.selector) as HTMLElement | undefined)
-      : element
+    const node = element.querySelector(selector.selector) as HTMLElement | undefined
 
     if (!node) {
       if (selector.if_missing) {
@@ -147,7 +149,7 @@ export class HTMLParser {
       }
 
       throw new ParserError(
-        selector.selector ?? '[null]',
+        selector.selector,
         // pointer,
         'No node was found and no fallback was provided',
       )
@@ -156,6 +158,18 @@ export class HTMLParser {
     const out: Record<string, unknown> = {}
     for (const extractor of selector.extractors) {
       const value = this.#extract(node, extractor)
+      this.#mutateSubObjects(extractor.key, out, value)
+    }
+    return out
+  }
+
+  #selectSelf(
+    element: HTMLElement,
+    selector: S.SelfSelector,
+  ): Record<string, unknown> {
+    const out: Record<string, unknown> = {}
+    for (const extractor of selector.extractors) {
+      const value = this.#extract(element, extractor)
       this.#mutateSubObjects(extractor.key, out, value)
     }
     return out
