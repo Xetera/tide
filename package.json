@@ -26,6 +26,7 @@
     "jsdom": "^24.0.0",
     "kolorist": "^1.8.0",
     "msw": "^2.2.14",
+    "oxfmt": "^0.41.0",
     "solid-devtools": "^0.29.2",
     "typescript": "^5.4.5",
     "vite": "^5.2.11",
