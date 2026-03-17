@@ -132,6 +132,9 @@ export class HTMLParser {
 
     if (!node) {
       if (selector.if_missing) {
+        if ('warning' in selector.if_missing && selector.if_missing.warning) {
+          this.#warn(selector.if_missing.warning)
+        }
         switch (selector.if_missing.kind) {
           case 'recovery:bail':
             throw new BailSignal()
@@ -151,40 +154,39 @@ export class HTMLParser {
       )
     }
 
-    const out: Record<string, unknown> = {}
-    for (const extractor of selector.extractors) {
-      const value = this.#extract(node, extractor)
-      this.#mutateSubObjects(extractor.key, out, value)
-    }
-    return out
+    return this.#runExtractors(node, selector.extractors)
   }
 
   #selectSelf(
     element: HTMLElement,
     selector: S.SelfSelector,
   ): Record<string, unknown> {
+    return this.#runExtractors(element, selector.extractors)
+  }
+
+  #runExtractors(element: HTMLElement, extractors: S.Extractor[]) {
     const out: Record<string, unknown> = {}
-    for (const extractor of selector.extractors) {
-      const value = this.#extract(element, extractor)
-      this.#mutateSubObjects(extractor.key, out, value)
+    for (const extractor of extractors) {
+      try {
+        const value = this.#extract(element, extractor)
+        this.#mutateSubObjects(extractor.key, out, value)
+      } catch (error) {
+        console.error(error)
+      }
     }
     return out
   }
 
   #extract(element: HTMLElement, extractor: S.Extractor) {
     switch (extractor.kind) {
-      case 'extractor:text': {
+      case 'extractor:text':
         return this.#extractText(element, extractor)
-      }
-      case 'extractor:attribute': {
+      case 'extractor:attribute':
         return this.#extractAttribute(element, extractor)
-      }
-      case 'extractor:style': {
+      case 'extractor:style':
         return this.#extractStyle(element, extractor)
-      }
       default: {
-        // @ts-expect-error
-        const _: never = extractor
+        extractor satisfies never
         throw new Error('Invalid extractor kind')
       }
     }
@@ -214,6 +216,9 @@ export class HTMLParser {
 
   #extractAttribute(element: HTMLElement, extractor: S.AttributeExtractor) {
     const value = element.getAttribute(extractor.attribute)
+    if (!extractor.transformers) {
+      return value
+    }
     return this.#transformAll(value, extractor.transformers)
   }
 
@@ -335,12 +340,10 @@ export class HTMLParser {
     }
     const init = fields.slice(0, -1)
     const last = fields.at(-1) as string
-    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     let target: Record<string, any> = object
 
     for (const section of init) {
       if (!(section in target)) {
-        // biome-ignore lint/suspicious/noExplicitAny: <explanation>
         target[section] = {} as Record<string, any>
       }
       target = target[section]

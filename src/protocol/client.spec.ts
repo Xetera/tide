@@ -118,7 +118,7 @@ describe('client', () => {
     const fn = vi.fn()
     server.events.on('request:match', fn)
     await vi.waitUntil(() => fn.mock.lastCall)
-    const request = await fn.mock.calls[0][0].request.json()
+    const request = await fn.mock.calls[0]![0].request.json()
 
     expect(request).toStrictEqual({
       success: true,

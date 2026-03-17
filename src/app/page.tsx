@@ -1,11 +1,13 @@
 import { createDateFormatter } from '@kobalte/core/i18n'
-import { For, createEffect, createSignal } from 'solid-js'
+import { For, Show, createEffect, createSignal } from 'solid-js'
 /* @refresh reload */
 import { onMessage, sendMessage } from 'webext-bridge/popup'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { toOrigin } from '~/protocol/resource'
 import type { Resource } from '~/protocol/scrapeer'
+import type { ScrapedPage } from '~/content-scripts/page-manager'
 import { type BrowserStorageSchema, Storage } from '~/shared/storage'
+import { useBrowserStorage } from '~/shared/hooks'
 import { AddServer } from './add-server'
 import { useLogs } from './hooks'
 import { SchemaEditor } from './schema-editor'
@@ -27,19 +29,17 @@ function Page() {
   const storage = new Storage<BrowserStorageSchema>()
   const [state, setState] = createSignal<StatefulResource[]>([])
   const { logs } = useLogs()
+  const { value: lastScrape } = useBrowserStorage<'scrape:last'>('scrape:last', undefined)
   async function updateState(resources: Resource[]) {
-    const permissions = await chrome.permissions.getAll()
-    console.log(permissions)
-    setState(
-      resources.map((resource) => {
-        const hostAllowed =
-          permissions.origins?.includes(toOrigin(resource)) ?? false
-        return {
-          resource,
-          hostAllowed,
-        }
+    const stateful = await Promise.all(
+      resources.map(async (resource) => {
+        const hostAllowed = await chrome.permissions.contains({
+          origins: [toOrigin(resource)],
+        })
+        return { resource, hostAllowed }
       }),
     )
+    setState(stateful)
   }
   createEffect(async () => {
     const resources = await sendMessage('resources', undefined, {
@@ -85,6 +85,18 @@ function Page() {
               )}
             </For>
           </div>
+          <Show when={lastScrape()}>
+            {(scrape) => (
+              <details class='p-3' open>
+                <summary class='cursor-pointer text-sm font-medium'>
+                  Last scrape: {scrape().resourceId}
+                </summary>
+                <code class='mt-1 block whitespace-pre text-wrap text-xs'>
+                  {JSON.stringify(scrape().payload, null, 2)}
+                </code>
+              </details>
+            )}
+          </Show>
           <div>
             <For each={logs()}>
               {(log) => (

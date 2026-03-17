@@ -1,6 +1,7 @@
 import PQueue from 'p-queue'
 import type { ServerDefinition } from '~/protocol/client'
 import type { ServerAutonomy } from '~/protocol/scrapeer'
+import type { ScrapedPage } from '~/content-scripts/page-manager'
 import type { Log } from '~/shared'
 
 export class Storage<T extends Record<string, unknown>> {
@@ -108,4 +109,6 @@ export type BrowserStorageSchema = {
   'server:token'?: string
   'server:enabled'?: boolean
   'server:autonomy'?: ServerAutonomy
+  'schema:local'?: string
+  'scrape:last'?: ScrapedPage
 }

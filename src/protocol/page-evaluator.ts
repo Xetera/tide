@@ -127,8 +127,9 @@ export class PageEvaluator {
   static waitForLoad(
     document: Document,
     resource: Resource,
-    { timeout = 500 }: { timeout?: number },
+    { timeout = 500, maxWait = 10_000 }: { timeout?: number; maxWait?: number },
   ): Promise<{ readyAfterTries: number }> {
+    const deadline = Date.now() + maxWait
     function go(count: number) {
       return new Promise<{ readyAfterTries: number }>((resolve, reject) => {
         const out = { readyAfterTries: count }
@@ -141,6 +142,9 @@ export class PageEvaluator {
         })
 
         if (!isLoaded) {
+          if (Date.now() >= deadline) {
+            return resolve(out)
+          }
           setTimeout(() => {
             go(count + 1).then(resolve, reject)
           }, timeout)

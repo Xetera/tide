@@ -1,6 +1,6 @@
-import type { ManifestV3Export } from '@crxjs/vite-plugin'
+import { defineManifest } from '@crxjs/vite-plugin'
 
-export default {
+export default defineManifest({
   manifest_version: 3,
   name: 'Spatula',
   version: '1.0.0',
@@ -13,7 +13,6 @@ export default {
     'webNavigation',
     'storage',
   ],
-  // @ts-expect-error | Isn't implemented for some reason
   optional_host_permissions: ['*://*/*'],
   host_permissions: ['<all_urls>'],
   content_scripts: [
@@ -25,4 +24,4 @@ export default {
     },
   ],
   background: { service_worker: 'src/background/index.ts' },
-} satisfies ManifestV3Export
+})

@@ -1,4 +1,4 @@
-import { TypedEmitter } from 'tiny-typed-emitter'
+import { TypedEmitter } from '~/shared/emitter'
 import { onMessage, sendMessage } from 'webext-bridge/background'
 import { Client, type ClientEvents } from '~/protocol/client'
 import { ServerAutonomy } from '~/protocol/scrapeer'
@@ -143,6 +143,7 @@ function emitUrlUpdate(
     onMessage('page-match', ({ data }) => {
       try {
         console.log(`Got a matching page for ${data.resourceId}`)
+        storage.set('scrape:last', data)
         return events.emit('pageMatched', data)
       } catch (err) {
         console.error(err)
@@ -150,6 +151,7 @@ function emitUrlUpdate(
     })
 
     onMessage('set-schema', ({ data }) => {
+      storage.set('schema:local', JSON.stringify(data))
       client.setResources(client.getServer(), data)
     })
     onMessage('toggle-resource', () => {})
@@ -182,6 +184,13 @@ function emitUrlUpdate(
         client.stop(client.getServer())
       }
     })
+
+    const localSchema = await storage.get('schema:local', '')
+    if (localSchema) {
+      try {
+        client.setResources(client.getServer(), JSON.parse(localSchema))
+      } catch {}
+    }
 
     await client.startAll()
   } catch (err) {

@@ -1,9 +1,14 @@
-import { createSignal } from 'solid-js'
+import { createSignal, onMount } from 'solid-js'
 import { sendMessage } from 'webext-bridge/popup'
 import type { Resource } from '~/protocol/scrapeer'
 
 export function SchemaEditor() {
   const [text, setText] = createSignal('')
+
+  onMount(async () => {
+    const { 'schema:local': stored } = await chrome.storage.local.get('schema:local')
+    if (stored) setText(stored)
+  })
   const [error, setError] = createSignal<string | null>(null)
   const [success, setSuccess] = createSignal(false)
 

@@ -25,12 +25,15 @@ export const instagram: Resource = {
       ],
     },
   ],
-  wait_for: ['[role="menu"] + div + div a img'],
+  wait_for: ['header + div + div a:has(img)'],
   url_pattern: '/:profile/',
   descriptors: [
     {
       kind: 'selector:node',
       selector: 'header ul li:nth-child(1)',
+      if_missing: {
+        kind: 'recovery:omit',
+      },
       extractors: [
         {
           kind: 'extractor:text',
@@ -45,6 +48,9 @@ export const instagram: Resource = {
     {
       kind: 'selector:node',
       selector: 'header ul li:nth-child(2) span[title]',
+      if_missing: {
+        kind: 'recovery:omit',
+      },
       extractors: [
         {
           kind: 'extractor:attribute',
@@ -57,6 +63,9 @@ export const instagram: Resource = {
     {
       kind: 'selector:node',
       selector: 'header ul li:nth-child(3)',
+      if_missing: {
+        kind: 'recovery:omit',
+      },
       extractors: [
         {
           kind: 'extractor:text',
@@ -71,6 +80,9 @@ export const instagram: Resource = {
     {
       kind: 'selector:node',
       selector: 'header img[alt*="profile picture"]',
+      if_missing: {
+        kind: 'recovery:omit',
+      },
       extractors: [
         {
           kind: 'extractor:attribute',
@@ -82,29 +94,40 @@ export const instagram: Resource = {
     },
     {
       kind: 'selector:array',
-      selector: '[role="menu"] + div + div a',
+      selector: 'header + div + div a:has(img)',
+      if_missing: {
+        kind: 'recovery:bail',
+        warning: 'Could not find posts array',
+      },
       key: 'posts',
       fields: [
         {
-          kind: 'selector:self',
+          kind: 'selector:node',
+          selector: 'svg title',
+          if_missing: {
+            kind: 'recovery:omit',
+          },
           extractors: [
             {
-              kind: 'extractor:attribute',
-              key: 'url',
-              attribute: 'href',
-              transformers: [{ kind: 'transformer:cast', type: 'url' }],
+              kind: 'extractor:text',
+              key: 'kind',
+              transformers: [],
             },
           ],
         },
         {
           kind: 'selector:node',
           selector: 'img',
+          if_missing: {
+            kind: 'recovery:bail',
+            warning: 'image not found in post?',
+          },
           extractors: [
             {
               kind: 'extractor:attribute',
-              key: 'image',
               attribute: 'src',
-              transformers: [{ kind: 'transformer:cast', type: 'url' }],
+              key: 'image_url',
+              transformers: [],
             },
             {
               kind: 'extractor:attribute',
@@ -114,7 +137,47 @@ export const instagram: Resource = {
             },
           ],
         },
+        {
+          kind: 'selector:self',
+          extractors: [
+            {
+              kind: 'extractor:attribute',
+              key: 'post_link',
+              attribute: 'href',
+              transformers: [{ kind: 'transformer:cast', type: 'url' }],
+            },
+          ],
+        },
       ],
     },
   ],
+}
+
+export const instagramPost: Resource = {
+  id: 'post',
+  hash: 'instagram-post',
+  hostname: 'www.instagram.com',
+  variables: [
+    {
+      identifier: 'profile',
+      kind: 'url',
+      description: 'Instagram handle',
+    },
+  ],
+  meta: [
+    {
+      kind: 'selector:node',
+      selector: 'html',
+      extractors: [
+        {
+          key: 'locale',
+          kind: 'extractor:attribute',
+          attribute: 'lang',
+          transformers: [{ kind: 'transformer:fallback', value: 'en' }],
+        },
+      ],
+    },
+  ],
+  url_pattern: '/:profile/',
+  wait_for: ['[aria-label=Comment]'],
 }

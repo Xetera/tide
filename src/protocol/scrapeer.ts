@@ -87,7 +87,7 @@ export interface TextExtractor {
 export interface AttributeExtractor {
   kind: 'extractor:attribute'
   key: string
-  transformers: Transformer[]
+  transformers?: Transformer[]
   attribute: string
 }
 

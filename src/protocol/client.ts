@@ -156,13 +156,41 @@ export class Client {
   }
 
   async #submitJob(page: ScrapedPage, retryCount = 0) {
-    console.log('[client] submitting processed page', page.variables)
-    const { server, resource } = this.#findResource(page.resourceId)
+    log({
+      severity: 'info',
+      text: `Scraped ${page.resourceId}`,
+      data: {
+        payload: page.payload,
+        variables: page.variables,
+        warnings: page.warnings,
+      },
+    })
+    let server: ServerDefinition
+    let resource: Resource
+    try {
+      ;({ server, resource } = this.#findResource(page.resourceId))
+    } catch (err) {
+      log({
+        severity: 'error',
+        text: `${err}`,
+      })
+      return
+    }
     const body = await this.#processMatchingPage(page)
 
     const jobPostReq = this.#requestJobPost(server.url, resource.hash, body)
     const request = this.#requestBase(jobPostReq, server)
-    const response = await fetch(request)
+    let response: Response
+    try {
+      response = await fetch(request)
+    } catch (err) {
+      log({
+        severity: 'error',
+        text: `Failed to reach server for resource: ${page.resourceId}`,
+        data: { error: err instanceof Error ? err.message : String(err) },
+      })
+      return
+    }
     if (response.status === PRECONDITION_FAILED) {
       if (retryCount < 3) {
         log({
@@ -267,10 +295,14 @@ export class Client {
   }
 
   async #pollForJobs(server: ServerDefinition) {
+    const url = server.url.trim()
+    if (!url) {
+      return
+    }
     try {
       const resourceIds = await this.enabledResources(server)
       const request = this.#requestBase(
-        this.#requestJobs(server.url, {
+        this.#requestJobs(url, {
           autonomy: server.autonomy,
           resourceIds,
         }),

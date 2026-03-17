@@ -29,13 +29,6 @@ export class PageManager {
   ) {
     this.evaluator = new PageEvaluator(document, resources)
     this.isInIframe = window.self !== window.top
-    onMessage('update-resources', ({ data }) => {
-      this.updateResourcesAndRun(document, data)
-    })
-    onMessage('url-update', () => {
-      console.log('[spatula:page-manager] received URL update')
-      return this.run()
-    })
     onMessage('run-job', ({ data: params }) => this.#scrapePage(params))
     console.log('Added run-job event handler')
   }
@@ -82,7 +75,7 @@ export class PageManager {
   ): Promise<ScrapedPage> {
     console.log('[spatula:page-manager] processing page...')
     const parser = new HTMLParser(resource)
-    await PageEvaluator.waitForLoad(document, resource, { timeout: 10000 })
+    await PageEvaluator.waitForLoad(document, resource, { timeout: 500, maxWait: 10_000 })
     const extracted = parser.parse(document)
     const out = {
       resourceId: resource.id,

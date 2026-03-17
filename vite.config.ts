@@ -4,21 +4,11 @@ import solidPlugin from 'vite-plugin-solid'
 import { crx } from '@crxjs/vite-plugin'
 import manifest from './manifest'
 import uno from 'unocss/vite'
-import { isDev } from 'solid-js/web'
 import { r } from './src/scripts'
-// import devtools from 'solid-devtools/vite';
+import devtools from 'solid-devtools/vite'
 
 export default defineConfig({
-  plugins: [
-    /*
-    Uncomment the following line to enable solid-devtools.
-    For more info see https://github.com/thetarnav/solid-devtools/tree/main/packages/extension#readme
-    */
-    // devtools(),
-    solidPlugin(),
-    crx({ manifest }),
-    uno(),
-  ],
+  plugins: [crx({ manifest }), devtools(), solidPlugin(), uno()],
   // root: r("src"),
   resolve: {
     alias: [
@@ -32,10 +22,14 @@ export default defineConfig({
     ],
   },
   server: {
-    port: 3000,
-    hmr: {
-      port: 3000,
+    cors: {
+      origin: [/chrome-extension:\/\//],
     },
+    port: 3000,
+    // strictPort: true,
+    // hmr: {
+    //   port: 3000,
+    // },
   },
   build: {
     outDir: r('extension/dist'),
