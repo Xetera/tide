@@ -149,6 +149,9 @@ function emitUrlUpdate(
       }
     })
 
+    onMessage('set-schema', ({ data }) => {
+      client.setResources(client.getServer(), data)
+    })
     onMessage('toggle-resource', () => {})
     onMessage('log', ({ data }) => {
       log(data)

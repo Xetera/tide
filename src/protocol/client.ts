@@ -106,6 +106,11 @@ export class Client {
     this.#rescheduleTimers.delete(server)
   }
 
+  setResources(server: ServerDefinition, resources: Resource[]) {
+    this.#resources.set(server, resources)
+    this.#events.emit('updatedResources', server, resources)
+  }
+
   addServer(server: ServerDefinition) {
     this.servers.push(server)
   }

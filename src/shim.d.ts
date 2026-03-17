@@ -16,5 +16,6 @@ declare module 'webext-bridge' {
     start: unknown
     log: Omit<Log, 'date' | 'type' | 'id'>
     resources: ProtocolWithReturn<unknown, Resource[]>
+    'set-schema': ProtocolWithReturn<Resource[], void>
   }
 }

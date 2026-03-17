@@ -12,5 +12,6 @@
   "bracketSameLine": false,
   "bracketSpacing": true,
   "singleAttributePerLine": false,
-  "ignorePatterns": []
+  "ignorePatterns": [],
+  "ignorePatterms": ["**/fixtures"]
 }

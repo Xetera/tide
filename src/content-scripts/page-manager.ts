@@ -150,10 +150,9 @@ export class PageManager {
     }
   }
 
-  getJobId() {
-    return chrome.storage.local
-      .get({ currentJobId: null })
-      .then((r) => r.currentJobId)
+  async getJobId() {
+    const r = await chrome.storage.local.get({ currentJobId: null })
+    return r.currentJobId as string
   }
 }
 

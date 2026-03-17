@@ -152,8 +152,6 @@ export class PageEvaluator {
     }
     return go(0)
   }
-
-  #documentHasElement(document: Document, resource: Resource) {}
 }
 
 export type PageCheckResult = MatchingResource | NoMatchFailure
