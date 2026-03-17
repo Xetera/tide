@@ -1,8 +1,8 @@
-import type { Resource } from '~/protocol/spatula'
+import type { Resource } from '~/protocol/scrapeer'
 
 export const instagram: Resource = {
   id: 'profile_page',
-  type: 'instagram',
+  hash: 'instagram',
   hostname: 'www.instagram.com',
   variables: [
     {
