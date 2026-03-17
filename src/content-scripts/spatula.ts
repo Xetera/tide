@@ -1,7 +1,7 @@
 import { sendMessage } from 'webext-bridge/content-script'
 import { PageManager } from './page-manager'
 
-(async () => {
+;(async () => {
   try {
     console.log('[spatula] init', window.location.href)
     sendMessage('start', undefined, { context: 'background', tabId: 0 })

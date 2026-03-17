@@ -28,7 +28,7 @@ function emitUrlUpdate(
     tabId: details.tabId,
   })
 }
-; (async () => {
+;(async () => {
   const origins = ['webhook.site', 'instagram.com', 'www.sahibinden.com']
   try {
     const cst = new ContentScriptTracker()
@@ -149,7 +149,7 @@ function emitUrlUpdate(
       }
     })
 
-    onMessage('toggle-resource', () => { })
+    onMessage('toggle-resource', () => {})
     onMessage('log', ({ data }) => {
       log(data)
     })

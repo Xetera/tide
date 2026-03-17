@@ -48,7 +48,7 @@ export class Storage<T extends Record<string, unknown>> {
     return this.#q.add(
       async () => {
         const out = (await this.get(key, [] as T[K])) as V[]
-        const filtered = out.filter(elem => elem !== value)
+        const filtered = out.filter((elem) => elem !== value)
         await this.set(key, filtered as T[K])
         return filtered
       },

@@ -30,7 +30,7 @@
   --radius: 0.5rem;
 }
 
-[data-kb-theme="dark"] {
+[data-kb-theme='dark'] {
   --background: 20 14.3% 4.1%;
   --foreground: 60 9.1% 97.8%;
 
@@ -59,7 +59,6 @@
   --input: 12 6.5% 15.1%;
   --ring: 24 5.7% 82.9%;
 }
-
 
 * {
   @apply border-border;

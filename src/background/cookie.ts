@@ -54,9 +54,7 @@ export async function addDisableChipsListener(origins: string[]) {
       return
     }
     if (
-      origins.some((origin) =>
-        origin.includes(changeInfo.cookie.domain),
-      ) &&
+      origins.some((origin) => origin.includes(changeInfo.cookie.domain)) &&
       'partitionKey' in changeInfo.cookie
     ) {
       console.log('got partitioningninasin ania fn', changeInfo)

@@ -126,7 +126,9 @@ export class HTMLParser {
     element: ParentNode,
     selector: S.NodeSelector,
   ): Record<string, unknown> {
-    const node = element.querySelector(selector.selector) as HTMLElement | undefined
+    const node = element.querySelector(selector.selector) as
+      | HTMLElement
+      | undefined
 
     if (!node) {
       if (selector.if_missing) {

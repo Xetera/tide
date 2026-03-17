@@ -117,7 +117,7 @@ export class Client {
       log({
         severity: 'error',
         text: 'Tried to update server URL but no server is defined',
-        data: "url" in newServer ? { url: newServer.url } : {},
+        data: 'url' in newServer ? { url: newServer.url } : {},
       })
       return
     }
@@ -279,8 +279,8 @@ export class Client {
 
       if (body.refetch?.includes('resources')) {
         log({
-          severity: "info",
-          text: "The server requested a refetch because the resources have changed",
+          severity: 'info',
+          text: 'The server requested a refetch because the resources have changed',
         })
         await this.#updateResource(server)
       }
