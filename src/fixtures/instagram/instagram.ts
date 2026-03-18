@@ -1,205 +1,207 @@
 import type { Resource } from '~/protocol/scrapeer'
 
 export const instagram: Resource = {
-  id: 'profile_page',
-  hash: 'instagram',
-  hostname: 'www.instagram.com',
-  variables: [
-    {
-      identifier: 'profile',
-      kind: 'url',
-      description: 'Instagram handle',
+  $id: 'profile_page',
+  $hash: 'instagram',
+  $hostname: 'www.instagram.com',
+  $variables: {
+    profile: {
+      $kind: 'url',
+      $description: 'Instagram handle',
     },
-  ],
-  meta: [
-    {
-      kind: 'selector:node',
-      selector: 'html',
-      extractors: [
-        {
-          key: 'locale',
-          kind: 'extractor:attribute',
-          attribute: 'lang',
-          transformers: [{ kind: 'transformer:fallback', value: 'en' }],
-        },
-      ],
-    },
-  ],
-  wait_for: ['header + div + div a:has(img)'],
-  url_pattern: '/:profile/',
-  descriptors: [
-    {
-      kind: 'selector:node',
-      selector: 'header ul li:nth-child(1)',
-      if_missing: {
-        kind: 'recovery:omit',
+  },
+  $meta: {
+    locale: {
+      $selector: 'html',
+      $extractor: {
+        $extractor: 'attribute',
+        $attribute: 'lang',
+        $transformers: [{ $transformer: 'fallback', $value: 'en' }],
       },
-      extractors: [
-        {
-          kind: 'extractor:text',
-          key: 'postCount',
-          transformers: [
-            { kind: 'transformer:regex', regex: String.raw`(\d+)` },
-            { kind: 'transformer:cast', type: 'number' },
-          ],
-        },
-      ],
     },
-    {
-      kind: 'selector:node',
-      selector: 'header ul li:nth-child(2) span[title]',
-      if_missing: {
-        kind: 'recovery:omit',
+  },
+  $waitFor: ['header + div + div a:has(img)'],
+  $urlPattern: '/:profile/',
+  $fields: {
+    postCount: {
+      $selector:
+        'section:has(canvas, img) + section div:last-child:nth-child(3) :nth-child(1) .html-span',
+      $ifMissing: { $strategy: 'omit' },
+      $extractor: {
+        $extractor: 'text',
+        $transformers: [
+          { $transformer: 'expand-suffix' },
+          { $transformer: 'cast', $cast: 'number' },
+        ],
       },
-      extractors: [
-        {
-          kind: 'extractor:attribute',
-          attribute: 'title',
-          key: 'followerCount',
-          transformers: [{ kind: 'transformer:cast', type: 'number' }],
-        },
-      ],
     },
-    {
-      kind: 'selector:node',
-      selector: 'header ul li:nth-child(3)',
-      if_missing: {
-        kind: 'recovery:omit',
+    followerCount: {
+      $selector:
+        'section:has(canvas, img) + section div:last-child:nth-child(3) :nth-child(2) .html-span',
+      $ifMissing: { $strategy: 'omit' },
+      $extractor: {
+        $extractor: 'text',
+        $transformers: [
+          { $transformer: 'expand-suffix' },
+          { $transformer: 'cast', $cast: 'number' },
+        ],
       },
-      extractors: [
-        {
-          kind: 'extractor:text',
-          key: 'followingCount',
-          transformers: [
-            { kind: 'transformer:regex', regex: String.raw`(\d+)` },
-            { kind: 'transformer:cast', type: 'number' },
-          ],
-        },
-      ],
     },
-    {
-      kind: 'selector:node',
-      selector: 'header img[alt*="profile picture"]',
-      if_missing: {
-        kind: 'recovery:omit',
+    followingCount: {
+      $selector:
+        'section:has(canvas, img) + section div:last-child:nth-child(3) :nth-child(3) .html-span',
+      $ifMissing: { $strategy: 'omit' },
+      $extractor: {
+        $extractor: 'text',
+        $transformers: [
+          { $transformer: 'expand-suffix' },
+          { $transformer: 'cast', $cast: 'number' },
+        ],
       },
-      extractors: [
-        {
-          kind: 'extractor:attribute',
-          attribute: 'src',
-          key: 'profilePicture',
-          transformers: [{ kind: 'transformer:media' }],
-        },
-      ],
     },
-    {
-      kind: 'selector:array',
-      selector: 'header + div + div a:has(img)',
-      if_missing: {
-        kind: 'recovery:bail',
-        warning: 'Could not find posts array',
+    name: {
+      $selector: 'section:has(canvas, img) + section div > span',
+      $extractor: {
+        $extractor: 'text',
       },
-      key: 'posts',
-      primary_key: 'post_link',
-      fields: [
-        {
-          kind: 'selector:node',
-          selector: 'svg title',
-          if_missing: {
-            kind: 'recovery:omit',
+    },
+    isVerified: {
+      $selector: 'section:has(canvas, img) + section [aria-label=Verified]',
+      $extractor: {
+        $extractor: 'exists',
+      },
+    },
+    profilePicture: {
+      $selector: 'header img[alt*="profile picture"]',
+      $ifMissing: { $strategy: 'omit' },
+      $extractor: {
+        $extractor: 'media',
+      },
+    },
+    posts: {
+      $selectorEach: 'header + div + div a:has(img)',
+      $ifMissing: { $strategy: 'bail', $warning: 'Could not find posts array' },
+      $id: 'url',
+      $fields: {
+        image: {
+          $selector: 'img',
+          $ifMissing: {
+            $strategy: 'bail',
+            $warning: 'image not found in post?',
           },
-          extractors: [
-            {
-              kind: 'extractor:text',
-              key: 'kind',
-              transformers: [],
-            },
-          ],
-        },
-        {
-          kind: 'selector:node',
-          selector: 'img',
-          if_missing: {
-            kind: 'recovery:bail',
-            warning: 'image not found in post?',
+          $extractor: {
+            $extractor: 'media',
           },
-          extractors: [
-            {
-              kind: 'extractor:attribute',
-              attribute: 'src',
-              key: 'image_url',
-              transformers: [{ kind: 'transformer:media' }],
-            },
-            {
-              kind: 'extractor:attribute',
-              attribute: 'alt',
-              key: 'alt',
-              transformers: [],
-            },
-          ],
         },
-        {
-          kind: 'selector:self',
-          extractors: [
-            {
-              kind: 'extractor:attribute',
-              key: 'post_link',
-              attribute: 'href',
-              transformers: [{ kind: 'transformer:cast', type: 'url' }],
-            },
-          ],
+        alt: {
+          $selector: 'img',
+          $ifMissing: {
+            $strategy: 'bail',
+            $warning: 'image not found in post?',
+          },
+          $extractor: { $extractor: 'attribute', $attribute: 'alt' },
         },
-      ],
+      },
     },
-  ],
+  },
 }
 
 export const instagramPost: Resource = {
-  id: 'post',
-  hash: 'instagram-post',
-  hostname: 'www.instagram.com',
-  variables: [
-    {
-      identifier: 'post_id',
-      kind: 'url',
-      description: 'Post id',
+  $id: 'post',
+  $hash: 'instagram-post',
+  $hostname: 'www.instagram.com',
+  $variables: {
+    // username: {
+    //   $kind: 'url',
+    //   $ifMissing: {
+    //     $strategy: 'omit',
+    //   },
+    //   $description: 'Post id',
+    // },
+    post_id: {
+      $kind: 'url',
+      $description: 'Post id',
     },
-  ],
-  meta: [
-    {
-      kind: 'selector:node',
-      selector: 'html',
-      extractors: [
-        {
-          key: 'locale',
-          kind: 'extractor:attribute',
-          attribute: 'lang',
-          transformers: [{ kind: 'transformer:fallback', value: 'en' }],
-        },
-      ],
+    img_index: {
+      $kind: 'query',
+      $description: 'Index of the carousel image',
     },
+  },
+  $meta: {
+    locale: {
+      $selector: 'html',
+      $extractor: {
+        $extractor: 'attribute',
+        $attribute: 'lang',
+        $transformers: [{ $transformer: 'fallback', $value: 'en' }],
+      },
+    },
+  },
+  $urlPattern: [
+    '/p/:post_id',
+    '/reel/:post_id',
+    '/:username/p/:post_id',
+    '/:username/reel/:post_id',
   ],
-  url_pattern: '/p/:post_id',
-  wait_for: ['[aria-label=Comment]'],
-  descriptors: [
-    {
-      kind: 'selector:array',
-      key: 'image',
-      selector: '[role=presentation] li[tabindex]',
-      fields: [
+  $waitFor: ['[aria-label=Comment]'],
+  $fields: {
+    media: {
+      $variants: [
         {
-          kind: 'selector:node',
-          selector: 'img',
-          extractors: [
-            {
-              kind: 'extractor:attribute',
-              attribute: 'src',
-              key: 'image',
-              transformers: [{ kind: 'transformer:media' }],
+          $selector: '[role=presentation] ul:has(li[tabindex])',
+          $fields: {
+            type: { $literal: 'carousel' },
+            images: {
+              $selectorEach: 'li[tabindex] img',
+              $extractor: {
+                $extractor: 'media',
+              },
             },
-          ],
+          },
+        },
+        {
+          $selector: '[role=button] video[playsinline]',
+          $fields: {
+            type: { $literal: 'video' },
+            video: {
+              $extractor: { $extractor: 'media' },
+            },
+          },
         },
       ],
     },
-  ],
+    likeCount: {
+      $ifMissing: {
+        $strategy: 'omit',
+      },
+      $selector:
+        'span:has([aria-label=Like], [aria-label=Unlike]) + [role=button]',
+      $extractor: {
+        $extractor: 'text',
+        $transformers: [
+          { $transformer: 'expand-suffix' },
+          {
+            $transformer: 'cast',
+            $cast: 'number',
+          },
+        ],
+      },
+    },
+    commentCount: {
+      $ifMissing: {
+        $strategy: 'omit',
+      },
+      $selector: 'span:has([aria-label=Comment]) + [role=button]',
+      $extractor: {
+        $extractor: 'text',
+        $transformers: [
+          { $transformer: 'expand-suffix' },
+          {
+            $transformer: 'cast',
+            $cast: 'number',
+          },
+        ],
+      },
+    },
+  },
 }

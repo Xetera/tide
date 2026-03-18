@@ -6,6 +6,7 @@ import {
   PageEvaluator,
 } from '../protocol/page-evaluator'
 import type {
+  ArrayFieldDescriptor,
   JobParameters,
   JobSource,
   Resource,
@@ -101,20 +102,13 @@ export class PageManager {
     variables: MatchingResource['variables'],
     source: JobSource,
   ) {
-    const hasObservableArrays = resource.descriptors.some(
-      (d) => d.kind === 'selector:array' && d.primary_key,
-    )
+    const arrayFields = this.#getArrayFields(resource)
+    const hasObservableArrays = arrayFields.some(([, d]) => d.$id)
     if (!hasObservableArrays) {
-      console.log('[spatula] no observable arrays for resource', resource.id)
+      console.log('[spatula] no observable arrays for resource', resource.$id)
       return
     }
 
-    console.log(
-      '[spatula] setting up observer for resource',
-      resource.id,
-      'on',
-      document.body,
-    )
     let timer: ReturnType<typeof setTimeout> | undefined
     const mo = new MutationObserver(() => {
       clearTimeout(timer)
@@ -125,11 +119,10 @@ export class PageManager {
           variables,
           source,
         )
-        const hasNewItems = resource.descriptors.some(
-          (d) =>
-            d.kind === 'selector:array' &&
-            Array.isArray(page.payload[d.key]) &&
-            (page.payload[d.key] as unknown[]).length > 0,
+        const hasNewItems = this.#getArrayFields(resource).some(
+          ([key]) =>
+            Array.isArray(page.payload[key]) &&
+            (page.payload[key] as unknown[]).length > 0,
         )
         if (hasNewItems) {
           sendMessage('page-match', page)
@@ -156,7 +149,7 @@ export class PageManager {
       media = await downloadCachedMedia(mediaRefs)
     }
     return {
-      resourceId: resource.id,
+      resourceId: resource.$id,
       payload: extracted,
       variables,
       source,
@@ -165,16 +158,24 @@ export class PageManager {
     }
   }
 
-  #deduplicatePayload(resource: Resource, payload: UnknownPayload) {
-    if (!this.#seenKeys.has(resource.id)) {
-      this.#seenKeys.set(resource.id, new Map())
-    }
-    const seenByKey = this.#seenKeys.get(resource.id)!
+  #getArrayFields(resource: Resource): [string, ArrayFieldDescriptor][] {
+    return Object.entries(resource.$fields).filter(
+      (entry): entry is [string, ArrayFieldDescriptor] =>
+        typeof entry[1] === 'object' &&
+        entry[1] !== null &&
+        '$selectorEach' in entry[1],
+    )
+  }
 
-    for (const descriptor of resource.descriptors) {
-      if (descriptor.kind !== 'selector:array' || !descriptor.primary_key)
-        continue
-      const { key, primary_key } = descriptor
+  #deduplicatePayload(resource: Resource, payload: UnknownPayload) {
+    if (!this.#seenKeys.has(resource.$id)) {
+      this.#seenKeys.set(resource.$id, new Map())
+    }
+    const seenByKey = this.#seenKeys.get(resource.$id)!
+
+    for (const [key, descriptor] of this.#getArrayFields(resource)) {
+      const primary_key = descriptor.$id
+      if (!primary_key) continue
       const items = payload[key]
       if (!Array.isArray(items)) continue
 
@@ -187,15 +188,15 @@ export class PageManager {
         if (!item || typeof item !== 'object') return true
         const pkValue = (item as UnknownPayload)[primary_key]
         if (pkValue === undefined || pkValue === null) return true
-        const key =
+        const pk =
           pkValue &&
           typeof pkValue === 'object' &&
           'hash' in pkValue &&
-          typeof pkValue.hash === 'string'
-            ? pkValue.hash
+          typeof (pkValue as any).hash === 'string'
+            ? (pkValue as any).hash
             : pkValue
-        if (seen.has(key)) return false
-        seen.add(key)
+        if (seen.has(pk)) return false
+        seen.add(pk)
         return true
       })
 
@@ -269,7 +270,7 @@ export interface PageManagerOptions {
 }
 
 export interface ScrapedPage {
-  resourceId: Resource['id']
+  resourceId: Resource['$id']
   source: JobSource
   payload: UnknownPayload
   variables: Record<string, unknown>

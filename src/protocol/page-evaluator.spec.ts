@@ -6,17 +6,15 @@ import { HTMLParser } from './html-parser'
 import { JSDOM } from 'jsdom'
 import { sahibinden } from '~/fixtures/sahibinden/sahibinden'
 
-function makeResource(opts: Partial<Resource>) {
+function makeResource(opts: Partial<Resource>): Resource {
   return {
-    id: 'test-case',
-    hostname: 'example.com',
-    url_pattern: '/',
-    descriptors: [],
-    variables: [],
-    meta: [],
-    hash: '',
+    $id: 'test-case',
+    $hash: 'testing',
+    $hostname: 'example.com',
+    $urlPattern: '/',
+    $fields: {},
     ...opts,
-  } satisfies Partial<Resource>
+  }
 }
 
 describe('page evaluator', () => {
@@ -44,16 +42,15 @@ describe('page evaluator', () => {
   it('should match a direct hit', () => {
     setUrl('https://abc.com/abcd123')
     const correct = makeResource({
-      hostname: 'abc.com',
-      url_pattern: '/:test',
-      variables: [
-        {
-          alias: 'test',
-          identifier: 'test',
-          kind: 'url',
-          description: 'test',
+      $hostname: 'abc.com',
+      $urlPattern: '/:test',
+      $variables: {
+        test: {
+          $alias: 'test',
+          $kind: 'url',
+          $description: 'test',
         },
-      ],
+      },
     })
     const pe = new PageEvaluator(document, [makeResource({}), correct])
     expect(pe.checkCurrentPage()).toStrictEqual({
@@ -66,16 +63,15 @@ describe('page evaluator', () => {
   it('should ignore trailing slashes in a resource', () => {
     setUrl('https://abc.com/abcd123')
     const correct = makeResource({
-      hostname: 'abc.com',
-      url_pattern: '/:test_value/',
-      variables: [
-        {
-          alias: 'test_value',
-          identifier: 'test_value',
-          kind: 'url',
-          description: 'test',
+      $hostname: 'abc.com',
+      $urlPattern: '/:test_value/',
+      $variables: {
+        test_value: {
+          $alias: 'test_value',
+          $kind: 'url',
+          $description: 'test',
         },
-      ],
+      },
     })
     const pe = new PageEvaluator(document, [makeResource({}), correct])
     expect(pe.checkCurrentPage()).toStrictEqual({
@@ -88,16 +84,15 @@ describe('page evaluator', () => {
   it('should ignore trailing slashes in a url', () => {
     setUrl('https://abc.com/abcd123/')
     const correct = makeResource({
-      hostname: 'abc.com',
-      url_pattern: '/:test',
-      variables: [
-        {
-          alias: 'test',
-          identifier: 'test',
-          kind: 'url',
-          description: 'test',
+      $hostname: 'abc.com',
+      $urlPattern: '/:test',
+      $variables: {
+        test: {
+          $alias: 'test',
+          $kind: 'url',
+          $description: 'test',
         },
-      ],
+      },
     })
     const pe = new PageEvaluator(document, [makeResource({}), correct])
     expect(pe.checkCurrentPage()).toStrictEqual({
@@ -110,22 +105,20 @@ describe('page evaluator', () => {
   it('should match a direct hit with multiple variables', () => {
     setUrl('https://abc.com/abcd123/bbcad')
     const correct = makeResource({
-      hostname: 'abc.com',
-      url_pattern: '/:test/:test2',
-      variables: [
-        {
-          alias: 'test',
-          identifier: 'test',
-          kind: 'url',
-          description: 'test',
+      $hostname: 'abc.com',
+      $urlPattern: '/:test/:test2',
+      $variables: {
+        test: {
+          $alias: 'test',
+          $kind: 'url',
+          $description: 'test',
         },
-        {
-          alias: 'test2',
-          identifier: 'test2',
-          kind: 'url',
-          description: 'test2',
+        test2: {
+          $alias: 'test2',
+          $kind: 'url',
+          $description: 'test2',
         },
-      ],
+      },
     })
     const pe = new PageEvaluator(document, [makeResource({}), correct])
     expect(pe.checkCurrentPage()).toStrictEqual({
@@ -137,7 +130,10 @@ describe('page evaluator', () => {
 
   it('wont match partial patterns', () => {
     setUrl('https://abc.com/abcd123/bbcad')
-    const correct = makeResource({ hostname: 'abc.com', url_pattern: '/:test' })
+    const correct = makeResource({
+      $hostname: 'abc.com',
+      $urlPattern: '/:test',
+    })
     const pe = new PageEvaluator(document, [makeResource({}), correct])
     expect(pe.checkCurrentPage()).toStrictEqual({
       kind: 'fail',
@@ -147,23 +143,16 @@ describe('page evaluator', () => {
 
   it('waits for mutations to occur', { timeout: 1000 }, async () => {
     const correct = makeResource({
-      hostname: 'abc.com',
-      url_pattern: '/:test',
-      wait_for: ['h1'],
-      descriptors: [
-        {
-          kind: 'selector:node',
-          selector: 'h1',
-          if_missing: { kind: 'recovery:omit' },
-          extractors: [
-            {
-              key: 'title',
-              kind: 'extractor:text',
-              transformers: [],
-            },
-          ],
+      $hostname: 'abc.com',
+      $urlPattern: '/:test',
+      $waitFor: ['h1'],
+      $fields: {
+        title: {
+          $selector: 'h1',
+          $ifMissing: { $strategy: 'omit' },
+          $extractor: { $extractor: 'text' },
         },
-      ],
+      },
     })
     const parser = new HTMLParser(correct)
     const dom = new JSDOM('<div></div>')
@@ -182,20 +171,18 @@ describe('page evaluator', () => {
   it('extracts variables from query parameters', () => {
     setUrl('https://example.com/abc?pagingOffset=34&something=xyz')
     const r = makeResource({
-      variables: [
-        {
-          kind: 'query',
-          identifier: 'pagingOffset',
-          alias: 'test',
-          description: 'test',
+      $variables: {
+        pagingOffset: {
+          $kind: 'query',
+          $alias: 'test',
+          $description: 'test',
         },
-        {
-          kind: 'url',
-          identifier: 'something',
-          description: 'whatever',
+        something: {
+          $kind: 'url',
+          $description: 'whatever',
         },
-      ],
-      url_pattern: '/:something',
+      },
+      $urlPattern: '/:something',
     })
     const pe = new PageEvaluator(document, [r])
     expect(pe.checkCurrentPage()).toStrictEqual({
@@ -204,45 +191,6 @@ describe('page evaluator', () => {
       variables: { something: 'abc', test: '34' },
     } satisfies MatchingResource)
   })
-
-  // it('observes nested array selectors', async () => {
-  //   const r = makeResource({
-  //     descriptors: [
-  //       {
-  //         kind: 'selector:array',
-  //         key: 'links',
-  //         selector: 'a',
-  //         fields: [
-  //           {
-  //             kind: 'selector:node',
-  //             extractors: [
-  //               {
-  //                 kind: 'extractor:attribute',
-  //                 key: 'href',
-  //                 attribute: 'href',
-  //                 transformers: [],
-  //               },
-  //             ],
-  //           },
-  //         ],
-  //       },
-  //     ],
-  //   })
-  //   const dom = new JSDOM('<a href="1"></a><a href="2"></a>', {
-  //     url: 'http://localhost',
-  //   })
-  //   const pe = new PageEvaluator(dom.window.document, [r])
-  //   const callback = vitest.fn()
-  //   const observer = pe.observe(r, callback)
-  //   // dom.window.document.querySelector('a').innerText = 'hello'
-  //   dom.window.document.body.insertAdjacentHTML(
-  //     'beforeend',
-  //     '<a href="3"></a><a href="4"></a>',
-  //   )
-  //   const records = observer.takeRecords()
-  //   expect(records.length).toBe(1)
-  //   observer.disconnect()
-  // })
 
   it('should match both paths in the sahibinden fixture', () => {
     setUrl('https://www.sahibinden.com/otomobil')

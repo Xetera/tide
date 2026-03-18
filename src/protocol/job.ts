@@ -1,4 +1,4 @@
-import { constructPathRegex } from './resource'
+import { constructPathRegexes } from './resource'
 import type { JobParameters, Resource, ServerAutonomy } from './scrapeer'
 
 export class Job {
@@ -9,14 +9,14 @@ export class Job {
     readonly autonomy: ServerAutonomy,
   ) {
     const url = new URL(params.url)
-    if (url.hostname !== resource.hostname) {
+    if (url.hostname !== resource.$hostname) {
       throw new Error(
-        `Invalid job hostname: ${url.hostname}. Expected ${resource.hostname}`,
+        `Invalid job hostname: ${url.hostname}. Expected ${resource.$hostname}`,
       )
     }
-    const pattern = constructPathRegex(resource.url_pattern)
+    const patterns = constructPathRegexes(resource.$urlPattern)
 
-    if (!pattern.test(url.pathname)) {
+    if (!patterns.some((pattern) => pattern.test(url.pathname))) {
       throw new InvalidJobUrlError(url)
     }
     this.url = url

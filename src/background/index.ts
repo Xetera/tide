@@ -66,9 +66,9 @@ function emitUrlUpdate(
     events.on('runJob', async (job) => {
       const tabId = await cst.getScriptTab(job.resource)
       log({
-        text: `Running job: ${job.resource.id}`,
+        text: `Running job: ${job.resource.$id}`,
         severity: 'debug',
-        data: { url: job.url.toString(), resourceId: job.resource.id, tabId },
+        data: { url: job.url.toString(), resourceId: job.resource.$id, tabId },
       })
       console.log('[events] sending run-job event')
       console.log('parapsm', job.params)
@@ -113,10 +113,10 @@ function emitUrlUpdate(
       // })
       storage.set(
         'enabledResources',
-        resources.map((resource) => resource.id),
+        resources.map((resource) => resource.$id),
       )
       ScriptRegistry.loadFromResources(resources)
-      const hostnames = resources.map((re) => re.hostname)
+      const hostnames = resources.map((re) => re.$hostname)
       disableIframeSecurity(hostnames)
       for (const tabId of tabIds) {
         sendMessage('update-resources', resources, {
@@ -126,7 +126,7 @@ function emitUrlUpdate(
       }
       chrome.webNavigation.onHistoryStateUpdated.removeListener(emitUrlUpdate)
       chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
-        url: resources.map((resource) => ({ hostContains: resource.hostname })),
+        url: resources.map((resource) => ({ hostContains: resource.$hostname })),
       })
     })
 

@@ -1,9 +1,9 @@
 import { PageEvaluator } from './page-evaluator'
-import { constructPathRegex } from './resource'
+import { constructPathRegexes } from './resource'
 import type { Resource, UnknownPayload } from './scrapeer'
 
 export function findResource(id: string, resources: Resource[]): Resource {
-  const resource = resources.find((r) => r.id === id)
+  const resource = resources.find((r) => r.$id === id)
   if (!resource) {
     throw new Error(`Resource ${id} not found`)
   }
@@ -12,40 +12,44 @@ export function findResource(id: string, resources: Resource[]): Resource {
 }
 
 export function parseVariables(resource: Resource, url: URL) {
-  const regex = constructPathRegex(resource.url_pattern)
-  const matching = Array.from(
-    PageEvaluator.normalizePath(url.pathname).matchAll(regex),
+  const regexes = constructPathRegexes(resource.$urlPattern)
+  const normalizedPath = PageEvaluator.normalizePath(url.pathname)
+  const matching = regexes.flatMap((regex) =>
+    Array.from(normalizedPath.matchAll(regex)),
   )
 
-  const isRelatedUrl = matching.length > 0
-  if (!isRelatedUrl) {
+  if (matching.length === 0) {
     return
   }
 
+  const variables = resource.$variables ?? {}
+
   const urlVariables = {} as UnknownPayload
-  const definedUrlVariables = resource.variables.filter(
-    (variable) => variable.kind === 'url',
+  const definedUrlVariables = Object.entries(variables).filter(
+    ([, v]) => v.$kind === 'url',
   )
   for (const { groups } of matching) {
     if (!groups) {
       continue
     }
-    const declaredVariable = definedUrlVariables.filter(
-      (v) => v.identifier in groups,
-    )
-    for (const variable of declaredVariable) {
-      urlVariables[variable.alias ?? variable.identifier] =
-        groups[variable.identifier]
+    for (const [identifier, variable] of definedUrlVariables) {
+      if (identifier in groups) {
+        urlVariables[variable.$alias ?? identifier] = groups[identifier]
+      }
     }
   }
 
-  const definedQueryVariables = resource.variables.filter(
-    (variable) => variable.kind === 'query',
+  const definedQueryVariables = Object.entries(variables).filter(
+    ([, v]) => v.$kind === 'query',
   )
   const queryVariables = Object.fromEntries(
-    definedQueryVariables.map((v) => {
-      const value = url.searchParams.get(v.identifier) ?? v.default
-      return [v.alias, value]
+    definedQueryVariables.map(([identifier, v]) => {
+      const fromUrl = url.searchParams.get(identifier)
+      const fallback =
+        v.$ifMissing?.$strategy === 'fallback'
+          ? v.$ifMissing.$value.$literal
+          : undefined
+      return [v.$alias ?? identifier, fromUrl ?? fallback]
     }),
   )
 

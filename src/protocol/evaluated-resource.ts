@@ -1,8 +1,31 @@
-import type { Extractor, Resource, Selector, UnknownPayload } from './scrapeer'
+import type { ArrayFieldDescriptor, FieldDescriptor, NodeFieldDescriptor, Resource, UnknownPayload, VariantsFieldDescriptor } from './scrapeer'
 
 export interface MediaRef {
   url: string
   hash: string
+}
+
+function isArrayField(value: FieldDescriptor): value is ArrayFieldDescriptor {
+  return '$selectorEach' in value
+}
+
+function isVariantsField(value: FieldDescriptor): value is VariantsFieldDescriptor {
+  return '$variants' in value
+}
+
+function isMediaNodeField(value: FieldDescriptor): value is NodeFieldDescriptor & { $extractor: { $extractor: 'media' } } {
+  return '$extractor' in value && typeof value.$extractor === 'object' && value.$extractor.$extractor === 'media'
+}
+
+function isMediaRef(value: unknown): value is MediaRef {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'url' in value &&
+    'hash' in value &&
+    typeof (value as Record<string, unknown>).url === 'string' &&
+    typeof (value as Record<string, unknown>).hash === 'string'
+  )
 }
 
 export class EvaluatedResource {
@@ -13,51 +36,45 @@ export class EvaluatedResource {
 
   mediaUrls(): MediaRef[] {
     const out: MediaRef[] = []
-    this.#collectFromSelectors(this.resource.descriptors, this.payload, out)
+    this.#collectFromSchema(this.resource.$fields, this.payload, out)
     return out
   }
 
-  #collectFromSelectors(
-    selectors: Selector[],
+  #collectFromSchema(
+    schema: Record<string, FieldDescriptor>,
     payload: UnknownPayload,
     out: MediaRef[],
   ) {
-    for (const selector of selectors) {
-      if (selector.kind === 'selector:array') {
-        const items = payload[selector.key]
-        if (!Array.isArray(items)) continue
-        for (const item of items) {
-          if (item && typeof item === 'object') {
-            this.#collectFromSelectors(selector.fields, item as UnknownPayload, out)
+    for (const [key, descriptor] of Object.entries(schema)) {
+      if (isVariantsField(descriptor)) {
+        const value = payload[key]
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          for (const variant of descriptor.$variants) {
+            if (variant.$fields) {
+              this.#collectFromSchema(variant.$fields, value as UnknownPayload, out)
+            }
           }
         }
-      } else if (
-        selector.kind === 'selector:node' ||
-        selector.kind === 'selector:self'
-      ) {
-        this.#collectFromExtractors(selector.extractors, payload, out)
-      }
-    }
-  }
-
-  #collectFromExtractors(
-    extractors: Extractor[],
-    payload: UnknownPayload,
-    out: MediaRef[],
-  ) {
-    for (const extractor of extractors) {
-      if (!extractor.transformers) continue
-      if (!extractor.transformers.some((t) => t.kind === 'transformer:media')) continue
-      const value = payload[extractor.key]
-      if (
-        value &&
-        typeof value === 'object' &&
-        'url' in value &&
-        'hash' in value &&
-        typeof value.url === 'string' &&
-        typeof value.hash === 'string'
-      ) {
-        out.push({ url: value.url, hash: value.hash })
+      } else if (isArrayField(descriptor)) {
+        const items = payload[key]
+        if (!Array.isArray(items)) continue
+        if (descriptor.$extractor?.$extractor === 'media') {
+          for (const item of items) {
+            if (isMediaRef(item)) out.push(item)
+          }
+        } else {
+          const fields = descriptor.$fields ?? {}
+          for (const item of items) {
+            if (typeof item === 'object' && item !== null) {
+              this.#collectFromSchema(fields, item as UnknownPayload, out)
+            }
+          }
+        }
+      } else if (isMediaNodeField(descriptor)) {
+        const value = payload[key]
+        if (isMediaRef(value)) {
+          out.push(value)
+        }
       }
     }
   }

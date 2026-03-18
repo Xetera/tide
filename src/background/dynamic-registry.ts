@@ -12,7 +12,7 @@ export class ScriptRegistry {
       .filter((resource) => origins.includes(toOrigin(resource)))
       .map((resource) => {
         return {
-          id: resource.id,
+          id: resource.$id,
           matchOriginAsFallback: true,
           persistAcrossSessions: false,
           matches: [toOrigin(resource)],

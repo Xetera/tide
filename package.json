@@ -11,7 +11,7 @@
     "serve": "vite preview",
     "lint": "biome format --write .",
     "test": "vitest --no-isolate --ui",
-    "schema": "jiti src/scripts/print-schema.ts"
+    "schema": "jiti src/scripts/print-schema.ts | pbcopy"
   },
   "dependencies": {
     "@internationalized/number": "^3.6.5",

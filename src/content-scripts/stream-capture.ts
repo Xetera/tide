@@ -2,11 +2,15 @@ import type { MediaResult } from './download-media'
 
 async function fetchMedia(
   url: string,
-): Promise<{ buffer: ArrayBuffer; mimeType: string }> {
+): Promise<{ buffer: ArrayBuffer; mimeType: string; sha256hash: string }> {
   const res = await fetch(url, { cache: 'force-cache' })
   const buffer = await res.arrayBuffer()
   const mimeType = res.headers.get('content-type') ?? 'image/jpeg'
-  return { buffer, mimeType }
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
+  const sha256hash = Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+  return { buffer, mimeType, sha256hash }
 }
 
 window.addEventListener('message', async (evt) => {
@@ -21,9 +25,10 @@ window.addEventListener('message', async (evt) => {
       await Promise.all(
         refs.map(async ({ url, hash }) => {
           try {
-            const { buffer, mimeType } = await fetchMedia(url)
-            return { hash, buffer, mimeType } satisfies MediaResult & {
+            const { buffer, mimeType, sha256hash } = await fetchMedia(url)
+            return { hash, buffer, mimeType, sha256hash } satisfies MediaResult & {
               hash: string
+              sha256hash: string
             }
           } catch (err) {
             console.warn(`[spatula] failed to capture media ${url}`, err)

@@ -1,177 +1,150 @@
 export interface Resource {
   /** An opaque identifier unique for the backend that defines it */
-  id: string
+  $id: string
   /** A fixed url for which sites should be matched */
-  hostname: string
+  $hostname: string
   /**
-   * An object that determines things about the resource being scraped
-   *
-   * Currently only supports `locale` to influence how numbers behave with `transformer:cast`.
-   * It expects a selector that evaluates to the locale of the page
-   * @example
-   * meta = { locale: "en" }
-   * "1,201" -> 1200
-   *
-   * meta = { locale: "tr" }
-   * "1,200" -> 1.2
+   * An object that determines things about the resource being scraped.
+   * Keys are output field names, values are field descriptors.
+   * Currently only `locale` is used to influence number parsing.
    */
-  meta: NodeSelector[]
+  $meta?: Record<string, NodeFieldDescriptor>
   /** Whether this resource should be ignored by the client */
-  disabled?: boolean
-  /**
-   * Variables defined in the url or query expected to be parsed by the client
-   **/
-  variables: VariableDefinition[]
+  $disabled?: boolean
+  /** Variables defined in the url or query expected to be parsed by the client */
+  $variables?: Record<string, VariableDefinition>
   /** A regex compatible pattern for triggering scrapes */
-  url_pattern: string
+  $urlPattern: string | string[]
   /**
    * CSS Selector to wait for before trying to run descriptors.
-   *
    * Works like puppeteer's `page.waitForSelector()`
-   **/
-  wait_for?: string[]
-  /** Selectors that define the data that should be returned from a matching page */
-  descriptors: Selector[]
+   */
+  $waitFor?: string[]
   /**
    * opaque string for the resource that should be sent with a
    * `If-Match` header when submitting jobs
    */
-  hash: string
+  $hash: string
+  /** Field descriptors keyed by output field name */
+  $fields: Record<string, FieldDescriptor>
 }
 
-export type Selector = NodeSelector | SelfSelector | ArraySelector
+export type FieldDescriptor =
+  | NodeFieldDescriptor
+  | ArrayFieldDescriptor
+  | LiteralFieldDescriptor
+  | VariantsFieldDescriptor
 
-// export interface ComputedKey {
-//   kind: 'computed'
-//   selector: string
-//   extractors: Extractor[]
-// }
-
-// export interface LiteralKey {
-//   kind: 'literal'
-//   selector: string
-//   extractors: Extractor[]
-// }
-
-// export type Key = ComputedKey | LiteralKey
-
-export interface NodeSelector {
-  extractors: Extractor[]
-  kind: 'selector:node'
-  selector: string
-  if_missing?: Recovery
+export interface NodeFieldDescriptor {
+  $selector?: string
+  $extractor: ExtractorDescriptor
+  $ifMissing?: IfMissing
 }
 
-export interface SelfSelector {
-  extractors: Extractor[]
-  kind: 'selector:self'
-  if_missing?: Recovery
+export interface ArrayFieldDescriptor {
+  $selectorEach: string
+  $id?: string
+  $ifMissing?: IfMissing
+  $variants?: VariantDescriptor[]
+  $extractor?: ExtractorDescriptor
+  $fields?: Record<string, FieldDescriptor>
 }
 
-export interface ArraySelector {
-  key: string
-  fields: Selector[]
-  kind: 'selector:array'
-  selector: string
-  if_missing?: Recovery
-  primary_key?: string
+export interface LiteralFieldDescriptor {
+  $literal: unknown
 }
 
-export type Extractor = TextExtractor | AttributeExtractor | StyleExtractor
-
-export interface TextExtractor {
-  key: string
-  kind: 'extractor:text'
-  transformers: Transformer[]
+export interface VariantsFieldDescriptor {
+  $variants: VariantDescriptor[]
+  $ifMissing?: IfMissing
 }
 
-export interface AttributeExtractor {
-  kind: 'extractor:attribute'
-  key: string
-  transformers?: Transformer[]
-  attribute: string
+export interface VariantDescriptor {
+  $match?: { $css: string }
+  $selector?: string
+  $selectorEach?: string
+  $extractor?: ExtractorDescriptor
+  $fields?: Record<string, FieldDescriptor>
 }
 
-/**
- * Can be used for extracting pseudo-content like
- * @example
- * ```css
- * .arbitrary-class:before {
- *   content: "hello world";
- * }
- * ```
- * Using the following declaration
- * ```json
- * {
- *   "key": "name",
- *   "pseudo": ":before",
- *   "declaration": "content"
- * }
- * ```
- */
-export interface StyleExtractor {
-  kind: 'extractor:style'
-  key: string
-  pseudo?: string
-  declaration: keyof CSSStyleDeclaration
-  transformers: Transformer[]
+export type ExtractorDescriptor =
+  | TextExtractorDescriptor
+  | AttributeExtractorDescriptor
+  | MediaExtractorDescriptor
+  | ExistsExtractorDescriptor
+
+export interface TextExtractorDescriptor {
+  $extractor: 'text'
+  $transformers?: TransformerDescriptor[]
 }
 
-export type Transformer =
-  | RegexTransformer
-  | CastTransformer
-  | FallbackTransformer
-  | TrimTransformer
-  | MediaTransformer
-
-export interface MediaTransformer {
-  kind: 'transformer:media'
+export interface AttributeExtractorDescriptor {
+  $extractor: 'attribute'
+  $attribute: string
+  $transformers?: TransformerDescriptor[]
 }
 
-export interface RegexTransformer {
-  kind: 'transformer:regex'
-  regex: string
-  replacement?: string | null
+export interface MediaExtractorDescriptor {
+  $extractor: 'media'
+  $transformers?: TransformerDescriptor[]
 }
 
-export type CastTransformer =
+export interface ExistsExtractorDescriptor {
+  $extractor: 'exists'
+}
+
+export type TransformerDescriptor =
+  | RegexTransformerDescriptor
+  | CastTransformerDescriptor
+  | FallbackTransformerDescriptor
+  | TrimTransformerDescriptor
+  | LowercaseTransformerDescriptor
+  | ExpandSuffixTransformerDescriptor
+
+export interface RegexTransformerDescriptor {
+  $transformer: 'regex'
+  $regex: string
+  $group?: number
+  $replacement?: string | null
+}
+
+export type CastTransformerDescriptor =
+  | { $transformer: 'cast'; $cast: 'url' }
   | {
-      kind: 'transformer:cast'
-      type: 'url'
+      $transformer: 'cast'
+      $cast: 'number'
+      $options?: { $forceLocale?: string }
     }
-  | {
-      kind: 'transformer:cast'
-      type: 'number'
-      options?: { force_locale?: string }
-    }
+  | { $transformer: 'cast'; $cast: 'date' }
 
-export interface FallbackTransformer {
-  kind: 'transformer:fallback'
-  value: string
+export interface FallbackTransformerDescriptor {
+  $transformer: 'fallback'
+  $value: unknown
 }
 
-export interface TrimTransformer {
-  kind: 'transformer:trim'
-  options: ('inside' | 'outside')[]
+export interface TrimTransformerDescriptor {
+  $transformer: 'trim'
+  $options: ('inside' | 'outside')[]
 }
 
-export type Recovery =
-  | { kind: 'recovery:bail'; warning?: string }
-  | {
-      kind: 'recovery:omit'
-      warning?: string
-    }
-  | {
-      kind: 'recovery:fallback'
-      selector: Selector
-    }
+export interface LowercaseTransformerDescriptor {
+  $transformer: 'lowercase'
+}
+
+export interface ExpandSuffixTransformerDescriptor {
+  $transformer: 'expand-suffix'
+}
+
+export type IfMissing =
+  | { $strategy: 'bail'; $warning?: string }
+  | { $strategy: 'omit'; $warning?: string }
+  | { $strategy: 'fallback'; $value: LiteralFieldDescriptor | FieldDescriptor }
 
 export interface VariableDefinition {
-  kind: 'url' | 'query'
-  alias?: string
-  identifier: string
-  description: string
-  default?: string
+  $kind: 'url' | 'query'
+  $alias?: string
+  $description: string
+  $ifMissing?: { $strategy: 'fallback'; $value: LiteralFieldDescriptor }
 }
 
 export interface ResourcesResponse {
@@ -183,12 +156,8 @@ export type JobSource = { kind: 'active'; id: string } | { kind: 'passive' }
 
 interface JobOkay {
   success: true
-  // was the request fired off automatically or did the user
-  // navigate to the page
   job: JobSource
   resource_id: string
-  // requestDate: Date
-  // responseDate: Date
   payload: UnknownPayload
   variables: UnknownPayload
   warnings: readonly string[]
@@ -197,7 +166,6 @@ interface JobOkay {
 interface JobFail {
   success: false
   source: JobSource
-  // the hash of the resource that was used to fulfill the job
   resource_id: string
   error: string
 }

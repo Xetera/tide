@@ -40,11 +40,13 @@ Let's imagine we want to scrape this specific HTML fragment on `https://simpsons
 <ul id="users">
   <li>
     <p>Homer</p>
+    <span class="verified">✓</span>
     <a href="/characters/homer-simpson">Read more</a>
   </li>
   <li>
     <p>Bart</p>
-    <a href="/characters/batholomew-simpson">Read more</a>
+    <img src="bart.jpg" />
+    <a href="/characters/bartholomew-simpson">Read more</a>
   </li>
   <li>
     <p>Principal Skinner</p>
@@ -57,38 +59,35 @@ Our server will declare its `GET /resource` endpoint like this to tell the clien
 
 ```js
 {
-  id: "simpsons_characters",
-  hostname: "simpsons.com",
-  url_pattern: "/characters",
-  descriptors: [{
-    kind: "selector:array",
-    selector: "#users li",
-    key: "people",
-    fields: [
-      {
-        kind: "selector:node",
-        selector: "a",
-        extractors: [
-          {
-            kind: "extractor:attribute",
-            attribute: "href",
-            key: "page",
-            transformers: [{ kind: "transformer:cast", type: "url" }]
-          }
-        ]
-      },
-      {
-        kind: "selector:node",
-        selector: "p",
-        extractors: [
-          {
-            kind: "extractor:text",
-            key: "nickname",
-          }
-        ]
+  $id: "simpsons_characters",
+  $hostname: "simpsons.com",
+  $urlPattern: "/characters",
+  $fields: {
+    people: {
+      $selectorEach: "#users li",
+      $fields: {
+        page: {
+          $selector: "a",
+          $extractor: { $extractor: "attribute", $attribute: "href" }
+        },
+        image: {
+          $selector: "img",
+          $ifMissing: {
+            $strategy: "omit"
+          },
+          $extractor: { $extractor: "media" }
+        },
+        nickname: {
+          $selector: "p",
+          $extractor: { $extractor: "text" }
+        },
+        isVerified: {
+          $selector: "span.verified",
+          $extractor: { $extractor: "exists" }
+        }
       }
-    ]
-  }]
+    }
+  }
 }
 ```
 
@@ -102,15 +101,23 @@ Spatula will parse data out when the user navigates to the page, and hit up `POS
     "people": [
       {
         "nickname": "Homer",
-        "page": "https://simpsons.com/characters/homer-simpson"
+        "page": "https://simpsons.com/characters/homer-simpson",
+        "isVerified": true
       },
       {
         "nickname": "Bart",
-        "page": "https://simpsons.com/characters/bartholomew-simpson"
+        "page": "https://simpsons.com/characters/bartholomew-simpson",
+        "image": {
+          "url": "https://simpsons.com/characters/bart.jpg",
+          "id": "<<shortid>>",
+          "sha256hash": "<<imagehash>>"
+        },
+        "isVerified": false
       },
       {
         "nickname": "Principal Skinner",
-        "page": "https://simpsons.com/characters/armin-tamzarian"
+        "page": "https://simpsons.com/characters/armin-tamzarian",
+        "isVerified": false
       }
     ]
   }

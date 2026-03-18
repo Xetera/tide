@@ -62,7 +62,7 @@ function Page() {
 
   function getNewPermissions(resource: Resource) {
     requestNewPermissions(resource)
-    storage.push('enabledResources', resource.id)
+    storage.push('enabledResources', resource.$id)
   }
 
   return (
@@ -82,7 +82,7 @@ function Page() {
                   type='button'
                   onClick={() => getNewPermissions(resource)}
                 >
-                  {hostAllowed ? '👍' : '👎'} {resource.id}
+                  {hostAllowed ? '👍' : '👎'} {resource.$id}
                 </button>
               )}
             </For>

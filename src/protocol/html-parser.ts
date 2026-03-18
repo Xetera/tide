@@ -11,8 +11,34 @@ function fnv1a(str: string): string {
   return hash.toString(36)
 }
 
+function isNodeField(value: unknown): value is S.NodeFieldDescriptor {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '$extractor' in value &&
+    !('$selectorEach' in value)
+  )
+}
+
+function isArrayField(value: unknown): value is S.ArrayFieldDescriptor {
+  return typeof value === 'object' && value !== null && '$selectorEach' in value
+}
+
+function isLiteral(value: unknown): value is S.LiteralFieldDescriptor {
+  return typeof value === 'object' && value !== null && '$literal' in value
+}
+
+function isVariantsField(value: unknown): value is S.VariantsFieldDescriptor {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '$variants' in value &&
+    !('$selectorEach' in value) &&
+    !('$extractor' in value)
+  )
+}
+
 export class HTMLParser {
-  // this changes based on the locale of the document being parsed
   private numberParser?: NumberParser
   private _warnings: string[] = []
 
@@ -24,24 +50,28 @@ export class HTMLParser {
     return Object.freeze(this._warnings)
   }
 
-  /**
-   * Parses an HTML document after waiting for it to load based on the resource definition
-   */
   async parseAsync(
     html: string | Document,
     { maxWait = 10_000 } = {},
   ): Promise<S.UnknownPayload> {
     this._warnings = []
     const doc = HTMLParser.createDocument(html)
+    const waitFor = this.resource.$waitFor
+    if (
+      waitFor?.length &&
+      waitFor.every((s) => doc.querySelector(s) !== null)
+    ) {
+      this.#warn(
+        `wait_for selectors were immediately available — page may have been pre-rendered: ${waitFor.join(', ')}`,
+      )
+    }
     await PageEvaluator.waitForLoad(doc, this.resource, { maxWait })
-
     return this.#process(doc)
   }
 
   parse(html: string | Document) {
     this._warnings = []
     const element = HTMLParser.createDocument(html)
-
     return this.#process(element)
   }
 
@@ -49,14 +79,15 @@ export class HTMLParser {
     try {
       this.#currentDocument = document
       this.numberParser = new NumberParser('en')
-      if (this.resource.meta) {
-        const meta = this.#parseMeta(document, this.resource.meta)
-        if (meta.locale) {
+
+      if (this.resource.$meta) {
+        const meta = this.#parseMeta(document, this.resource.$meta)
+        if (typeof meta.locale === 'string') {
           this.numberParser = new NumberParser(meta.locale)
         }
       }
 
-      return this.select(document, this.resource.descriptors)
+      return this.#parseFields(document.body, this.resource.$fields)
     } catch (err) {
       if (err instanceof BailSignal) {
         return {}
@@ -65,133 +96,208 @@ export class HTMLParser {
     }
   }
 
-  select(document: Document, selectors: S.Selector[]): S.UnknownPayload {
-    const output: S.UnknownPayload = {}
-    for (const selector of selectors) {
-      if (selector.kind === 'selector:array') {
-        output[selector.key] = this.#selectArray(document.body, selector)
-      } else if (selector.kind === 'selector:node') {
-        Object.assign(output, this.#selectNode(document.body, selector))
-      } else if (selector.kind === 'selector:self') {
-        Object.assign(output, this.#selectSelf(document.body, selector))
-      }
-    }
-    return output
-  }
-
-  private static createDocument(html: string | Document) {
-    if (typeof html !== 'string') {
-      return html
-    }
-    return new DOMParser().parseFromString(html, 'text/html')
-  }
-
-  #parseMeta(document: Document, selectors: S.NodeSelector[]) {
-    const meta: { locale?: string; [key: string]: unknown } = {}
-    for (const selector of selectors) {
-      const nodeValues = this.#selectNode(document, selector)
-
-      Object.assign(meta, nodeValues)
-    }
-    return meta
-  }
-
-  #selectArray(element: HTMLElement, selector: S.ArraySelector) {
-    const items = element.querySelectorAll(
-      selector.selector,
-    ) as NodeListOf<HTMLElement>
-    return Array.from(items, (item) => {
-      const data: Record<string, unknown> = {}
-      const fields = selector.fields.flatMap((field) => {
-        switch (field.kind) {
-          case 'selector:node':
-            return this.#selectNode(item, field)
-          case 'selector:self':
-            return this.#selectSelf(item, field)
-          case 'selector:array':
-            return { [field.key]: this.#selectArray(item, field) }
-        }
-      })
-      for (const field of fields) {
-        Object.assign(data, field)
-      }
-
-      return data
-    })
-  }
-
-  #selectNode(
-    element: ParentNode,
-    selector: S.NodeSelector,
+  #parseMeta(
+    document: Document,
+    meta: Record<string, S.NodeFieldDescriptor>,
   ): Record<string, unknown> {
-    const node = element.querySelector(selector.selector) as
-      | HTMLElement
-      | undefined
-
-    if (!node) {
-      if (selector.if_missing) {
-        if ('warning' in selector.if_missing && selector.if_missing.warning) {
-          this.#warn(selector.if_missing.warning)
-        }
-        switch (selector.if_missing.kind) {
-          case 'recovery:bail':
-            throw new BailSignal()
-          case 'recovery:fallback':
-            return this.select(this.#currentDocument, [
-              selector.if_missing.selector,
-            ])
-          case 'recovery:omit':
-            return {}
-        }
-      }
-
-      throw new ParserError(
-        selector.selector,
-        // pointer,
-        'No node was found and no fallback was provided',
-      )
-    }
-
-    return this.#runExtractors(node, selector, selector.extractors)
-  }
-
-  #selectSelf(
-    element: HTMLElement,
-    selector: S.SelfSelector,
-  ): Record<string, unknown> {
-    return this.#runExtractors(element, selector, selector.extractors)
-  }
-
-  #runExtractors(
-    element: HTMLElement,
-    selector: S.Selector,
-    extractors: S.Extractor[],
-  ) {
     const out: Record<string, unknown> = {}
-    for (const extractor of extractors) {
-      try {
-        const value = this.#extract(element, extractor)
-        this.#mutateSubObjects(extractor.key, out, value)
-      } catch (error) {
-        if (
-          !selector.if_missing ||
-          selector.if_missing.kind !== 'recovery:omit'
-        ) {
-          console.error(error)
+    for (const [key, descriptor] of Object.entries(meta)) {
+      const node = document.querySelector(
+        descriptor.$selector,
+      ) as HTMLElement | null
+      if (!node) continue
+      const value = this.#runExtractor(node, descriptor.$extractor)
+      out[key] = value
+    }
+    return out
+  }
+
+  #parseFields(
+    element: ParentNode,
+    schema: Record<string, S.FieldDescriptor>,
+  ): S.UnknownPayload {
+    const out: S.UnknownPayload = {}
+    for (const key of Object.keys(schema)) {
+      const descriptor = schema[key]
+      if (isLiteral(descriptor)) {
+        this.#setKey(key, out, descriptor.$literal)
+      } else if (isArrayField(descriptor)) {
+        const result = this.#parseArrayField(element as HTMLElement, descriptor)
+        if (result !== undefined) {
+          this.#setKey(key, out, result)
+        }
+      } else if (isVariantsField(descriptor)) {
+        const result = this.#parseVariantsField(
+          element as HTMLElement,
+          key,
+          descriptor,
+        )
+        if (result !== undefined) {
+          this.#setKey(key, out, result)
+        }
+      } else if (isNodeField(descriptor)) {
+        const result = this.#parseNodeField(
+          element as ParentNode,
+          key,
+          descriptor,
+        )
+        if (result !== undefined) {
+          this.#setKey(key, out, result)
         }
       }
     }
     return out
   }
 
-  #extract(element: HTMLElement, extractor: S.Extractor) {
-    switch (extractor.kind) {
-      case 'extractor:text':
+  #setKey(key: string, object: Record<string, unknown>, value: unknown): void {
+    const fields = key.split('.')
+    if (fields.length === 1) {
+      object[key] = value
+      return
+    }
+    const init = fields.slice(0, -1)
+    const last = fields.at(-1) as string
+    let target: Record<string, any> = object
+    for (const section of init) {
+      if (!(section in target)) {
+        target[section] = {}
+      }
+      target = target[section]
+    }
+    target[last] = value
+  }
+
+  #parseNodeField(
+    element: ParentNode,
+    key: string,
+    descriptor: S.NodeFieldDescriptor,
+  ): unknown {
+    const node = (
+      descriptor.$selector
+        ? element.querySelector(descriptor.$selector)
+        : element
+    ) as HTMLElement | null
+
+    if (!node) {
+      if (descriptor.$extractor.$extractor === 'exists') {
+        return false
+      }
+      if (descriptor.$ifMissing) {
+        return this.#handleIfMissing(descriptor.$ifMissing, key)
+      }
+      throw new ParserError(
+        descriptor.$selector,
+        'No node was found and no fallback was provided',
+      )
+    }
+
+    return this.#runExtractor(node, descriptor.$extractor)
+  }
+
+  #handleIfMissing(ifMissing: S.IfMissing, key: string): unknown {
+    if ('$warning' in ifMissing && ifMissing.$warning) {
+      this.#warn(ifMissing.$warning)
+    }
+    switch (ifMissing.$strategy) {
+      case 'bail':
+        throw new BailSignal()
+      case 'omit':
+        return undefined
+      case 'fallback': {
+        const v = ifMissing.$value
+        if (isLiteral(v)) return v.$literal
+        if (isNodeField(v)) {
+          return this.#parseNodeField(this.#currentDocument.body, key, v)
+        }
+        return undefined
+      }
+    }
+  }
+
+  #parseArrayField(
+    element: HTMLElement,
+    descriptor: S.ArrayFieldDescriptor,
+  ): unknown[] | unknown {
+    const items = element.querySelectorAll(
+      descriptor.$selectorEach,
+    ) as NodeListOf<HTMLElement>
+
+    if (items.length === 0 && descriptor.$ifMissing) {
+      return this.#handleIfMissing(descriptor.$ifMissing, '')
+    }
+
+    return Array.from(items, (item) => {
+      if (descriptor.$variants) {
+        return this.#parseVariants(item, descriptor.$variants)
+      }
+      if (descriptor.$extractor) {
+        return this.#runExtractor(item, descriptor.$extractor)
+      }
+      return this.#parseFields(item, descriptor.$fields ?? {})
+    })
+  }
+
+  #parseVariantsField(
+    element: HTMLElement,
+    key: string,
+    descriptor: S.VariantsFieldDescriptor,
+  ): unknown {
+    for (const variant of descriptor.$variants) {
+      const node = (
+        variant.$selector ? element.querySelector(variant.$selector) : element
+      ) as HTMLElement | null
+      if (!node) continue
+      return this.#parseVariant(node, variant)
+    }
+    if (descriptor.$ifMissing) {
+      return this.#handleIfMissing(descriptor.$ifMissing, key)
+    }
+    return undefined
+  }
+
+  #parseVariant(node: HTMLElement, variant: S.VariantDescriptor): unknown {
+    if (variant.$extractor) {
+      return this.#runExtractor(node, variant.$extractor)
+    }
+    if (variant.$selectorEach) {
+      const items = node.querySelectorAll(
+        variant.$selectorEach,
+      ) as NodeListOf<HTMLElement>
+      return Array.from(items, (item) =>
+        variant.$extractor
+          ? this.#runExtractor(item, variant.$extractor)
+          : this.#parseFields(item, variant.$fields ?? {}),
+      )
+    }
+    return this.#parseFields(node, variant.$fields ?? {})
+  }
+
+  #parseVariants(
+    item: HTMLElement,
+    variants: S.VariantDescriptor[],
+  ): S.UnknownPayload {
+    for (const variant of variants) {
+      const match = variant.$match
+      if (!match || item.matches(match.$css)) {
+        return this.#parseVariant(item, variant) as S.UnknownPayload
+      }
+    }
+    return {}
+  }
+
+  #runExtractor(
+    element: HTMLElement,
+    extractor: S.ExtractorDescriptor,
+  ): unknown {
+    switch (extractor.$extractor) {
+      case 'text':
         return this.#extractText(element, extractor)
-      case 'extractor:attribute':
+      case 'attribute':
         return this.#extractAttribute(element, extractor)
-      case 'extractor:style':
-        return this.#extractStyle(element, extractor)
+      case 'media':
+        return this.#extractMedia(element, extractor)
+      case 'exists':
+        return true
       default: {
         extractor satisfies never
         throw new Error('Invalid extractor kind')
@@ -199,60 +305,71 @@ export class HTMLParser {
     }
   }
 
-  #extractStyle(element: HTMLElement, extractor: S.StyleExtractor) {
-    const thisWindow = this.#currentDocument.defaultView
-    if (!thisWindow) {
-      throw new Error('No window instance found for current document')
-    }
-
-    const styles = thisWindow.getComputedStyle(element, extractor.pseudo)
-    if (!styles) {
-      this.#warn(
-        `Could not find any styles for element being extracted for key ${extractor.key}`,
-      )
-      return
-    }
-
-    return styles[extractor.declaration]
-  }
-
-  #extractText(element: HTMLElement, extractor: S.TextExtractor) {
+  #extractText(
+    element: HTMLElement,
+    extractor: S.TextExtractorDescriptor,
+  ): unknown {
     const cloned = this.#normalizeTextContentBehavior(element)
-    return this.#transformAll(cloned.textContent, extractor.transformers)
+    return this.#transformAll(cloned.textContent, extractor.$transformers ?? [])
   }
 
-  #extractAttribute(element: HTMLElement, extractor: S.AttributeExtractor) {
-    const value = element.getAttribute(extractor.attribute)
-    if (!extractor.transformers) {
-      return value
+  #extractAttribute(
+    element: HTMLElement,
+    extractor: S.AttributeExtractorDescriptor,
+  ): unknown {
+    const value = element.getAttribute(extractor.$attribute)
+    return this.#transformAll(value, extractor.$transformers ?? [])
+  }
+
+  #extractMedia(
+    element: HTMLElement,
+    extractor: S.MediaExtractorDescriptor,
+  ): unknown {
+    const src = element.getAttribute('src') ?? element.getAttribute('href')
+    const transformed = this.#transformAll(src, extractor.$transformers ?? [])
+    const url = this.#castUrl(transformed)
+    const hash = fnv1a(url)
+    return { url, hash }
+  }
+
+  #castUrl(value: unknown): string {
+    if (typeof value !== 'string') {
+      throw new Error(`Invalid URL: ${value}`)
     }
-    return this.#transformAll(value, extractor.transformers)
+    try {
+      return new URL(value).toString()
+    } catch {
+      return new URL(value, `https://${this.resource.$hostname}`).toString()
+    }
   }
 
-  #transformAll(value: unknown, transformers: S.Transformer[]): unknown {
-    return transformers.reduce((acc, transformer) => {
-      return this.#transform(acc, transformer)
-    }, value)
+  #transformAll(
+    value: unknown,
+    transformers: S.TransformerDescriptor[],
+  ): unknown {
+    return transformers.reduce((acc, t) => this.#transform(acc, t), value)
   }
 
-  #transform(value: unknown, transformer: S.Transformer) {
-    switch (transformer.kind) {
-      case 'transformer:regex':
+  #transform(value: unknown, transformer: S.TransformerDescriptor): unknown {
+    switch (transformer.$transformer) {
+      case 'regex':
         return this.#transformRegex(value, transformer)
-      case 'transformer:cast':
+      case 'cast':
         return this.#transformCast(value, transformer)
-      case 'transformer:fallback':
-        return this.#transformFallback(value, transformer)
-      case 'transformer:trim':
+      case 'fallback':
+        return value ?? transformer.$value
+      case 'trim':
         return this.#transformTrim(value, transformer)
-      case 'transformer:media':
-        return this.#transformMedia(value, transformer)
+      case 'lowercase':
+        return typeof value === 'string' ? value.toLowerCase() : value
+      case 'expand-suffix':
+        return this.#transformExpandSuffix(value)
       default: {
         // @ts-expect-error
         const _: never = transformer
-        if ('kind' in transformer) {
-          // @ts-expect-error | transformer.kind must exist
-          this.#warn(`Invalid transformer kind: ${transformer.kind}`)
+        if ('$transformer' in transformer) {
+          // @ts-expect-error
+          this.#warn(`Invalid transformer kind: ${transformer.$transformer}`)
         } else {
           this.#warn(`Invalid transformer: ${transformer}`)
         }
@@ -261,127 +378,90 @@ export class HTMLParser {
     }
   }
 
-  #transformMedia(value: unknown, _transformer: S.MediaTransformer) {
-    const url = this.#transformCast(value, {
-      kind: 'transformer:cast',
-      type: 'url',
-    })
-    const hash = fnv1a(url)
-    return {
-      url,
-      hash,
-    }
-  }
-
-  #transformTrim(value: unknown, transformer: S.TrimTransformer): string {
+  #transformRegex(
+    value: unknown,
+    transformer: S.RegexTransformerDescriptor,
+  ): unknown {
     if (typeof value !== 'string') {
       throw new Error(`Invalid value: ${value}`)
     }
-
-    let out: string = value
-
-    if (transformer.options.includes('inside')) {
-      out = out.replaceAll(/ +/g, ' ')
-      out = out.replaceAll(/\s*\n\s*/g, '\n')
+    const regex = new RegExp(transformer.$regex)
+    if (
+      transformer.$replacement === undefined ||
+      transformer.$replacement === null
+    ) {
+      const group = transformer.$group ?? 1
+      return value.match(regex)?.[group] ?? null
     }
-
-    if (transformer.options.includes('outside')) {
-      out = out.trim()
-    }
-
-    return out
-  }
-
-  #transformRegex(value: unknown, transformer: S.RegexTransformer): string {
-    if (typeof value !== 'string') {
-      throw new Error(`Invalid value: ${value}`)
-    }
-
-    const regex = new RegExp(transformer.regex)
-    if (!transformer.replacement) {
-      const matched = value.match(regex)?.[1]
-      if (!matched) return null
-      return matched
-    }
-
-    return value.replace(regex, transformer.replacement)
+    return value.replace(regex, transformer.$replacement)
   }
 
   #transformCast(
     value: unknown,
-    transformer: Extract<S.CastTransformer, { type: 'url' }>,
-  ): string
-  #transformCast(
-    value: unknown,
-    transformer: Extract<S.CastTransformer, { type: 'number' }>,
-  ): number
-  #transformCast(value: unknown, transformer: S.CastTransformer): unknown
-  #transformCast(value: unknown, transformer: S.CastTransformer): unknown {
+    transformer: S.CastTransformerDescriptor,
+  ): unknown {
     if (value === null || value === undefined) return null
-    if (transformer.type === 'url') {
-      if (typeof value !== 'string') {
-        throw new Error(`Invalid URL: ${value}`)
-      }
-      try {
-        return new URL(value).toString()
-      } catch (e) {
-        return new URL(value, `https://${this.resource.hostname}`).toString()
-      }
-    } else if (transformer.type === 'number') {
-      if (typeof value === 'number') {
-        return value
-      }
+    if (transformer.$cast === 'url') {
+      return this.#castUrl(value)
+    } else if (transformer.$cast === 'number') {
+      if (typeof value === 'number') return value
       if (typeof value === 'string') {
         if (!this.numberParser) {
           throw new Error(
             'this.numberParser is undefined. This should never happen',
           )
         }
-        const numberParser = transformer.options?.force_locale
-          ? new NumberParser(transformer.options.force_locale)
+        const parser = transformer.$options?.$forceLocale
+          ? new NumberParser(transformer.$options.$forceLocale)
           : this.numberParser
-        return numberParser.parse(value)
+        return parser.parse(value)
       }
-
       return null
-    } else {
-      transformer satisfies never
-      throw new Error('Invalid state')
-    }
-  }
-
-  #transformFallback(
-    value: unknown,
-    transformer: S.FallbackTransformer,
-  ): unknown {
-    if (value === null || value === undefined) {
-      return transformer.value
-    }
-    return value
-  }
-
-  #mutateSubObjects(
-    key: string,
-    object: Record<string, unknown>,
-    value: unknown,
-  ): Record<string, unknown> {
-    const fields = key.split('.')
-    if (fields.length === 1) {
-      object[key] = value
-      return object
-    }
-    const init = fields.slice(0, -1)
-    const last = fields.at(-1) as string
-    let target: Record<string, any> = object
-
-    for (const section of init) {
-      if (!(section in target)) {
-        target[section] = {} as Record<string, any>
+    } else if (transformer.$cast === 'date') {
+      if (typeof value === 'string') {
+        const d = new Date(value)
+        return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10)
       }
-      target = target[section]
+      return null
     }
-    target[last] = value
-    return object
+    transformer satisfies never
+    throw new Error('Invalid cast type')
+  }
+
+  #transformTrim(
+    value: unknown,
+    transformer: S.TrimTransformerDescriptor,
+  ): string {
+    if (typeof value !== 'string') {
+      throw new Error(`Invalid value: ${value}`)
+    }
+    let out = value
+    if (transformer.$options.includes('inside')) {
+      out = out.replaceAll(/ +/g, ' ')
+      out = out.replaceAll(/\s*\n\s*/g, '\n')
+    }
+    if (transformer.$options.includes('outside')) {
+      out = out.trim()
+    }
+    return out
+  }
+
+  #transformExpandSuffix(value: unknown): unknown {
+    if (typeof value !== 'string') return value
+    const suffixes: Record<string, number> = {
+      K: 1_000,
+      M: 1_000_000,
+      B: 1_000_000_000,
+    }
+    const match = value.match(/^([\d.]+)\s*([KMB])$/i)
+    if (!match) return value
+    const multiplier = suffixes[match[2].toUpperCase()]
+    return String(parseFloat(match[1]) * multiplier)
+  }
+
+  private static createDocument(html: string | Document): Document {
+    if (typeof html !== 'string') return html
+    return new DOMParser().parseFromString(html, 'text/html')
   }
 
   /**
@@ -398,13 +478,11 @@ export class HTMLParser {
     for (const brs of clone.querySelectorAll('br')) {
       brs.replaceWith('\n')
     }
-
     for (const script of clone.querySelectorAll('script')) {
       script.remove()
     }
-
-    for (const script of clone.querySelectorAll('style')) {
-      script.remove()
+    for (const style of clone.querySelectorAll('style')) {
+      style.remove()
     }
     return clone
   }

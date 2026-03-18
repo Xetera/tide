@@ -178,7 +178,7 @@ export class Client {
     }
     const body = await this.#processMatchingPage(page)
 
-    const jobPostReq = this.#requestJobPost(server.url, resource.hash, body)
+    const jobPostReq = this.#requestJobPost(server.url, resource.$hash, body)
     const request = this.#requestBase(jobPostReq, server)
     let response: Response
     try {
@@ -196,15 +196,15 @@ export class Client {
         log({
           severity: 'warning',
           text: 'Failed job precondition while submitting. Trying to refresh and re-submit...',
-          data: { resourceId: resource.id, hash: resource.hash },
+          data: { resourceId: resource.$id, hash: resource.$hash },
         })
       } else {
         log({
           severity: 'error',
           text: 'Failed job precondition more than 3 times while submitting! Giving up and pausing temporarily',
           data: {
-            resourceId: resource.id,
-            hash: resource.hash,
+            resourceId: resource.$id,
+            hash: resource.$hash,
             retries: retryCount,
           },
         })
@@ -243,7 +243,7 @@ export class Client {
       }
       log({
         severity: 'error',
-        text: `Failed to submit job for resource: ${resource.id}`,
+        text: `Failed to submit job for resource: ${resource.$id}`,
         data: { response: responseText },
       })
       return
@@ -251,7 +251,7 @@ export class Client {
 
     log({
       severity: 'info',
-      text: `Successfully submitted (${page.source.kind}) job ${resource.id}`,
+      text: `Successfully submitted (${page.source.kind}) job ${resource.$id}`,
     })
   }
 
@@ -403,7 +403,7 @@ export class Client {
     for (const server of this.servers) {
       const resources = this.#resources.get(server) ?? []
       for (const resource of resources) {
-        if (resource.id === id) {
+        if (resource.$id === id) {
           return { server, resource }
         }
       }

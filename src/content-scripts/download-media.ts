@@ -3,6 +3,7 @@ import type { MediaRef } from '~/protocol/evaluated-resource'
 export interface MediaResult {
   buffer: ArrayBuffer
   mimeType: string
+  sha256hash: string
 }
 
 export function downloadCachedMedia(
@@ -21,9 +22,9 @@ export function downloadCachedMedia(
       }
       window.removeEventListener('message', handler)
       const map: Record<string, MediaResult> = {}
-      for (const { hash, buffer, mimeType } of evt.data
+      for (const { hash, buffer, mimeType, sha256hash } of evt.data
         .results as (MediaResult & { hash: string })[]) {
-        map[hash] = { buffer, mimeType }
+        map[hash] = { buffer, mimeType, sha256hash }
       }
       resolve(map)
     }

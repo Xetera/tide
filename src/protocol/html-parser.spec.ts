@@ -3,19 +3,17 @@ import { describe, expect, it } from 'vitest'
 import { instagram } from '~/fixtures/instagram/instagram'
 import { sahibinden } from '~/fixtures/sahibinden/sahibinden'
 import { HTMLParser } from './html-parser'
-import type { Resource } from './scrapeer'
+import type { FieldDescriptor, Resource } from './scrapeer'
 
-function p(opts: Partial<Resource>) {
+function p(fields: Record<string, FieldDescriptor>, opts: Partial<Omit<Resource, '$fields'>> = {}) {
   return new HTMLParser({
-    id: 'test-case',
-    hostname: 'example.com',
-    url_pattern: '/',
-    descriptors: [],
-    variables: [],
-    meta: [],
-    hash: '',
+    $id: 'test-case',
+    $hostname: 'example.com',
+    $urlPattern: '/',
+    $hash: '',
     ...opts,
-  } satisfies Partial<Resource>)
+    $fields: fields,
+  })
 }
 
 function generateFixture(name: string) {
@@ -28,12 +26,9 @@ function generateFixture(name: string) {
 
 describe.concurrent('html-parser', () => {
   it('should parse sahibinden fixture', async () => {
-    const { html, result } = generateFixture(
-      'sahibinden/sahibinden.real-estate',
-    )
+    const { html, result } = generateFixture('sahibinden/sahibinden.real-estate')
     const rp = new HTMLParser(sahibinden)
     const output = rp.parse(html)
-    // console.log(JSON.stringify(output, true, 8))
     expect(output).toStrictEqual(result)
   })
 
@@ -52,40 +47,25 @@ describe.concurrent('html-parser', () => {
   })
 
   it('should use locale to parse ambiguous numbers', () => {
-    const parser = p({
-      meta: [
-        {
-          kind: 'selector:node',
-          selector: 'html',
-          extractors: [
-            {
-              kind: 'extractor:attribute',
-              key: 'locale',
-              attribute: 'lang',
-              transformers: [],
-            },
-          ],
+    const parser = p(
+      {
+        price: {
+          $selector: 'div',
+          $extractor: {
+            $extractor: 'text',
+            $transformers: [{ $transformer: 'cast', $cast: 'number' }],
+          },
         },
-      ],
-      descriptors: [
-        {
-          kind: 'selector:node',
-          selector: 'div',
-          extractors: [
-            {
-              kind: 'extractor:text',
-              key: 'price',
-              transformers: [
-                {
-                  kind: 'transformer:cast',
-                  type: 'number',
-                },
-              ],
-            },
-          ],
+      },
+      {
+        $meta: {
+          locale: {
+            $selector: 'html',
+            $extractor: { $extractor: 'attribute', $attribute: 'lang' },
+          },
         },
-      ],
-    })
+      },
+    )
     const htmlEn = '<html lang="en"><body><div>1.435</div></body></html>'
     expect(parser.parse(htmlEn)).toStrictEqual({ price: 1.435 })
     const htmlTr = '<html lang="tr"><body><div>1.435</div></body></html>'
@@ -93,68 +73,25 @@ describe.concurrent('html-parser', () => {
   })
 
   it('extracts nodes', () => {
-    const parser = p({
-      descriptors: [
-        {
-          kind: 'selector:node',
-          selector: 'div',
-          extractors: [
-            {
-              kind: 'extractor:text',
-              key: 'text',
-              transformers: [],
-            },
-          ],
-        },
-      ],
-    })
-    expect(parser.parse('<div>  hello  </div>')).toStrictEqual({
-      text: '  hello  ',
-    })
+    const parser = p({ text: { $selector: 'div', $extractor: { $extractor: 'text' } } })
+    expect(parser.parse('<div>  hello  </div>')).toStrictEqual({ text: '  hello  ' })
   })
 
   it('extracts attributes', () => {
     const parser = p({
-      descriptors: [
-        {
-          kind: 'selector:node',
-          selector: 'a',
-          extractors: [
-            {
-              kind: 'extractor:attribute',
-              key: 'hello',
-              attribute: 'hello',
-              transformers: [],
-            },
-          ],
-        },
-      ],
+      hello: { $selector: 'a', $extractor: { $extractor: 'attribute', $attribute: 'hello' } },
     })
     expect(parser.parse('<a hello="3">link</a>')).toStrictEqual({ hello: '3' })
   })
 
   it('selects arrays', () => {
     const parser = p({
-      descriptors: [
-        {
-          kind: 'selector:array',
-          key: 'links',
-          selector: 'a',
-          fields: [
-            {
-              kind: 'selector:self',
-              extractors: [
-                {
-                  kind: 'extractor:attribute',
-                  key: 'href',
-                  attribute: 'href',
-                  transformers: [],
-                },
-              ],
-            },
-          ],
+      links: {
+        $selectorEach: 'a',
+        $fields: {
+          href: { $extractor: { $extractor: 'attribute', $attribute: 'href' } },
         },
-      ],
+      },
     })
     expect(
       parser.parse('<div><a href="1"></a><a href="2"></a></div>'),
@@ -162,221 +99,142 @@ describe.concurrent('html-parser', () => {
   })
 
   it('transforms urls according to the hostname', () => {
-    const parser = p({
-      hostname: 'example.com',
-      descriptors: [
-        {
-          kind: 'selector:node',
-          selector: 'a',
-          extractors: [
-            {
-              kind: 'extractor:attribute',
-              key: 'href',
-              attribute: 'href',
-              transformers: [
-                {
-                  kind: 'transformer:cast',
-                  type: 'url',
-                },
-              ],
-            },
-          ],
+    const parser = p(
+      {
+        href: {
+          $selector: 'a',
+          $extractor: {
+            $extractor: 'attribute',
+            $attribute: 'href',
+            $transformers: [{ $transformer: 'cast', $cast: 'url' }],
+          },
         },
-      ],
-    })
-    expect(parser.parse('<a href="/1"></a>')).toStrictEqual({
-      href: 'https://example.com/1',
-    })
+      },
+      { $hostname: 'example.com' },
+    )
+    expect(parser.parse('<a href="/1"></a>')).toStrictEqual({ href: 'https://example.com/1' })
   })
 
   it('transforms regex', () => {
     const parser = p({
-      descriptors: [
-        {
-          kind: 'selector:node',
-          selector: 'div',
-          extractors: [
-            {
-              kind: 'extractor:text',
-              key: 'name',
-              transformers: [
-                {
-                  kind: 'transformer:regex',
-                  regex: 'stan (.+)',
-                },
-              ],
-            },
-          ],
+      name: {
+        $selector: 'div',
+        $extractor: {
+          $extractor: 'text',
+          $transformers: [{ $transformer: 'regex', $regex: 'stan (.+)' }],
         },
-      ],
+      },
     })
-    expect(
-      parser.parse('<div><span>stan</span> dreamcatcher</div>'),
-    ).toStrictEqual({
+    expect(parser.parse('<div><span>stan</span> dreamcatcher</div>')).toStrictEqual({
       name: 'dreamcatcher',
     })
   })
 
   it("matches regex if a replacement isn't supplied", () => {
     const parser = p({
-      descriptors: [
-        {
-          kind: 'selector:node',
-          selector: 'div',
-          extractors: [
-            {
-              kind: 'extractor:text',
-              key: 'name',
-              transformers: [
-                {
-                  kind: 'transformer:regex',
-                  regex: '(\\d+)',
-                },
-              ],
-            },
-          ],
+      name: {
+        $selector: 'div',
+        $extractor: {
+          $extractor: 'text',
+          $transformers: [{ $transformer: 'regex', $regex: String.raw`(\d+)` }],
         },
-      ],
+      },
     })
-    expect(parser.parse('<div>100 good memes</div>')).toStrictEqual({
-      name: '100',
-    })
+    expect(parser.parse('<div>100 good memes</div>')).toStrictEqual({ name: '100' })
   })
 
   it('ignores unrecognized transformers', () => {
     const parser = p({
-      descriptors: [
-        {
-          kind: 'selector:node',
-          selector: 'div',
-          extractors: [
+      name: {
+        $selector: 'div',
+        $extractor: {
+          $extractor: 'text',
+          $transformers: [
             {
-              kind: 'extractor:text',
-              key: 'name',
-              transformers: [
-                {
-                  // @ts-expect-error | invalid transformer on purpose
-                  kind: 'transformer:unknown',
-                },
-              ],
+              // @ts-expect-error | invalid transformer on purpose
+              $transformer: 'unknown',
             },
           ],
         },
-      ],
+      },
     })
-    expect(parser.parse('<div>4815162342</div>')).toStrictEqual({
-      name: '4815162342',
-    })
+    expect(parser.parse('<div>4815162342</div>')).toStrictEqual({ name: '4815162342' })
     expect(parser.warnings).toHaveLength(1)
   })
 
   it('correctly warns on immediately available selectors', async () => {
-    const parser = p({
-      wait_for: ['div'],
-      descriptors: [
-        {
-          kind: 'selector:node',
-          selector: 'div',
-          extractors: [
-            {
-              kind: 'extractor:text',
-              key: 'name',
-              transformers: [],
-            },
-          ],
-        },
-      ],
-    })
+    const parser = p(
+      { name: { $selector: 'div', $extractor: { $extractor: 'text' } } },
+      { $waitFor: ['div'] },
+    )
     await expect(
       parser.parseAsync('<div>hello \nworld</div>'),
-    ).resolves.toStrictEqual({
-      name: 'hello \nworld',
-    })
+    ).resolves.toStrictEqual({ name: 'hello \nworld' })
     expect(parser.warnings).toHaveLength(1)
   })
 
-  it('creates objects for dot-separated keys', async () => {
+  it('uses variants in arrays', () => {
     const parser = p({
-      descriptors: [
-        {
-          kind: 'selector:node',
-          selector: 'div',
-          extractors: [
-            {
-              kind: 'extractor:text',
-              key: 'foo.bar',
-              transformers: [],
+      items: {
+        $selectorEach: 'li',
+        $variants: [
+          {
+            $match: { $css: 'li.active' },
+            $fields: {
+              tag: { $literal: 'active' },
+              name: { $selector: 'span', $extractor: { $extractor: 'text' } },
             },
-            {
-              kind: 'extractor:attribute',
-              key: 'foo.baz',
-              attribute: 'hello',
-              transformers: [],
+          },
+          {
+            $fields: {
+              tag: { $literal: 'inactive' },
             },
-          ],
-        },
-      ],
+          },
+        ],
+      },
     })
-    await expect(
-      parser.parseAsync('<div hello="zoop">4815162342</div>'),
-    ).resolves.toStrictEqual({
-      foo: { bar: '4815162342', baz: 'zoop' },
+    expect(
+      parser.parse('<ul><li class="active"><span>Homer</span></li><li>Bart</li></ul>'),
+    ).toStrictEqual({
+      items: [
+        { tag: 'active', name: 'Homer' },
+        { tag: 'inactive' },
+      ],
     })
   })
 
-  it('fallsback when ', async () => {
+  it('uses $ifMissing omit strategy', () => {
     const parser = p({
-      descriptors: [
-        {
-          kind: 'selector:node',
-          selector: 'div',
-          extractors: [
-            {
-              kind: 'extractor:text',
-              key: 'foo.bar',
-              transformers: [],
-            },
-            {
-              kind: 'extractor:attribute',
-              key: 'foo.baz',
-              attribute: 'hello',
-              transformers: [],
-            },
-          ],
-        },
-      ],
+      name: {
+        $selector: 'div.missing',
+        $ifMissing: { $strategy: 'omit' },
+        $extractor: { $extractor: 'text' },
+      },
     })
-    await expect(
-      parser.parseAsync('<div hello="zoop">4815162342</div>'),
-    ).resolves.toStrictEqual({
-      foo: { bar: '4815162342', baz: 'zoop' },
-    })
+    expect(parser.parse('<p>nothing</p>')).toStrictEqual({})
   })
 
-  // it('parses pseudo selector styles', async () => {
-  //   const parser = p({
-  //     descriptors: [
-  //       {
-  //         kind: 'selector:node',
-  //         selector: 'div',
-  //         extractors: [
-  //           {
-  //             kind: 'extractor:style',
-  //             key: 'style',
-  //             pseudo: ':before',
-  //             declaration: 'content',
-  //             transformers: [],
-  //           },
-  //         ],
-  //       },
-  //     ],
-  //   })
-  //   await expect(
-  //     parser.parseAsync(
-  //       '<style>.zoop:before { content: "testing" }</style><div hello="zoop"></div>',
-  //     ),
-  //   ).resolves.toStrictEqual({
-  //     foo: { stype: 'testing' },
-  //   })
-  // })
+  it('uses $ifMissing fallback with $literal', () => {
+    const parser = p({
+      name: {
+        $selector: 'div.missing',
+        $ifMissing: { $strategy: 'fallback', $value: { $literal: 'Unknown' } },
+        $extractor: { $extractor: 'text' },
+      },
+    })
+    expect(parser.parse('<p>nothing</p>')).toStrictEqual({ name: 'Unknown' })
+  })
+
+  it('transforms lowercase', () => {
+    const parser = p({
+      name: {
+        $selector: 'div',
+        $extractor: {
+          $extractor: 'text',
+          $transformers: [{ $transformer: 'lowercase' }],
+        },
+      },
+    })
+    expect(parser.parse('<div>HELLO WORLD</div>')).toStrictEqual({ name: 'hello world' })
+  })
 })

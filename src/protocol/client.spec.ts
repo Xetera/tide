@@ -108,7 +108,8 @@ describe('client', () => {
 
     events.emit('pageMatched', {
       payload: { hello: 'world' },
-      resourceId: sahibinden.id,
+      media: {},
+      resourceId: sahibinden.$id,
       source: {
         kind: 'passive',
       },

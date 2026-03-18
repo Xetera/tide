@@ -30,7 +30,7 @@ export class ContentScriptTracker {
       text: 'No valid tabs open to run job. Need a tab with the script injected. Default browser tabs like chrome://* or about:chrome are not valid.',
       severity: 'error',
       data: {
-        ...(resource ? { resourceId: resource.id } : {}),
+        ...(resource ? { resourceId: resource.$id } : {}),
         tabCount: tabs.length,
       },
     })

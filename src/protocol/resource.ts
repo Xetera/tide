@@ -8,11 +8,14 @@ export const constructPathRegex = (pattern: string): RegExp => {
   return new RegExp(`^${regexValue}$`, 'g')
 }
 
+export const constructPathRegexes = (pattern: string | string[]): RegExp[] =>
+  (Array.isArray(pattern) ? pattern : [pattern]).map(constructPathRegex)
+
 export const normalizePath = (path: string): string => path.replace(/\/$/, '')
 
 export const originToUrl = (origin: string) =>
   `https://${origin.replace(/^\./, '')}`
 
-export const toOrigin = (resource: Resource) => `*://${resource.hostname}/*`
+export const toOrigin = (resource: Resource) => `*://${resource.$hostname}/*`
 
 export const toOrigins = (resources: Resource[]) => resources.map(toOrigin)
