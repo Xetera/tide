@@ -152,24 +152,33 @@ export class HTMLParser {
       )
     }
 
-    return this.#runExtractors(node, selector.extractors)
+    return this.#runExtractors(node, selector, selector.extractors)
   }
 
   #selectSelf(
     element: HTMLElement,
     selector: S.SelfSelector,
   ): Record<string, unknown> {
-    return this.#runExtractors(element, selector.extractors)
+    return this.#runExtractors(element, selector, selector.extractors)
   }
 
-  #runExtractors(element: HTMLElement, extractors: S.Extractor[]) {
+  #runExtractors(
+    element: HTMLElement,
+    selector: S.Selector,
+    extractors: S.Extractor[],
+  ) {
     const out: Record<string, unknown> = {}
     for (const extractor of extractors) {
       try {
         const value = this.#extract(element, extractor)
         this.#mutateSubObjects(extractor.key, out, value)
       } catch (error) {
-        console.error(error)
+        if (
+          !selector.if_missing ||
+          selector.if_missing.kind !== 'recovery:omit'
+        ) {
+          console.error(error)
+        }
       }
     }
     return out
@@ -291,9 +300,7 @@ export class HTMLParser {
     const regex = new RegExp(transformer.regex)
     if (!transformer.replacement) {
       const matched = value.match(regex)?.[1]
-      if (!matched) {
-        throw new Error('Regex did not match')
-      }
+      if (!matched) return null
       return matched
     }
 
@@ -310,6 +317,7 @@ export class HTMLParser {
   ): number
   #transformCast(value: unknown, transformer: S.CastTransformer): unknown
   #transformCast(value: unknown, transformer: S.CastTransformer): unknown {
+    if (value === null || value === undefined) return null
     if (transformer.type === 'url') {
       if (typeof value !== 'string') {
         throw new Error(`Invalid URL: ${value}`)
@@ -335,7 +343,7 @@ export class HTMLParser {
         return numberParser.parse(value)
       }
 
-      throw new Error(`Invalid number: ${value}`)
+      return null
     } else {
       transformer satisfies never
       throw new Error('Invalid state')

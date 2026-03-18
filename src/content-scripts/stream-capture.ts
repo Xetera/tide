@@ -9,16 +9,6 @@ async function fetchMedia(
   return { buffer, mimeType }
 }
 
-function downloadBuffer(url: string, buffer: ArrayBuffer, mimeType: string) {
-  const ext = mimeType.split('/')[1]?.split(';')[0] ?? 'jpg'
-  const blob = new Blob([buffer], { type: mimeType })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = url.split('/').pop()?.split('?')[0] ?? `spatula-image.${ext}`
-  a.click()
-  URL.revokeObjectURL(a.href)
-}
-
 window.addEventListener('message', async (evt) => {
   if (!evt.data?.__spatula) return
 
@@ -32,14 +22,16 @@ window.addEventListener('message', async (evt) => {
         refs.map(async ({ url, hash }) => {
           try {
             const { buffer, mimeType } = await fetchMedia(url)
-            return { hash, buffer, mimeType } satisfies MediaResult
+            return { hash, buffer, mimeType } satisfies MediaResult & {
+              hash: string
+            }
           } catch (err) {
             console.warn(`[spatula] failed to capture media ${url}`, err)
             return null
           }
         }),
       )
-    ).filter((r): r is MediaResult => r !== null)
+    ).filter((r) => r !== null)
     const buffers = results.map((r) => r.buffer)
     window.postMessage(
       { __spatula: true, kind: 'download-cached-media:response', id, results },
@@ -51,27 +43,15 @@ window.addEventListener('message', async (evt) => {
 
   if (evt.data.kind !== 'stream-end') return
 
-  const { mimeType, segments, reconstructable } = evt.data as {
-    mimeType: string
-    segments: ArrayBuffer[]
-    reconstructable: boolean
-  }
-  if (!reconstructable) {
-    console.warn(
-      `[spatula] missing init segment for ${mimeType}, skipping download`,
-    )
-    return
-  }
-  const isVideo = mimeType.startsWith('video/')
-  const isAudio = mimeType.startsWith('audio/')
-  if (!isVideo && !isAudio) return
-
-  const baseType = mimeType.split(';')[0]
-  const ext = isVideo ? 'mp4' : 'm4a'
-  const blob = new Blob(segments, { type: baseType })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `spatula-${isVideo ? 'video' : 'audio'}.${ext}`
-  a.click()
-  URL.revokeObjectURL(a.href)
+  // const { mimeType, segments, reconstructable } = evt.data as {
+  //   mimeType: string
+  //   segments: ArrayBuffer[]
+  //   reconstructable: boolean
+  // }
+  // if (!reconstructable) {
+  //   console.warn(
+  //     `[spatula] missing init segment for ${mimeType}, skipping download`,
+  //   )
+  //   return
+  // }
 })

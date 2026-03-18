@@ -160,9 +160,9 @@ export const instagramPost: Resource = {
   hostname: 'www.instagram.com',
   variables: [
     {
-      identifier: 'profile',
+      identifier: 'post_id',
       kind: 'url',
-      description: 'Instagram handle',
+      description: 'Post id',
     },
   ],
   meta: [
@@ -179,7 +179,27 @@ export const instagramPost: Resource = {
       ],
     },
   ],
-  url_pattern: '/:profile/',
+  url_pattern: '/p/:post_id',
   wait_for: ['[aria-label=Comment]'],
-  descriptors: [],
+  descriptors: [
+    {
+      kind: 'selector:array',
+      key: 'image',
+      selector: '[role=presentation] li[tabindex]',
+      fields: [
+        {
+          kind: 'selector:node',
+          selector: 'img',
+          extractors: [
+            {
+              kind: 'extractor:attribute',
+              attribute: 'src',
+              key: 'image',
+              transformers: [{ kind: 'transformer:media' }],
+            },
+          ],
+        },
+      ],
+    },
+  ],
 }
