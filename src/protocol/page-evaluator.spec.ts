@@ -173,9 +173,7 @@ describe('page evaluator', () => {
       elem.innerHTML = 'test'
       dom.window.document.body.appendChild(elem)
     })
-    await PageEvaluator.waitForLoad(dom.window.document, correct, {
-      timeout: 1,
-    })
+    await PageEvaluator.waitForLoad(dom.window.document, correct)
     expect(parser.parse(dom.window.document)).toStrictEqual({
       title: 'test',
     })

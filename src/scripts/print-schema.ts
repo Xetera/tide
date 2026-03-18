@@ -15,4 +15,4 @@ if (!schema) {
   process.exit(1)
 }
 
-console.log(JSON.stringify([schema], null, 2))
+process.stdout.write(JSON.stringify([schema], null, 2) + '\n')

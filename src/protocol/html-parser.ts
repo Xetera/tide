@@ -2,6 +2,15 @@ import { NumberParser } from '@internationalized/number'
 import { PageEvaluator } from './page-evaluator'
 import type * as S from './scrapeer'
 
+function fnv1a(str: string): string {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i)
+    hash = (hash * 0x01000193) >>> 0
+  }
+  return hash.toString(36)
+}
+
 export class HTMLParser {
   // this changes based on the locale of the document being parsed
   private numberParser?: NumberParser
@@ -20,22 +29,11 @@ export class HTMLParser {
    */
   async parseAsync(
     html: string | Document,
-    { timeout = 500 } = {},
+    { maxWait = 10_000 } = {},
   ): Promise<S.UnknownPayload> {
     this._warnings = []
     const doc = HTMLParser.createDocument(html)
-
-    if (this.resource.wait_for) {
-      const { readyAfterTries } = await PageEvaluator.waitForLoad(
-        doc,
-        this.resource,
-        { timeout },
-      )
-
-      if (readyAfterTries === 0) {
-        this.#warn('Document was ready immediately after load')
-      }
-    }
+    await PageEvaluator.waitForLoad(doc, this.resource, { maxWait })
 
     return this.#process(doc)
   }
@@ -238,6 +236,8 @@ export class HTMLParser {
         return this.#transformFallback(value, transformer)
       case 'transformer:trim':
         return this.#transformTrim(value, transformer)
+      case 'transformer:media':
+        return this.#transformMedia(value, transformer)
       default: {
         // @ts-expect-error
         const _: never = transformer
@@ -249,6 +249,18 @@ export class HTMLParser {
         }
         return value
       }
+    }
+  }
+
+  #transformMedia(value: unknown, _transformer: S.MediaTransformer) {
+    const url = this.#transformCast(value, {
+      kind: 'transformer:cast',
+      type: 'url',
+    })
+    const hash = fnv1a(url)
+    return {
+      url,
+      hash,
     }
   }
 
@@ -288,6 +300,15 @@ export class HTMLParser {
     return value.replace(regex, transformer.replacement)
   }
 
+  #transformCast(
+    value: unknown,
+    transformer: Extract<S.CastTransformer, { type: 'url' }>,
+  ): string
+  #transformCast(
+    value: unknown,
+    transformer: Extract<S.CastTransformer, { type: 'number' }>,
+  ): number
+  #transformCast(value: unknown, transformer: S.CastTransformer): unknown
   #transformCast(value: unknown, transformer: S.CastTransformer): unknown {
     if (transformer.type === 'url') {
       if (typeof value !== 'string') {
@@ -315,6 +336,9 @@ export class HTMLParser {
       }
 
       throw new Error(`Invalid number: ${value}`)
+    } else {
+      transformer satisfies never
+      throw new Error('Invalid state')
     }
   }
 

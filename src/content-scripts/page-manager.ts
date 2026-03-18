@@ -14,7 +14,9 @@ import type {
 
 import { Timeout, timeoutReject } from '~/shared'
 import { sendLog } from './content-script-log'
+import { downloadCachedMedia } from './download-media'
 import { iframeScrape } from './iframe-injector'
+import { EvaluatedResource } from '~/protocol/evaluated-resource'
 
 const JOB_FINISHED_MARKER = 'spatula:job-finished'
 
@@ -36,13 +38,18 @@ export class PageManager {
   async run() {
     const matching = this.evaluator.checkCurrentPage()
     if (matching.kind === 'match') {
-      const resources = await this.#processPage(document, matching, {
-        ...(this.isInIframe
+      const scrapedPage = await this.#processPage(
+        document,
+        matching,
+        this.isInIframe
           ? { kind: 'active', id: await this.getJobId() }
-          : { kind: 'passive' }),
-      })
-      console.log('[spatula:page-manager] sending page-match event')
-      sendMessage('page-match', resources)
+          : { kind: 'passive' },
+      )
+      console.log(
+        '[spatula:page-manager] sending page-match event',
+        scrapedPage,
+      )
+      sendMessage('page-match', scrapedPage)
     } else if (matching.kind === 'fail' && this.isInIframe) {
       sendLog({
         text: 'Did not get a matching page when scraping within an iframe',
@@ -75,16 +82,22 @@ export class PageManager {
   ): Promise<ScrapedPage> {
     console.log('[spatula:page-manager] processing page...')
     const parser = new HTMLParser(resource)
-    await PageEvaluator.waitForLoad(document, resource, { timeout: 500, maxWait: 10_000 })
+    await PageEvaluator.waitForLoad(document, resource, { maxWait: 10_000 })
     const extracted = parser.parse(document)
+    const evaluated = new EvaluatedResource(resource, extracted)
+    const mediaRefs = evaluated.mediaUrls()
+    let media: Record<string, ArrayBuffer> = {}
+    if (mediaRefs.length > 0) {
+      media = await downloadCachedMedia(mediaRefs)
+    }
     const out = {
       resourceId: resource.id,
       payload: extracted,
       variables,
       source,
+      media: media,
       warnings: parser.warnings,
     }
-    console.log('source', source)
     // in case we're in an iframe, we want to let the parent know
     window.parent?.postMessage(JOB_FINISHED_MARKER, '*')
     return out

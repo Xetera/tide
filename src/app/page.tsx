@@ -5,7 +5,6 @@ import { onMessage, sendMessage } from 'webext-bridge/popup'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { toOrigin } from '~/protocol/resource'
 import type { Resource } from '~/protocol/scrapeer'
-import type { ScrapedPage } from '~/content-scripts/page-manager'
 import { type BrowserStorageSchema, Storage } from '~/shared/storage'
 import { useBrowserStorage } from '~/shared/hooks'
 import { AddServer } from './add-server'
@@ -29,7 +28,10 @@ function Page() {
   const storage = new Storage<BrowserStorageSchema>()
   const [state, setState] = createSignal<StatefulResource[]>([])
   const { logs } = useLogs()
-  const { value: lastScrape } = useBrowserStorage<'scrape:last'>('scrape:last', undefined)
+  const { value: lastScrape } = useBrowserStorage<'scrape:last'>(
+    'scrape:last',
+    undefined,
+  )
   async function updateState(resources: Resource[]) {
     const stateful = await Promise.all(
       resources.map(async (resource) => {

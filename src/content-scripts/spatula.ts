@@ -1,5 +1,6 @@
 import { onMessage, sendMessage } from 'webext-bridge/content-script'
 import { PageManager } from './page-manager'
+import './stream-capture'
 
 ;(async () => {
   try {

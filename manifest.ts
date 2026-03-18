@@ -18,6 +18,13 @@ export default defineManifest({
   content_scripts: [
     {
       matches: ['<all_urls>'],
+      js: ['src/content-scripts/asset-capture-main.ts'],
+      run_at: 'document_start',
+      world: 'MAIN',
+      all_frames: true,
+    },
+    {
+      matches: ['<all_urls>'],
       js: ['src/content-scripts/spatula.ts'],
       run_at: 'document_idle',
       all_frames: true,

@@ -121,6 +121,11 @@ export type Transformer =
   | CastTransformer
   | FallbackTransformer
   | TrimTransformer
+  | MediaTransformer
+
+export interface MediaTransformer {
+  kind: 'transformer:media'
+}
 
 export interface RegexTransformer {
   kind: 'transformer:regex'

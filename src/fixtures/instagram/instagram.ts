@@ -88,7 +88,7 @@ export const instagram: Resource = {
           kind: 'extractor:attribute',
           attribute: 'src',
           key: 'profilePicture',
-          transformers: [{ kind: 'transformer:cast', type: 'url' }],
+          transformers: [{ kind: 'transformer:media' }],
         },
       ],
     },
@@ -127,7 +127,7 @@ export const instagram: Resource = {
               kind: 'extractor:attribute',
               attribute: 'src',
               key: 'image_url',
-              transformers: [],
+              transformers: [{ kind: 'transformer:media' }],
             },
             {
               kind: 'extractor:attribute',
@@ -180,4 +180,5 @@ export const instagramPost: Resource = {
   ],
   url_pattern: '/:profile/',
   wait_for: ['[aria-label=Comment]'],
+  descriptors: [],
 }

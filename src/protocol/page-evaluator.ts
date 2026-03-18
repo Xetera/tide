@@ -127,34 +127,33 @@ export class PageEvaluator {
   static waitForLoad(
     document: Document,
     resource: Resource,
-    { timeout = 500, maxWait = 10_000 }: { timeout?: number; maxWait?: number },
-  ): Promise<{ readyAfterTries: number }> {
-    const deadline = Date.now() + maxWait
-    function go(count: number) {
-      return new Promise<{ readyAfterTries: number }>((resolve, reject) => {
-        const out = { readyAfterTries: count }
-        if (!resource.wait_for) {
-          return resolve(out)
+    { maxWait = 10_000 }: { maxWait?: number } = {},
+  ): Promise<void> {
+    if (!resource.wait_for?.length) return Promise.resolve()
+
+    const selectors = resource.wait_for
+    const isLoaded = () =>
+      selectors.every((s) => document.querySelector(s) !== null)
+
+    if (isLoaded()) return Promise.resolve()
+
+    return new Promise((resolve) => {
+      const cleanup = () => {
+        mo.disconnect()
+        clearTimeout(timer)
+      }
+      const mo = new MutationObserver(() => {
+        if (isLoaded()) {
+          cleanup()
+          resolve()
         }
-
-        const isLoaded = resource.wait_for.some((selector) => {
-          return document.querySelector(selector) !== null
-        })
-
-        if (!isLoaded) {
-          if (Date.now() >= deadline) {
-            return resolve(out)
-          }
-          setTimeout(() => {
-            go(count + 1).then(resolve, reject)
-          }, timeout)
-          return
-        }
-
-        return resolve(out)
       })
-    }
-    return go(0)
+      const timer = setTimeout(() => {
+        cleanup()
+        resolve()
+      }, maxWait)
+      mo.observe(document.documentElement, { childList: true, subtree: true })
+    })
   }
 }
 
