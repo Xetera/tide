@@ -1,3 +1,5 @@
+import type { MediaResult } from './download-media'
+
 async function fetchMedia(
   url: string,
 ): Promise<{ buffer: ArrayBuffer; mimeType: string }> {
@@ -30,15 +32,14 @@ window.addEventListener('message', async (evt) => {
         refs.map(async ({ url, hash }) => {
           try {
             const { buffer, mimeType } = await fetchMedia(url)
-            downloadBuffer(url, buffer, mimeType)
-            return { hash, buffer }
+            return { hash, buffer, mimeType } satisfies MediaResult
           } catch (err) {
             console.warn(`[spatula] failed to capture media ${url}`, err)
             return null
           }
         }),
       )
-    ).filter((r): r is { hash: string; buffer: ArrayBuffer } => r !== null)
+    ).filter((r): r is MediaResult => r !== null)
     const buffers = results.map((r) => r.buffer)
     window.postMessage(
       { __spatula: true, kind: 'download-cached-media:response', id, results },

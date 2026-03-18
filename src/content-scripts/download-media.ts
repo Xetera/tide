@@ -1,6 +1,14 @@
 import type { MediaRef } from '~/protocol/evaluated-resource'
 
-export function downloadCachedMedia(refs: MediaRef[]): Promise<Record<string, ArrayBuffer>> {
+export interface MediaResult {
+  hash: string
+  buffer: ArrayBuffer
+  mimeType: string
+}
+
+export function downloadCachedMedia(
+  refs: MediaRef[],
+): Promise<Record<string, Omit<MediaResult, 'hash'>>> {
   const id = crypto.randomUUID()
 
   return new Promise((resolve) => {
@@ -13,9 +21,9 @@ export function downloadCachedMedia(refs: MediaRef[]): Promise<Record<string, Ar
         return
       }
       window.removeEventListener('message', handler)
-      const map: Record<string, ArrayBuffer> = {}
-      for (const { hash, buffer } of evt.data.results as { hash: string; buffer: ArrayBuffer }[]) {
-        map[hash] = buffer
+      const map: Record<string, Omit<MediaResult, 'hash'>> = {}
+      for (const { hash, buffer, mimeType } of evt.data.results as MediaResult[]) {
+        map[hash] = { buffer, mimeType }
       }
       resolve(map)
     }

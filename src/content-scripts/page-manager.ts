@@ -24,6 +24,8 @@ export class PageManager {
   evaluator: PageEvaluator
   isInIframe: boolean
   static #IFRAME_SCRAPE_TIMEOUT_MS = 10_000
+  // resourceId -> arrayKey -> Set of seen primary key values
+  #seenKeys = new Map<string, Map<string, Set<unknown>>>()
 
   constructor(
     document: Document,
@@ -71,6 +73,7 @@ export class PageManager {
     }
     this.resources = resources
     this.evaluator = new PageEvaluator(document, resources)
+    this.#seenKeys.clear()
     console.debug('[spatula:page-manager] rerunning after resource update')
     this.run()
   }
@@ -84,6 +87,7 @@ export class PageManager {
     const parser = new HTMLParser(resource)
     await PageEvaluator.waitForLoad(document, resource, { maxWait: 10_000 })
     const extracted = parser.parse(document)
+    this.#deduplicatePayload(resource, extracted)
     const evaluated = new EvaluatedResource(resource, extracted)
     const mediaRefs = evaluated.mediaUrls()
     let media: Record<string, ArrayBuffer> = {}
@@ -101,6 +105,43 @@ export class PageManager {
     // in case we're in an iframe, we want to let the parent know
     window.parent?.postMessage(JOB_FINISHED_MARKER, '*')
     return out
+  }
+
+  #deduplicatePayload(resource: Resource, payload: UnknownPayload) {
+    if (!this.#seenKeys.has(resource.id)) {
+      this.#seenKeys.set(resource.id, new Map())
+    }
+    const seenByKey = this.#seenKeys.get(resource.id)!
+
+    for (const descriptor of resource.descriptors) {
+      if (descriptor.kind !== 'selector:array' || !descriptor.primary_key) continue
+      const { key, primary_key } = descriptor
+      const items = payload[key]
+      if (!Array.isArray(items)) continue
+
+      if (!seenByKey.has(key)) {
+        seenByKey.set(key, new Set())
+      }
+      const seen = seenByKey.get(key)!
+
+      const newItems = items.filter((item) => {
+        if (!item || typeof item !== 'object') return true
+        const pkValue = (item as UnknownPayload)[primary_key]
+        if (pkValue === undefined || pkValue === null) return true
+        const key =
+          pkValue &&
+          typeof pkValue === 'object' &&
+          'hash' in pkValue &&
+          typeof pkValue.hash === 'string'
+            ? pkValue.hash
+            : pkValue
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+
+      payload[key] = newItems
+    }
   }
 
   async #scrapePage(parameters: JobParameters): Promise<void> {

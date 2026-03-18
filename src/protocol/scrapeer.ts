@@ -74,6 +74,7 @@ export interface ArraySelector {
   kind: 'selector:array'
   selector: string
   if_missing?: Recovery
+  primary_key?: string
 }
 
 export type Extractor = TextExtractor | AttributeExtractor | StyleExtractor

@@ -100,6 +100,7 @@ export const instagram: Resource = {
         warning: 'Could not find posts array',
       },
       key: 'posts',
+      primary_key: 'post_link',
       fields: [
         {
           kind: 'selector:node',
