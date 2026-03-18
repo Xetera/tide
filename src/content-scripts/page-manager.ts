@@ -14,11 +14,12 @@ import type {
 
 import { Timeout, timeoutReject } from '~/shared'
 import { sendLog } from './content-script-log'
-import { downloadCachedMedia } from './download-media'
+import { downloadCachedMedia, MediaResult } from './download-media'
 import { iframeScrape } from './iframe-injector'
 import { EvaluatedResource } from '~/protocol/evaluated-resource'
 
 const JOB_FINISHED_MARKER = 'spatula:job-finished'
+const ARRAY_MUTATION_DEBOUNCE_MS = 500
 
 export class PageManager {
   evaluator: PageEvaluator
@@ -26,6 +27,7 @@ export class PageManager {
   static #IFRAME_SCRAPE_TIMEOUT_MS = 10_000
   // resourceId -> arrayKey -> Set of seen primary key values
   #seenKeys = new Map<string, Map<string, Set<unknown>>>()
+  #observers: MutationObserver[] = []
 
   constructor(
     document: Document,
@@ -74,6 +76,8 @@ export class PageManager {
     this.resources = resources
     this.evaluator = new PageEvaluator(document, resources)
     this.#seenKeys.clear()
+    for (const mo of this.#observers) mo.disconnect()
+    this.#observers = []
     console.debug('[spatula:page-manager] rerunning after resource update')
     this.run()
   }
@@ -84,27 +88,81 @@ export class PageManager {
     source: JobSource,
   ): Promise<ScrapedPage> {
     console.log('[spatula:page-manager] processing page...')
-    const parser = new HTMLParser(resource)
     await PageEvaluator.waitForLoad(document, resource, { maxWait: 10_000 })
+    this.#observeArrays(document, resource, variables, source)
+    const page = await this.#buildPage(document, resource, variables, source)
+    window.parent?.postMessage(JOB_FINISHED_MARKER, '*')
+    return page
+  }
+
+  #observeArrays(
+    document: Document,
+    resource: Resource,
+    variables: MatchingResource['variables'],
+    source: JobSource,
+  ) {
+    const hasObservableArrays = resource.descriptors.some(
+      (d) => d.kind === 'selector:array' && d.primary_key,
+    )
+    if (!hasObservableArrays) {
+      console.log('[spatula] no observable arrays for resource', resource.id)
+      return
+    }
+
+    console.log(
+      '[spatula] setting up observer for resource',
+      resource.id,
+      'on',
+      document.body,
+    )
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const mo = new MutationObserver(() => {
+      clearTimeout(timer)
+      timer = setTimeout(async () => {
+        const page = await this.#buildPage(
+          document,
+          resource,
+          variables,
+          source,
+        )
+        const hasNewItems = resource.descriptors.some(
+          (d) =>
+            d.kind === 'selector:array' &&
+            Array.isArray(page.payload[d.key]) &&
+            (page.payload[d.key] as unknown[]).length > 0,
+        )
+        if (hasNewItems) {
+          sendMessage('page-match', page)
+        }
+      }, ARRAY_MUTATION_DEBOUNCE_MS)
+    })
+    mo.observe(document.body, { childList: true, subtree: true })
+    this.#observers.push(mo)
+  }
+
+  async #buildPage(
+    document: Document,
+    resource: Resource,
+    variables: MatchingResource['variables'],
+    source: JobSource,
+  ): Promise<ScrapedPage> {
+    const parser = new HTMLParser(resource)
     const extracted = parser.parse(document)
     this.#deduplicatePayload(resource, extracted)
     const evaluated = new EvaluatedResource(resource, extracted)
     const mediaRefs = evaluated.mediaUrls()
-    let media: Record<string, ArrayBuffer> = {}
+    let media: Record<string, MediaResult> = {}
     if (mediaRefs.length > 0) {
       media = await downloadCachedMedia(mediaRefs)
     }
-    const out = {
+    return {
       resourceId: resource.id,
       payload: extracted,
       variables,
       source,
-      media: media,
+      media,
       warnings: parser.warnings,
     }
-    // in case we're in an iframe, we want to let the parent know
-    window.parent?.postMessage(JOB_FINISHED_MARKER, '*')
-    return out
   }
 
   #deduplicatePayload(resource: Resource, payload: UnknownPayload) {
@@ -114,7 +172,8 @@ export class PageManager {
     const seenByKey = this.#seenKeys.get(resource.id)!
 
     for (const descriptor of resource.descriptors) {
-      if (descriptor.kind !== 'selector:array' || !descriptor.primary_key) continue
+      if (descriptor.kind !== 'selector:array' || !descriptor.primary_key)
+        continue
       const { key, primary_key } = descriptor
       const items = payload[key]
       if (!Array.isArray(items)) continue
@@ -214,5 +273,6 @@ export interface ScrapedPage {
   source: JobSource
   payload: UnknownPayload
   variables: Record<string, unknown>
+  media: Record<string, MediaResult>
   warnings: readonly string[]
 }

@@ -142,6 +142,7 @@ function emitUrlUpdate(
     })
     onMessage('page-match', ({ data }) => {
       try {
+        console.log('scrape data', data)
         console.log(`Got a matching page for ${data.resourceId}`)
         storage.set('scrape:last', data)
         return events.emit('pageMatched', data)
