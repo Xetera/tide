@@ -232,4 +232,40 @@ describe.concurrent('html-parser', () => {
     })
     expect(parser.parse('<div>HELLO WORLD</div>')).toStrictEqual({ name: 'hello world' })
   })
+
+  it('parses $selectorEach inside nested $fields', () => {
+    const parser = p({
+      comments: {
+        $fields: {
+          list: {
+            $selectorEach: 'ul > li',
+            $fields: {
+              username: {
+                $selector: 'b',
+                $extractor: { $extractor: 'text' },
+              },
+              comment: {
+                $selector: 'span',
+                $extractor: { $extractor: 'text' },
+              },
+            },
+          },
+        },
+      },
+    })
+    const html = `
+      <ul>
+        <li><b>alice</b><span>hello</span></li>
+        <li><b>bob</b><span>world</span></li>
+      </ul>
+    `
+    expect(parser.parse(html)).toStrictEqual({
+      comments: {
+        list: [
+          { username: 'alice', comment: 'hello' },
+          { username: 'bob', comment: 'world' },
+        ],
+      },
+    })
+  })
 })

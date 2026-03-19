@@ -53,7 +53,6 @@ export class PageEvaluator {
     return mo
   }
 
-
   private matchingHosts(url: URL): readonly Resource[] {
     return Object.freeze(
       this.resources
@@ -77,13 +76,17 @@ export class PageEvaluator {
     resource: Resource,
     { maxWait = 10_000 }: { maxWait?: number } = {},
   ): Promise<void> {
-    if (!resource.$waitFor?.length) return Promise.resolve()
+    if (!resource.$waitFor || resource.$waitFor.length === 0)
+      return Promise.resolve()
 
     const selectors = resource.$waitFor
+    console.log('selectors', selectors)
     const isLoaded = () =>
       selectors.every((s) => document.querySelector(s) !== null)
 
-    if (isLoaded()) return Promise.resolve()
+    if (isLoaded()) {
+      return Promise.resolve()
+    }
 
     return new Promise((resolve) => {
       const cleanup = () => {
@@ -97,6 +100,7 @@ export class PageEvaluator {
         }
       })
       const timer = setTimeout(() => {
+        console.log('resolved after default timeout:', maxWait)
         cleanup()
         resolve()
       }, maxWait)

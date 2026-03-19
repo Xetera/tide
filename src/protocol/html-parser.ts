@@ -17,7 +17,10 @@ function isNodeField(value: unknown): value is S.NodeFieldDescriptor {
     value !== null &&
     !('$selectorEach' in value) &&
     !('$literal' in value) &&
-    ('$extractor' in value || '$fields' in value || '$selector' in value || '$ifMissing' in value)
+    ('$extractor' in value ||
+      '$fields' in value ||
+      '$selector' in value ||
+      '$ifMissing' in value)
   )
 }
 
@@ -141,7 +144,11 @@ export class HTMLParser {
       } else if (isLiteral(descriptor)) {
         this.#setKey(key, out, descriptor.$literal)
       } else if (isArrayField(descriptor)) {
-        const result = this.#parseArrayField(element as HTMLElement, descriptor, label)
+        const result = this.#parseArrayField(
+          element as HTMLElement,
+          descriptor,
+          label,
+        )
         if (result !== undefined) {
           this.#setKey(key, out, result)
         }
@@ -213,7 +220,11 @@ export class HTMLParser {
     return undefined
   }
 
-  #handleIfMissing(ifMissing: S.IfMissing, key: string, label: string): unknown {
+  #handleIfMissing(
+    ifMissing: S.IfMissing,
+    key: string,
+    label: string,
+  ): unknown {
     if ('$warning' in ifMissing && ifMissing.$warning) {
       this.#warn(ifMissing.$warning)
     }
@@ -241,6 +252,7 @@ export class HTMLParser {
     const items = element.querySelectorAll(
       descriptor.$selectorEach,
     ) as NodeListOf<HTMLElement>
+    console.log('ITEMS', items, element, descriptor.$selectorEach)
 
     if (items.length === 0 && descriptor.$ifMissing) {
       return this.#handleIfMissing(descriptor.$ifMissing, '', label)
@@ -276,7 +288,11 @@ export class HTMLParser {
     return undefined
   }
 
-  #parseVariant(node: HTMLElement, variant: S.VariantDescriptor, label: string): unknown {
+  #parseVariant(
+    node: HTMLElement,
+    variant: S.VariantDescriptor,
+    label: string,
+  ): unknown {
     if (variant.$extractor) {
       return this.#runExtractor(node, variant.$extractor)
     }

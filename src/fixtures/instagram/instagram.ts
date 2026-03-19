@@ -71,6 +71,12 @@ export const instagram: Resource = {
         $extractor: 'exists',
       },
     },
+    description: {
+      $selector: 'section:has(canvas, img) + section > :nth-child(2) span',
+      $extractor: {
+        $extractor: 'text',
+      },
+    },
     profilePicture: {
       $selector: 'header img[alt*="profile picture"]',
       $ifMissing: { $strategy: 'omit' },
@@ -119,7 +125,7 @@ export const instagramPost: Resource = {
     //   },
     //   $description: 'Post id',
     // },
-    post_id: {
+    postId: {
       $kind: 'url',
       $description: 'Post id',
     },
@@ -139,13 +145,40 @@ export const instagramPost: Resource = {
     },
   },
   $urlPattern: [
-    '/p/:post_id',
-    '/reel/:post_id',
-    '/:username/p/:post_id',
-    '/:username/reel/:post_id',
+    '/p/:postId',
+    '/reel/:postId',
+    '/:username/p/:postId',
+    '/:username/reel/:postId',
   ],
-  $waitFor: ['[aria-label=Comment]'],
+  $waitFor: ['ul > div[role=button]'],
   $fields: {
+    post: {
+      $selector: '[role=presentation]',
+      $fields: {
+        location: {
+          $selector: 'a[href^="/explore/locations"]',
+          $ifMissing: {
+            $strategy: 'omit',
+          },
+          $fields: {
+            name: {
+              $extractor: {
+                $extractor: 'text',
+              },
+            },
+            link: {
+              $extractor: {
+                $extractor: 'attribute',
+                $attribute: 'href',
+              },
+            },
+          },
+        },
+        user: {
+          $selector: '',
+        },
+      },
+    },
     media: [
       {
         $selector:
@@ -204,7 +237,7 @@ export const instagramPost: Resource = {
       // },
       $fields: {
         list: {
-          $selectorEach: 'ul > div:nth-child(3) > div',
+          $selectorEach: 'ul > div:nth-child(3) :has(ul > div)',
           $fields: {
             username: {
               $selector: 'h3',
@@ -216,6 +249,19 @@ export const instagramPost: Resource = {
               $selector: 'h3 + div',
               $extractor: {
                 $extractor: 'text',
+              },
+            },
+            postedAt: {
+              $selector: 'time',
+              $extractor: {
+                $extractor: 'attribute',
+                $attribute: 'datetime',
+                $transformers: [
+                  {
+                    $transformer: 'cast',
+                    $cast: 'date',
+                  },
+                ],
               },
             },
           },

@@ -13,7 +13,7 @@ function hueFor(label: string, hues: Map<string, number>): number {
 }
 
 function oklchToCtx(hue: number): string {
-  return `oklch(0.7 0.2 ${hue})`
+  return `oklch(0.7 0.2 ${hue} / 0.5)`
 }
 
 function getComputedBorderRadii(
