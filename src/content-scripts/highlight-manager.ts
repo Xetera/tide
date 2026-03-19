@@ -3,6 +3,10 @@ import type { HighlightEntry } from '~/protocol/html-parser'
 const CANVAS_ID = 'spatula-highlight-canvas'
 const HUE_STEP = 37
 
+function rectsOverlap(a: DOMRect, b: DOMRect): boolean {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+}
+
 function hueFor(label: string, hues: Map<string, number>): number {
   const root = label.split('.')[0]
   if (!root) return 0
@@ -13,7 +17,7 @@ function hueFor(label: string, hues: Map<string, number>): number {
 }
 
 function oklchToCtx(hue: number): string {
-  return `oklch(0.7 0.2 ${hue} / 0.5)`
+  return `oklch(0.7 0.2 ${hue} / 0.2)`
 }
 
 function getComputedBorderRadii(
@@ -55,7 +59,6 @@ export class HighlightManager {
     this.#active = true
     this.#entries = entries
     this.#hues = new Map()
-    console.log('applying', entries)
     for (const { label } of entries) {
       hueFor(label, this.#hues)
     }
@@ -120,10 +123,16 @@ export class HighlightManager {
 
     const drawn = new Map<
       Element,
-      { element: Element; rect: DOMRect; labels: string[]; hue: number }
+      {
+        element: Element
+        rect: DOMRect
+        labels: string[]
+        hue: number
+        isArrayItem: boolean
+      }
     >()
 
-    for (const { element, label } of this.#entries) {
+    for (const { element, label, isArrayItem } of this.#entries) {
       const rect = element.getBoundingClientRect()
       if (rect.width === 0 && rect.height === 0) continue
       if (rect.bottom < 0 || rect.top > h || rect.right < 0 || rect.left > w)
@@ -135,36 +144,57 @@ export class HighlightManager {
       if (existing) {
         existing.labels.push(label)
       } else {
-        drawn.set(element, { element, rect, labels: [label], hue })
+        drawn.set(element, {
+          element,
+          rect,
+          labels: [label],
+          hue,
+          isArrayItem: !!isArrayItem,
+        })
       }
     }
 
-    for (const { element, rect, labels, hue } of drawn.values()) {
+    const placedLabels: DOMRect[] = []
+
+    for (const { element, rect, labels, hue, isArrayItem } of drawn.values()) {
       const color = oklchToCtx(hue)
 
       const radii = getComputedBorderRadii(element, rect)
 
       ctx.strokeStyle = color
-      ctx.lineWidth = 2
+      ctx.lineWidth = 1
       ctx.beginPath()
       ctx.roundRect(rect.x, rect.y, rect.width, rect.height, radii)
       ctx.stroke()
 
-      const text = labels.join(', ')
-      ctx.font = '9px monospace'
-      const metrics = ctx.measureText(text)
-      const textHeight = 10
-      const padding = 3
-      const tagW = metrics.width + padding * 2
-      const tagH = textHeight + padding * 2
-      const tagX = rect.x
-      const tagY = rect.y - tagH - 2
+      if (!isArrayItem) {
+        const text = labels.join(', ')
+        ctx.font = '9px Menlo, monospace'
+        const metrics = ctx.measureText(text)
+        const textHeight = 10
+        const padding = 3
+        const tagW = metrics.width + padding * 2
+        const tagH = textHeight + padding * 2
 
-      ctx.fillStyle = color
-      ctx.fillRect(tagX, tagY, tagW, tagH)
+        const candidates = [
+          new DOMRect(rect.x, rect.y - tagH - 2, tagW, tagH),
+          new DOMRect(rect.x, rect.bottom + 2, tagW, tagH),
+          new DOMRect(rect.right + 2, rect.y, tagW, tagH),
+          new DOMRect(rect.x - tagW - 2, rect.y, tagW, tagH),
+        ]
 
-      ctx.fillStyle = '#000'
-      ctx.fillText(text, tagX + padding, tagY + padding + textHeight - 1)
+        const tagRect = candidates.find(
+          (c) => !placedLabels.some((p) => rectsOverlap(p, c)),
+        ) ?? candidates[0]
+
+        placedLabels.push(tagRect)
+
+        ctx.fillStyle = color
+        ctx.fillRect(tagRect.x, tagRect.y, tagRect.width, tagRect.height)
+
+        ctx.fillStyle = `oklch(1 0.15 ${hue})`
+        ctx.fillText(text, tagRect.x + padding, tagRect.y + padding + textHeight - 1)
+      }
     }
   }
 }
