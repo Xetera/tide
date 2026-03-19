@@ -1,16 +1,16 @@
-import type { ArrayFieldDescriptor, FieldDescriptor, NodeFieldDescriptor, Resource, UnknownPayload, VariantsFieldDescriptor } from './scrapeer'
+import type { ArrayFieldDescriptor, FieldDescriptor, NodeFieldDescriptor, Resource, UnknownPayload, VariantDescriptor } from './scrapeer'
 
 export interface MediaRef {
   url: string
   hash: string
 }
 
-function isArrayField(value: FieldDescriptor): value is ArrayFieldDescriptor {
-  return '$selectorEach' in value
+function isVariantArray(value: FieldDescriptor): value is VariantDescriptor[] {
+  return Array.isArray(value)
 }
 
-function isVariantsField(value: FieldDescriptor): value is VariantsFieldDescriptor {
-  return '$variants' in value
+function isArrayField(value: FieldDescriptor): value is ArrayFieldDescriptor {
+  return '$selectorEach' in value
 }
 
 function isMediaNodeField(value: FieldDescriptor): value is NodeFieldDescriptor & { $extractor: { $extractor: 'media' } } {
@@ -46,10 +46,10 @@ export class EvaluatedResource {
     out: MediaRef[],
   ) {
     for (const [key, descriptor] of Object.entries(schema)) {
-      if (isVariantsField(descriptor)) {
+      if (isVariantArray(descriptor)) {
         const value = payload[key]
         if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-          for (const variant of descriptor.$variants) {
+          for (const variant of descriptor) {
             if (variant.$fields) {
               this.#collectFromSchema(variant.$fields, value as UnknownPayload, out)
             }

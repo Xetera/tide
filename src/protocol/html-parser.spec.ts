@@ -173,33 +173,28 @@ describe.concurrent('html-parser', () => {
     expect(parser.warnings).toHaveLength(1)
   })
 
-  it('uses variants in arrays', () => {
+  it('uses variant arrays', () => {
     const parser = p({
-      items: {
-        $selectorEach: 'li',
-        $variants: [
-          {
-            $match: { $css: 'li.active' },
-            $fields: {
-              tag: { $literal: 'active' },
-              name: { $selector: 'span', $extractor: { $extractor: 'text' } },
-            },
+      media: [
+        {
+          $selector: '.video',
+          $fields: {
+            type: { $literal: 'video' },
           },
-          {
-            $fields: {
-              tag: { $literal: 'inactive' },
-            },
+        },
+        {
+          $selector: '.image',
+          $fields: {
+            type: { $literal: 'image' },
+            src: { $selector: 'img', $extractor: { $extractor: 'attribute', $attribute: 'src' } },
           },
-        ],
-      },
+        },
+      ],
     })
     expect(
-      parser.parse('<ul><li class="active"><span>Homer</span></li><li>Bart</li></ul>'),
+      parser.parse('<div><div class="image"><img src="test.jpg"></div></div>'),
     ).toStrictEqual({
-      items: [
-        { tag: 'active', name: 'Homer' },
-        { tag: 'inactive' },
-      ],
+      media: { type: 'image', src: 'test.jpg' },
     })
   })
 

@@ -16,7 +16,10 @@ function oklchToCtx(hue: number): string {
   return `oklch(0.7 0.2 ${hue})`
 }
 
-function getComputedBorderRadii(element: Element, rect: DOMRect): [number, number, number, number] {
+function getComputedBorderRadii(
+  element: Element,
+  rect: DOMRect,
+): [number, number, number, number] {
   const style = getComputedStyle(element)
   const parse = (v: string) => {
     if (v.endsWith('%')) {
@@ -52,6 +55,7 @@ export class HighlightManager {
     this.#active = true
     this.#entries = entries
     this.#hues = new Map()
+    console.log('applying', entries)
     for (const { label } of entries) {
       hueFor(label, this.#hues)
     }
@@ -114,12 +118,16 @@ export class HighlightManager {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
 
-    const drawn = new Map<Element, { element: Element; rect: DOMRect; labels: string[]; hue: number }>()
+    const drawn = new Map<
+      Element,
+      { element: Element; rect: DOMRect; labels: string[]; hue: number }
+    >()
 
     for (const { element, label } of this.#entries) {
       const rect = element.getBoundingClientRect()
       if (rect.width === 0 && rect.height === 0) continue
-      if (rect.bottom < 0 || rect.top > h || rect.right < 0 || rect.left > w) continue
+      if (rect.bottom < 0 || rect.top > h || rect.right < 0 || rect.left > w)
+        continue
 
       const hue = this.#hues.get(label.split('.')[0] || '') ?? 0
 

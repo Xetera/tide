@@ -33,19 +33,19 @@ export type FieldDescriptor =
   | NodeFieldDescriptor
   | ArrayFieldDescriptor
   | LiteralFieldDescriptor
-  | VariantsFieldDescriptor
+  | VariantDescriptor[]
 
 export interface NodeFieldDescriptor {
   $selector?: string
-  $extractor: ExtractorDescriptor
+  $extractor?: ExtractorDescriptor
   $ifMissing?: IfMissing
+  $fields?: Record<string, FieldDescriptor>
 }
 
 export interface ArrayFieldDescriptor {
   $selectorEach: string
   $id?: string
   $ifMissing?: IfMissing
-  $variants?: VariantDescriptor[]
   $extractor?: ExtractorDescriptor
   $fields?: Record<string, FieldDescriptor>
 }
@@ -54,16 +54,12 @@ export interface LiteralFieldDescriptor {
   $literal: unknown
 }
 
-export interface VariantsFieldDescriptor {
-  $variants: VariantDescriptor[]
-  $ifMissing?: IfMissing
-}
-
 export interface VariantDescriptor {
   $match?: { $css: string }
   $selector?: string
   $selectorEach?: string
   $extractor?: ExtractorDescriptor
+  $ifMissing?: IfMissing
   $fields?: Record<string, FieldDescriptor>
 }
 

@@ -18,6 +18,7 @@ import { sendLog } from './content-script-log'
 import { downloadCachedMedia, MediaResult } from './download-media'
 import { iframeScrape } from './iframe-injector'
 import { EvaluatedResource } from '~/protocol/evaluated-resource'
+import { walkFields } from '~/protocol/walk-fields'
 
 const JOB_FINISHED_MARKER = 'spatula:job-finished'
 const ARRAY_MUTATION_DEBOUNCE_MS = 500
@@ -31,6 +32,7 @@ export class PageManager {
   #observers: MutationObserver[] = []
   #lastHighlights: readonly HighlightEntry[] = []
   #onHighlightsChanged?: (highlights: readonly HighlightEntry[]) => void
+  #runGeneration = 0
 
   get lastHighlights(): readonly HighlightEntry[] {
     return this.#lastHighlights
@@ -51,6 +53,13 @@ export class PageManager {
   }
 
   async run() {
+    for (const mo of this.#observers) {
+      mo.disconnect()
+    }
+    this.#observers = []
+    this.#lastHighlights = []
+    this.#onHighlightsChanged?.(this.#lastHighlights)
+    const generation = ++this.#runGeneration
     const matching = this.evaluator.checkCurrentPage()
     if (matching.kind === 'match') {
       const scrapedPage = await this.#processPage(
@@ -59,7 +68,9 @@ export class PageManager {
         this.isInIframe
           ? { kind: 'active', id: await this.getJobId() }
           : { kind: 'passive' },
+        generation,
       )
+      if (this.#runGeneration !== generation) return
       console.log(
         '[spatula:page-manager] sending page-match event',
         scrapedPage,
@@ -99,11 +110,19 @@ export class PageManager {
     document: Document,
     { resource, variables }: MatchingResource,
     source: JobSource,
+    generation: number,
   ): Promise<ScrapedPage> {
     console.log('[spatula:page-manager] processing page...')
     await PageEvaluator.waitForLoad(document, resource, { maxWait: 10_000 })
-    this.#observeArrays(document, resource, variables, source)
-    const page = await this.#buildPage(document, resource, variables, source)
+    if (this.#runGeneration !== generation) return {} as ScrapedPage
+    this.#observeArrays(document, resource, variables, source, generation)
+    const page = await this.#buildPage(
+      document,
+      resource,
+      variables,
+      source,
+      generation,
+    )
     window.parent?.postMessage(JOB_FINISHED_MARKER, '*')
     return page
   }
@@ -113,6 +132,7 @@ export class PageManager {
     resource: Resource,
     variables: MatchingResource['variables'],
     source: JobSource,
+    generation: number,
   ) {
     const arrayFields = this.#getArrayFields(resource)
     const hasObservableArrays = arrayFields.some(([, d]) => d.$id)
@@ -125,12 +145,19 @@ export class PageManager {
     const mo = new MutationObserver(() => {
       clearTimeout(timer)
       timer = setTimeout(async () => {
+        if (this.#runGeneration !== generation) {
+          return
+        }
         const page = await this.#buildPage(
           document,
           resource,
           variables,
           source,
+          generation,
         )
+        if (this.#runGeneration !== generation) {
+          return
+        }
         const hasNewItems = this.#getArrayFields(resource).some(
           ([key]) =>
             Array.isArray(page.payload[key]) &&
@@ -150,11 +177,14 @@ export class PageManager {
     resource: Resource,
     variables: MatchingResource['variables'],
     source: JobSource,
+    generation: number,
   ): Promise<ScrapedPage> {
     const parser = new HTMLParser(resource)
     const extracted = parser.parse(document)
-    this.#lastHighlights = parser.highlights
-    this.#onHighlightsChanged?.(this.#lastHighlights)
+    if (this.#runGeneration === generation) {
+      this.#lastHighlights = parser.highlights
+      this.#onHighlightsChanged?.(this.#lastHighlights)
+    }
     this.#deduplicatePayload(resource, extracted)
     const evaluated = new EvaluatedResource(resource, extracted)
     const mediaRefs = evaluated.mediaUrls()
@@ -173,12 +203,11 @@ export class PageManager {
   }
 
   #getArrayFields(resource: Resource): [string, ArrayFieldDescriptor][] {
-    return Object.entries(resource.$fields).filter(
-      (entry): entry is [string, ArrayFieldDescriptor] =>
-        typeof entry[1] === 'object' &&
-        entry[1] !== null &&
-        '$selectorEach' in entry[1],
-    )
+    const out: [string, ArrayFieldDescriptor][] = []
+    walkFields(resource.$fields, {
+      onArrayField: (path, descriptor) => out.push([path, descriptor]),
+    })
+    return out
   }
 
   #deduplicatePayload(resource: Resource, payload: UnknownPayload) {

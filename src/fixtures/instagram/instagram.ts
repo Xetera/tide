@@ -146,31 +146,41 @@ export const instagramPost: Resource = {
   ],
   $waitFor: ['[aria-label=Comment]'],
   $fields: {
-    media: {
-      $variants: [
-        {
-          $selector: '[role=presentation] ul:has(li[tabindex])',
-          $fields: {
-            type: { $literal: 'carousel' },
-            images: {
-              $selectorEach: 'li[tabindex] img',
-              $extractor: {
-                $extractor: 'media',
-              },
+    media: [
+      {
+        $selector:
+          ':is([role=button] video[playsinline], video[src^=blob]:has(+ [data-instancekey]))',
+        $fields: {
+          type: { $literal: 'video' },
+          video: {
+            $extractor: { $extractor: 'media' },
+          },
+        },
+      },
+      {
+        $selector: '[role=presentation] ul:has(li[tabindex])',
+        $fields: {
+          type: { $literal: 'carousel' },
+          images: {
+            $selectorEach: 'li[tabindex] img',
+            $extractor: {
+              $extractor: 'media',
             },
           },
         },
-        {
-          $selector: '[role=button] video[playsinline]',
-          $fields: {
-            type: { $literal: 'video' },
-            video: {
-              $extractor: { $extractor: 'media' },
+      },
+      {
+        $selector: '[role=button][tabindex="-1"] img',
+        $fields: {
+          type: { $literal: 'image' },
+          image: {
+            $extractor: {
+              $extractor: 'media',
             },
           },
         },
-      ],
-    },
+      },
+    ],
     likeCount: {
       $ifMissing: {
         $strategy: 'omit',
@@ -188,18 +198,51 @@ export const instagramPost: Resource = {
         ],
       },
     },
-    commentCount: {
-      $ifMissing: {
-        $strategy: 'omit',
-      },
-      $selector: 'span:has([aria-label=Comment]) + [role=button]',
-      $extractor: {
-        $extractor: 'text',
-        $transformers: [
-          { $transformer: 'expand-suffix' },
+    comments: {
+      // $ifMissing: {
+      //   $strategy: 'omit',
+      // },
+      $fields: {
+        list: {
+          $selectorEach: 'ul > div:nth-child(3) > div',
+          $fields: {
+            username: {
+              $selector: 'h3',
+              $extractor: {
+                $extractor: 'text',
+              },
+            },
+            comment: {
+              $selector: 'h3 + div',
+              $extractor: {
+                $extractor: 'text',
+              },
+            },
+          },
+        },
+        count: [
           {
-            $transformer: 'cast',
-            $cast: 'number',
+            $selector: 'span:has([aria-label=Comment]) + [role=button]',
+            $fields: {
+              tag: { $literal: 'count_enabled' },
+              value: {
+                $extractor: {
+                  $extractor: 'text',
+                  $transformers: [
+                    { $transformer: 'expand-suffix' },
+                    {
+                      $transformer: 'cast',
+                      $cast: 'number',
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          {
+            $fields: {
+              tag: { $literal: 'count_disabled' },
+            },
           },
         ],
       },

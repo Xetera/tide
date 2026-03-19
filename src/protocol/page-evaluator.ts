@@ -56,9 +56,15 @@ export class PageEvaluator {
 
   private matchingHosts(url: URL): readonly Resource[] {
     return Object.freeze(
-      this.resources.filter((resource) => {
-        return url.hostname === resource.$hostname
-      }),
+      this.resources
+        .filter((resource) => url.hostname === resource.$hostname)
+        .sort((a, b) => {
+          const segments = (p: string | string[]) => {
+            const patterns = Array.isArray(p) ? p : [p]
+            return Math.max(...patterns.map((s) => s.split('/').length))
+          }
+          return segments(b.$urlPattern) - segments(a.$urlPattern)
+        }),
     )
   }
 
