@@ -1,6 +1,6 @@
 import isEqual from 'lodash/isEqual'
 import { onMessage, sendMessage } from 'webext-bridge/content-script'
-import { HTMLParser } from '~/protocol/html-parser'
+import { type HighlightEntry, HTMLParser } from '~/protocol/html-parser'
 import {
   type MatchingResource,
   PageEvaluator,
@@ -29,6 +29,16 @@ export class PageManager {
   // resourceId -> arrayKey -> Set of seen primary key values
   #seenKeys = new Map<string, Map<string, Set<unknown>>>()
   #observers: MutationObserver[] = []
+  #lastHighlights: readonly HighlightEntry[] = []
+  #onHighlightsChanged?: (highlights: readonly HighlightEntry[]) => void
+
+  get lastHighlights(): readonly HighlightEntry[] {
+    return this.#lastHighlights
+  }
+
+  set onHighlightsChanged(cb: (highlights: readonly HighlightEntry[]) => void) {
+    this.#onHighlightsChanged = cb
+  }
 
   constructor(
     document: Document,
@@ -77,7 +87,9 @@ export class PageManager {
     this.resources = resources
     this.evaluator = new PageEvaluator(document, resources)
     this.#seenKeys.clear()
-    for (const mo of this.#observers) mo.disconnect()
+    for (const mo of this.#observers) {
+      mo.disconnect()
+    }
     this.#observers = []
     console.debug('[spatula:page-manager] rerunning after resource update')
     this.run()
@@ -141,6 +153,8 @@ export class PageManager {
   ): Promise<ScrapedPage> {
     const parser = new HTMLParser(resource)
     const extracted = parser.parse(document)
+    this.#lastHighlights = parser.highlights
+    this.#onHighlightsChanged?.(this.#lastHighlights)
     this.#deduplicatePayload(resource, extracted)
     const evaluated = new EvaluatedResource(resource, extracted)
     const mediaRefs = evaluated.mediaUrls()

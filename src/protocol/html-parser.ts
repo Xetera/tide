@@ -38,13 +38,23 @@ function isVariantsField(value: unknown): value is S.VariantsFieldDescriptor {
   )
 }
 
+export interface HighlightEntry {
+  element: Element
+  label: string
+}
+
 export class HTMLParser {
   private numberParser?: NumberParser
   private _warnings: string[] = []
+  private _highlights: HighlightEntry[] = []
 
   #currentDocument!: Document
 
   constructor(private readonly resource: S.Resource) {}
+
+  get highlights(): readonly HighlightEntry[] {
+    return this._highlights
+  }
 
   get warnings(): readonly string[] {
     return Object.freeze(this._warnings)
@@ -55,6 +65,7 @@ export class HTMLParser {
     { maxWait = 10_000 } = {},
   ): Promise<S.UnknownPayload> {
     this._warnings = []
+    this._highlights = []
     const doc = HTMLParser.createDocument(html)
     const waitFor = this.resource.$waitFor
     if (
@@ -71,6 +82,7 @@ export class HTMLParser {
 
   parse(html: string | Document) {
     this._warnings = []
+    this._highlights = []
     const element = HTMLParser.createDocument(html)
     return this.#process(element)
   }
@@ -87,7 +99,7 @@ export class HTMLParser {
         }
       }
 
-      return this.#parseFields(document.body, this.resource.$fields)
+      return this.#parseFields(document.body, this.resource.$fields, '')
     } catch (err) {
       if (err instanceof BailSignal) {
         return {}
@@ -115,14 +127,16 @@ export class HTMLParser {
   #parseFields(
     element: ParentNode,
     schema: Record<string, S.FieldDescriptor>,
+    prefix: string,
   ): S.UnknownPayload {
     const out: S.UnknownPayload = {}
     for (const key of Object.keys(schema)) {
+      const label = prefix ? `${prefix}.${key}` : key
       const descriptor = schema[key]
       if (isLiteral(descriptor)) {
         this.#setKey(key, out, descriptor.$literal)
       } else if (isArrayField(descriptor)) {
-        const result = this.#parseArrayField(element as HTMLElement, descriptor)
+        const result = this.#parseArrayField(element as HTMLElement, descriptor, label)
         if (result !== undefined) {
           this.#setKey(key, out, result)
         }
@@ -131,6 +145,7 @@ export class HTMLParser {
           element as HTMLElement,
           key,
           descriptor,
+          label,
         )
         if (result !== undefined) {
           this.#setKey(key, out, result)
@@ -140,6 +155,7 @@ export class HTMLParser {
           element as ParentNode,
           key,
           descriptor,
+          label,
         )
         if (result !== undefined) {
           this.#setKey(key, out, result)
@@ -171,6 +187,7 @@ export class HTMLParser {
     element: ParentNode,
     key: string,
     descriptor: S.NodeFieldDescriptor,
+    label: string,
   ): unknown {
     const node = (
       descriptor.$selector
@@ -183,7 +200,7 @@ export class HTMLParser {
         return false
       }
       if (descriptor.$ifMissing) {
-        return this.#handleIfMissing(descriptor.$ifMissing, key)
+        return this.#handleIfMissing(descriptor.$ifMissing, key, label)
       }
       throw new ParserError(
         descriptor.$selector,
@@ -191,10 +208,11 @@ export class HTMLParser {
       )
     }
 
+    this.#highlight(node, label)
     return this.#runExtractor(node, descriptor.$extractor)
   }
 
-  #handleIfMissing(ifMissing: S.IfMissing, key: string): unknown {
+  #handleIfMissing(ifMissing: S.IfMissing, key: string, label: string): unknown {
     if ('$warning' in ifMissing && ifMissing.$warning) {
       this.#warn(ifMissing.$warning)
     }
@@ -207,7 +225,7 @@ export class HTMLParser {
         const v = ifMissing.$value
         if (isLiteral(v)) return v.$literal
         if (isNodeField(v)) {
-          return this.#parseNodeField(this.#currentDocument.body, key, v)
+          return this.#parseNodeField(this.#currentDocument.body, key, v, label)
         }
         return undefined
       }
@@ -217,23 +235,25 @@ export class HTMLParser {
   #parseArrayField(
     element: HTMLElement,
     descriptor: S.ArrayFieldDescriptor,
+    label: string,
   ): unknown[] | unknown {
     const items = element.querySelectorAll(
       descriptor.$selectorEach,
     ) as NodeListOf<HTMLElement>
 
     if (items.length === 0 && descriptor.$ifMissing) {
-      return this.#handleIfMissing(descriptor.$ifMissing, '')
+      return this.#handleIfMissing(descriptor.$ifMissing, '', label)
     }
 
     return Array.from(items, (item) => {
+      this.#highlight(item, label)
       if (descriptor.$variants) {
-        return this.#parseVariants(item, descriptor.$variants)
+        return this.#parseVariants(item, descriptor.$variants, label)
       }
       if (descriptor.$extractor) {
         return this.#runExtractor(item, descriptor.$extractor)
       }
-      return this.#parseFields(item, descriptor.$fields ?? {})
+      return this.#parseFields(item, descriptor.$fields ?? {}, label)
     })
   }
 
@@ -241,21 +261,23 @@ export class HTMLParser {
     element: HTMLElement,
     key: string,
     descriptor: S.VariantsFieldDescriptor,
+    label: string,
   ): unknown {
     for (const variant of descriptor.$variants) {
       const node = (
         variant.$selector ? element.querySelector(variant.$selector) : element
       ) as HTMLElement | null
       if (!node) continue
-      return this.#parseVariant(node, variant)
+      this.#highlight(node, label)
+      return this.#parseVariant(node, variant, label)
     }
     if (descriptor.$ifMissing) {
-      return this.#handleIfMissing(descriptor.$ifMissing, key)
+      return this.#handleIfMissing(descriptor.$ifMissing, key, label)
     }
     return undefined
   }
 
-  #parseVariant(node: HTMLElement, variant: S.VariantDescriptor): unknown {
+  #parseVariant(node: HTMLElement, variant: S.VariantDescriptor, label: string): unknown {
     if (variant.$extractor) {
       return this.#runExtractor(node, variant.$extractor)
     }
@@ -263,23 +285,23 @@ export class HTMLParser {
       const items = node.querySelectorAll(
         variant.$selectorEach,
       ) as NodeListOf<HTMLElement>
-      return Array.from(items, (item) =>
-        variant.$extractor
-          ? this.#runExtractor(item, variant.$extractor)
-          : this.#parseFields(item, variant.$fields ?? {}),
-      )
+      return Array.from(items, (item) => {
+        this.#highlight(item, label)
+        return this.#parseFields(item, variant.$fields ?? {}, label)
+      })
     }
-    return this.#parseFields(node, variant.$fields ?? {})
+    return this.#parseFields(node, variant.$fields ?? {}, label)
   }
 
   #parseVariants(
     item: HTMLElement,
     variants: S.VariantDescriptor[],
+    label: string,
   ): S.UnknownPayload {
     for (const variant of variants) {
       const match = variant.$match
       if (!match || item.matches(match.$css)) {
-        return this.#parseVariant(item, variant) as S.UnknownPayload
+        return this.#parseVariant(item, variant, label) as S.UnknownPayload
       }
     }
     return {}
@@ -485,6 +507,10 @@ export class HTMLParser {
       style.remove()
     }
     return clone
+  }
+
+  #highlight(element: Element, label: string) {
+    this._highlights.push({ element, label })
   }
 
   #warn(warning: string) {

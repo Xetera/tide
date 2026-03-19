@@ -79,8 +79,9 @@ export const instagram: Resource = {
       },
     },
     posts: {
-      $selectorEach: 'header + div + div a:has(img)',
-      $ifMissing: { $strategy: 'bail', $warning: 'Could not find posts array' },
+      $selectorEach: 'header + div + div > div > div a:has(img)',
+      // $ifMissing: { $strategy: 'bail',
+      //   $warning: 'Could not find posts array' },
       $id: 'url',
       $fields: {
         image: {

@@ -8,6 +8,7 @@ import type { Log } from './shared'
 declare module 'webext-bridge' {
   export interface ProtocolMap {
     'url-update': unknown
+    'toggle-highlight': void
     // to specify the return type of the message,
     // use the `ProtocolWithReturn` type wrapper
     'run-job': JobParameters
