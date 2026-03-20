@@ -58,6 +58,7 @@ export interface VariantDescriptor {
   $match?: { $css: string }
   $selector?: string
   $selectorEach?: string
+  $literal?: unknown
   $extractor?: ExtractorDescriptor
   $ifMissing?: IfMissing
   $fields?: Record<string, FieldDescriptor>

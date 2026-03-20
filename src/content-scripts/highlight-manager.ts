@@ -4,7 +4,9 @@ const CANVAS_ID = 'spatula-highlight-canvas'
 const HUE_STEP = 37
 
 function rectsOverlap(a: DOMRect, b: DOMRect): boolean {
-  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+  return (
+    a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+  )
 }
 
 function hueFor(label: string, hues: Map<string, number>): number {
@@ -16,8 +18,24 @@ function hueFor(label: string, hues: Map<string, number>): number {
   return hues.get(root)!
 }
 
-function oklchToCtx(hue: number): string {
-  return `oklch(0.7 0.2 ${hue} / 0.2)`
+function isDarkMode(): boolean {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+}
+
+function strokeColor(hue: number): string {
+  return isDarkMode()
+    ? `oklch(0.75 0.2 ${hue} / 0.35)`
+    : `oklch(0.55 0.25 ${hue} / 0.5)`
+}
+
+function labelBg(hue: number): string {
+  return isDarkMode()
+    ? `oklch(0.3 0.15 ${hue} / 0.9)`
+    : `oklch(0.92 0.08 ${hue} / 0.9)`
+}
+
+function labelFg(hue: number): string {
+  return isDarkMode() ? `oklch(0.9 0.1 ${hue})` : `oklch(0.25 0.15 ${hue})`
 }
 
 function getComputedBorderRadii(
@@ -157,11 +175,9 @@ export class HighlightManager {
     const placedLabels: DOMRect[] = []
 
     for (const { element, rect, labels, hue, isArrayItem } of drawn.values()) {
-      const color = oklchToCtx(hue)
-
       const radii = getComputedBorderRadii(element, rect)
 
-      ctx.strokeStyle = color
+      ctx.strokeStyle = strokeColor(hue)
       ctx.lineWidth = 1
       ctx.beginPath()
       ctx.roundRect(rect.x, rect.y, rect.width, rect.height, radii)
@@ -169,7 +185,7 @@ export class HighlightManager {
 
       if (!isArrayItem) {
         const text = labels.join(', ')
-        ctx.font = '9px Menlo, monospace'
+        ctx.font = '9px monospace'
         const metrics = ctx.measureText(text)
         const textHeight = 10
         const padding = 3
@@ -183,17 +199,22 @@ export class HighlightManager {
           new DOMRect(rect.x - tagW - 2, rect.y, tagW, tagH),
         ]
 
-        const tagRect = candidates.find(
-          (c) => !placedLabels.some((p) => rectsOverlap(p, c)),
-        ) ?? candidates[0]
+        const tagRect =
+          candidates.find(
+            (c) => !placedLabels.some((p) => rectsOverlap(p, c)),
+          ) ?? candidates[0]!
 
         placedLabels.push(tagRect)
 
-        ctx.fillStyle = color
+        ctx.fillStyle = labelBg(hue)
         ctx.fillRect(tagRect.x, tagRect.y, tagRect.width, tagRect.height)
 
-        ctx.fillStyle = `oklch(1 0.15 ${hue})`
-        ctx.fillText(text, tagRect.x + padding, tagRect.y + padding + textHeight - 1)
+        ctx.fillStyle = labelFg(hue)
+        ctx.fillText(
+          text,
+          tagRect.x + padding,
+          tagRect.y + padding + textHeight - 1,
+        )
       }
     }
   }

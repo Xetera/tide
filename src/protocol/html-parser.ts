@@ -39,6 +39,7 @@ function isVariantArray(value: unknown): value is S.VariantDescriptor[] {
 export interface HighlightEntry {
   element: Element
   label: string
+  isArrayItem?: boolean
 }
 
 export class HTMLParser {
@@ -252,14 +253,13 @@ export class HTMLParser {
     const items = element.querySelectorAll(
       descriptor.$selectorEach,
     ) as NodeListOf<HTMLElement>
-    console.log('ITEMS', items, element, descriptor.$selectorEach)
 
     if (items.length === 0 && descriptor.$ifMissing) {
       return this.#handleIfMissing(descriptor.$ifMissing, '', label)
     }
 
     return Array.from(items, (item) => {
-      this.#highlight(item, label)
+      this.#highlight(item, label, true)
       if (descriptor.$extractor) {
         return this.#runExtractor(item, descriptor.$extractor)
       }
@@ -293,6 +293,9 @@ export class HTMLParser {
     variant: S.VariantDescriptor,
     label: string,
   ): unknown {
+    if (variant.$literal !== undefined) {
+      return variant.$literal
+    }
     if (variant.$extractor) {
       return this.#runExtractor(node, variant.$extractor)
     }
@@ -510,8 +513,8 @@ export class HTMLParser {
     return clone
   }
 
-  #highlight(element: Element, label: string) {
-    this._highlights.push({ element, label })
+  #highlight(element: Element, label: string, isArrayItem?: boolean) {
+    this._highlights.push({ element, label, isArrayItem })
   }
 
   #warn(warning: string) {

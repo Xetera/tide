@@ -36,11 +36,13 @@ export const instagram: Resource = {
       },
     },
     followerCount: {
+      // Expanded extractor <span title="123,123,123">
       $selector:
-        'section:has(canvas, img) + section div:last-child:nth-child(3) :nth-child(2) .html-span',
+        'section:has(canvas, img) + section a[href$="/followers/"] span[title]',
       $ifMissing: { $strategy: 'omit' },
       $extractor: {
-        $extractor: 'text',
+        $extractor: 'attribute',
+        $attribute: 'title',
         $transformers: [
           { $transformer: 'expand-suffix' },
           { $transformer: 'cast', $cast: 'number' },
@@ -49,7 +51,7 @@ export const instagram: Resource = {
     },
     followingCount: {
       $selector:
-        'section:has(canvas, img) + section div:last-child:nth-child(3) :nth-child(3) .html-span',
+        'section:has(canvas, img) + section a[href$="/following/"] > span > span > span',
       $ifMissing: { $strategy: 'omit' },
       $extractor: {
         $extractor: 'text',
@@ -59,7 +61,7 @@ export const instagram: Resource = {
         ],
       },
     },
-    name: {
+    nickname: {
       $selector: 'section:has(canvas, img) + section div > span',
       $extractor: {
         $extractor: 'text',
@@ -72,7 +74,14 @@ export const instagram: Resource = {
       },
     },
     description: {
-      $selector: 'section:has(canvas, img) + section > :nth-child(2) span',
+      $selector:
+        'section:has(canvas, img) + section > :nth-child(2) > div span',
+      $ifMissing: {
+        $strategy: 'fallback',
+        $value: {
+          $literal: '',
+        },
+      },
       $extractor: {
         $extractor: 'text',
       },
@@ -85,12 +94,44 @@ export const instagram: Resource = {
       },
     },
     posts: {
-      $selectorEach: 'header + div + div > div > div a:has(img)',
+      $selectorEach:
+        'header + div + div > div > div a:has(img:not([alt$="profile picture"]))',
       // $ifMissing: { $strategy: 'bail',
       //   $warning: 'Could not find posts array' },
       $id: 'url',
       $fields: {
-        image: {
+        isPinned: {
+          $selector: '[aria-label="Pinned post icon"]',
+          $extractor: {
+            $extractor: 'exists',
+          },
+        },
+        kind: [
+          {
+            $selector: '[aria-label=Carousel]',
+            $literal: 'carousel',
+          },
+          {
+            $selector: '[aria-label=Clip]',
+            $literal: 'clip',
+          },
+          {
+            $match: {
+              $css: '[aria-label!="Pinned post icon"]',
+            },
+            $literal: 'image',
+          },
+          {
+            $literal: null,
+          },
+        ],
+        link: {
+          $extractor: {
+            $extractor: 'attribute',
+            $attribute: 'href',
+          },
+        },
+        preview: {
           $selector: 'img',
           $ifMissing: {
             $strategy: 'bail',
@@ -107,6 +148,32 @@ export const instagram: Resource = {
             $warning: 'image not found in post?',
           },
           $extractor: { $extractor: 'attribute', $attribute: 'alt' },
+        },
+      },
+    },
+    stories: {
+      $selectorEach: `a[href^="/stories/"]`,
+      $ifMissing: {
+        $strategy: 'omit',
+      },
+      $fields: {
+        link: {
+          $extractor: {
+            $extractor: 'attribute',
+            $attribute: 'href',
+          },
+        },
+        coverImage: {
+          $selector: 'img',
+          $extractor: {
+            $extractor: 'media',
+          },
+        },
+        title: {
+          $selector: ':scope > div > div:nth-child(2)',
+          $extractor: {
+            $extractor: 'text',
+          },
         },
       },
     },
@@ -174,9 +241,22 @@ export const instagramPost: Resource = {
             },
           },
         },
-        user: {
-          $selector: '',
+        postedAt: {
+          $selector: 'a[role=link] time',
+          $extractor: {
+            $extractor: 'attribute',
+            $attribute: 'datetime',
+            $transformers: [
+              {
+                $transformer: 'cast',
+                $cast: 'date',
+              },
+            ],
+          },
         },
+        // user: {
+        //   $selector: '',
+        // },
       },
     },
     media: [
@@ -214,35 +294,57 @@ export const instagramPost: Resource = {
         },
       },
     ],
-    likeCount: {
-      $ifMissing: {
-        $strategy: 'omit',
+    likeCount: [
+      {
+        $ifMissing: {
+          $strategy: 'omit',
+        },
+        $selector:
+          'span:has([aria-label=Like], [aria-label=Unlike]) + [role=button]',
+        $extractor: {
+          $extractor: 'text',
+          $transformers: [
+            { $transformer: 'expand-suffix' },
+            {
+              $transformer: 'cast',
+              $cast: 'number',
+            },
+          ],
+        },
       },
-      $selector:
-        'span:has([aria-label=Like], [aria-label=Unlike]) + [role=button]',
-      $extractor: {
-        $extractor: 'text',
-        $transformers: [
-          { $transformer: 'expand-suffix' },
-          {
-            $transformer: 'cast',
-            $cast: 'number',
-          },
-        ],
+      {
+        $selector:
+          '[role=presentation] > div > section + section div[role=button] > .html-span',
+        $extractor: {
+          $extractor: 'text',
+          $transformers: [
+            {
+              $transformer: 'cast',
+              $cast: 'number',
+            },
+          ],
+        },
       },
-    },
+    ],
     comments: {
       // $ifMissing: {
       //   $strategy: 'omit',
       // },
       $fields: {
         list: {
-          $selectorEach: 'ul > div:nth-child(3) :has(ul > div)',
+          $selectorEach:
+            'ul > div > div > div > div:has(> ul > div[role=button])',
           $fields: {
             username: {
               $selector: 'h3',
               $extractor: {
                 $extractor: 'text',
+              },
+            },
+            isVerified: {
+              $selector: '[aria-label="Verified"]',
+              $extractor: {
+                $extractor: 'exists',
               },
             },
             comment: {
@@ -260,6 +362,22 @@ export const instagramPost: Resource = {
                   {
                     $transformer: 'cast',
                     $cast: 'date',
+                  },
+                ],
+              },
+            },
+            likes: {
+              $selector: 'a:has(time) + button',
+              $extractor: {
+                $extractor: 'text',
+                $transformers: [
+                  {
+                    $transformer: 'regex',
+                    $regex: '[0-9,.]+',
+                  },
+                  {
+                    $transformer: 'cast',
+                    $cast: 'number',
                   },
                 ],
               },
