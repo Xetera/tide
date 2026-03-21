@@ -3,6 +3,7 @@ import type { PageSpec } from '~/protocol/scrapeer'
 export const instagram: PageSpec = {
   $id: 'profile_page',
   $hash: 'instagram',
+  $entity: 'instagram:profile',
   $hostname: 'www.instagram.com',
   $variables: {
     profile: {
@@ -96,6 +97,7 @@ export const instagram: PageSpec = {
     posts: {
       $selectorEach:
         'header + div + div > div > div a:has(img:not([alt$="profile picture"]))',
+      $entity: 'instagram:post',
       // $ifMissing: { $strategy: 'bail',
       //   $warning: 'Could not find posts array' },
       $id: 'url',
@@ -140,7 +142,7 @@ export const instagram: PageSpec = {
         preview: {
           $selector: 'img',
           $ifMissing: {
-            $strategy: 'bail',
+            $strategy: 'omit',
             $warning: 'image not found in post?',
           },
           $extractor: {
@@ -150,7 +152,7 @@ export const instagram: PageSpec = {
         alt: {
           $selector: 'img',
           $ifMissing: {
-            $strategy: 'bail',
+            $strategy: 'omit',
             $warning: 'image not found in post?',
           },
           $extractor: { $extractor: 'attribute', $attribute: 'alt' },
@@ -196,6 +198,7 @@ export const instagramPost: PageSpec = {
   $id: 'post',
   $hash: 'instagram-post',
   $hostname: 'www.instagram.com',
+  $entity: 'instagram:post',
   $variables: {
     // username: {
     //   $kind: 'url',

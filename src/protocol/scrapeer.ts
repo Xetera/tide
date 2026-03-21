@@ -9,6 +9,12 @@ export interface PageSpec {
    * Currently only `locale` is used to influence number parsing.
    */
   $meta?: Record<string, NodeFieldDescriptor>
+  /**
+   * The name of the entity this spec represents
+   * @example "instagram:page"
+   * @example "instagram:profile"
+   */
+  $entity: string
   /** Whether this resource should be ignored by the client */
   $disabled?: boolean
   /** Variables defined in the url or query expected to be parsed by the client */
@@ -29,6 +35,30 @@ export interface PageSpec {
   $fields: Record<string, FieldDescriptor>
 }
 
+export type AssetReference = {
+  mimeType?: string
+  /** Hash of the asset */
+  hash: string
+  /**
+   * URL the asset was found in the source.
+   * Not every asset has a linkable source (ex: blobs)
+   * Not every asset's link is accessible indefinitely
+   **/
+  sourceUrl?: string
+  /** Last time this asset was seen. Unix timestamp */
+  seenAt: number
+} & (
+  | {
+      /** Asset has not been uploaded yet */
+      type: 'pending'
+    }
+  | {
+      /** Asset is ready in a URL that can downloaded */
+      type: 'ready'
+      url: string
+    }
+)
+
 export type FieldDescriptor =
   | NodeFieldDescriptor
   | ArrayFieldDescriptor
@@ -37,6 +67,7 @@ export type FieldDescriptor =
 
 export interface NodeFieldDescriptor {
   $selector?: string
+  $entity?: string
   $extractor?: ExtractorDescriptor
   $ifMissing?: IfMissing
   $fields?: Record<string, FieldDescriptor>
@@ -44,6 +75,7 @@ export interface NodeFieldDescriptor {
 
 export interface ArrayFieldDescriptor {
   $selectorEach: string
+  $entity?: string
   $id?: string
   $ifMissing?: IfMissing
   $extractor?: ExtractorDescriptor
