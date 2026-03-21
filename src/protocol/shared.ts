@@ -1,8 +1,8 @@
 import { PageEvaluator } from './page-evaluator'
 import { constructPathRegexes } from './resource'
-import type { Resource, UnknownPayload } from './scrapeer'
+import type { PageSpec, UnknownPayload } from './scrapeer'
 
-export function findResource(id: string, resources: Resource[]): Resource {
+export function findResource(id: string, resources: PageSpec[]): PageSpec {
   const resource = resources.find((r) => r.$id === id)
   if (!resource) {
     throw new Error(`Resource ${id} not found`)
@@ -11,7 +11,7 @@ export function findResource(id: string, resources: Resource[]): Resource {
   return resource
 }
 
-export function parseVariables(resource: Resource, url: URL) {
+export function parseVariables(resource: PageSpec, url: URL) {
   const regexes = constructPathRegexes(resource.$urlPattern)
   const normalizedPath = PageEvaluator.normalizePath(url.pathname)
   const matching = regexes.flatMap((regex) =>

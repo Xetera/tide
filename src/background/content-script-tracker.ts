@@ -1,6 +1,6 @@
 import { shuffle } from 'lodash'
 import { onMessage } from 'webext-bridge/background'
-import type { Resource } from '~/protocol/scrapeer'
+import type { PageSpec } from '~/protocol/scrapeer'
 import { log } from './backend-logger'
 
 export class ContentScriptTracker {
@@ -16,7 +16,7 @@ export class ContentScriptTracker {
     })
   }
 
-  async getScriptTab(resource?: Resource): Promise<number> {
+  async getScriptTab(resource?: PageSpec): Promise<number> {
     const rawTabs = await chrome.tabs.query({})
     const tabs = shuffle(rawTabs)
     for (const tab of tabs) {

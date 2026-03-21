@@ -4,7 +4,7 @@ import { For, Show, createEffect, createSignal } from 'solid-js'
 import { onMessage, sendMessage } from 'webext-bridge/popup'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { toOrigin } from '~/protocol/resource'
-import type { Resource } from '~/protocol/scrapeer'
+import type { PageSpec } from '~/protocol/scrapeer'
 import { type BrowserStorageSchema, Storage } from '~/shared/storage'
 import { useBrowserStorage } from '~/shared/hooks'
 import { AddServer } from './add-server'
@@ -15,7 +15,7 @@ const formatter = createDateFormatter({
   timeStyle: 'medium',
 })()
 
-async function requestNewPermissions(resource: Resource) {
+async function requestNewPermissions(resource: PageSpec) {
   await chrome.permissions.request({
     origins: [toOrigin(resource)],
     permissions: ['declarativeNetRequest', 'webNavigation'],
@@ -32,7 +32,7 @@ function Page() {
     'scrape:last',
     undefined,
   )
-  async function updateState(resources: Resource[]) {
+  async function updateState(resources: PageSpec[]) {
     const stateful = await Promise.all(
       resources.map(async (resource) => {
         const hostAllowed = await chrome.permissions.contains({
@@ -60,7 +60,7 @@ function Page() {
   //   console.log(a)
   // })
 
-  function getNewPermissions(resource: Resource) {
+  function getNewPermissions(resource: PageSpec) {
     requestNewPermissions(resource)
     storage.push('enabledResources', resource.$id)
   }
@@ -141,7 +141,7 @@ function Page() {
 
 export interface StatefulResource {
   hostAllowed: boolean
-  resource: Resource
+  resource: PageSpec
 }
 
 export default Page

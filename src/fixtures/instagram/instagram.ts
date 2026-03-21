@@ -1,6 +1,6 @@
-import type { Resource } from '~/protocol/scrapeer'
+import type { PageSpec } from '~/protocol/scrapeer'
 
-export const instagram: Resource = {
+export const instagram: PageSpec = {
   $id: 'profile_page',
   $hash: 'instagram',
   $hostname: 'www.instagram.com',
@@ -129,6 +129,12 @@ export const instagram: Resource = {
           $extractor: {
             $extractor: 'attribute',
             $attribute: 'href',
+            $transformers: [
+              {
+                $transformer: 'cast',
+                $cast: 'url',
+              },
+            ],
           },
         },
         preview: {
@@ -161,6 +167,12 @@ export const instagram: Resource = {
           $extractor: {
             $extractor: 'attribute',
             $attribute: 'href',
+            $transformers: [
+              {
+                $transformer: 'cast',
+                $cast: 'url',
+              },
+            ],
           },
         },
         coverImage: {
@@ -180,7 +192,7 @@ export const instagram: Resource = {
   },
 }
 
-export const instagramPost: Resource = {
+export const instagramPost: PageSpec = {
   $id: 'post',
   $hash: 'instagram-post',
   $hostname: 'www.instagram.com',
@@ -217,13 +229,28 @@ export const instagramPost: Resource = {
     '/:username/p/:postId',
     '/:username/reel/:postId',
   ],
-  $waitFor: ['ul > div[role=button]'],
+  $waitFor: ['div + hr + div > div', 'ul > div[role=button]'],
   $fields: {
     post: {
-      $selector: '[role=presentation]',
       $fields: {
+        description: {
+          $selector: 'div + hr + div div > span > div > div + span',
+          $extractor: {
+            $extractor: 'text',
+          },
+        },
+        user: {
+          $fields: {
+            avatar: {
+              $selector: 'div + hr + div a[role=link] img',
+              $extractor: {
+                $extractor: 'media',
+              },
+            },
+          },
+        },
         location: {
-          $selector: 'a[href^="/explore/locations"]',
+          $selector: '[role=presentation] a[href^="/explore/locations"]',
           $ifMissing: {
             $strategy: 'omit',
           },
@@ -237,23 +264,29 @@ export const instagramPost: Resource = {
               $extractor: {
                 $extractor: 'attribute',
                 $attribute: 'href',
+                $transformers: [
+                  {
+                    $transformer: 'cast',
+                    $cast: 'url',
+                  },
+                ],
               },
             },
           },
         },
-        postedAt: {
-          $selector: 'a[role=link] time',
-          $extractor: {
-            $extractor: 'attribute',
-            $attribute: 'datetime',
-            $transformers: [
-              {
-                $transformer: 'cast',
-                $cast: 'date',
-              },
-            ],
-          },
-        },
+        // postedAt: {
+        //   $selector: 'a[role=link] time',
+        //   $extractor: {
+        //     $extractor: 'attribute',
+        //     $attribute: 'datetime',
+        //     $transformers: [
+        //       {
+        //         $transformer: 'cast',
+        //         $cast: 'date',
+        //       },
+        //     ],
+        //   },
+        // },
         // user: {
         //   $selector: '',
         // },

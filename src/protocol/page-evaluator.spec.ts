@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { MatchingResource, PageCheckResult } from './page-evaluator'
 import { PageEvaluator } from './page-evaluator'
-import type { Resource } from './scrapeer'
+import type { PageSpec } from './scrapeer'
 import { HTMLParser } from './html-parser'
 import { JSDOM } from 'jsdom'
 import { sahibinden } from '~/fixtures/sahibinden/sahibinden'
 
-function makeResource(opts: Partial<Resource>): Resource {
+function makeResource(opts: Partial<PageSpec>): PageSpec {
   return {
     $id: 'test-case',
     $hash: 'testing',

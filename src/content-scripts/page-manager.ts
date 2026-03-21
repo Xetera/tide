@@ -9,7 +9,7 @@ import type {
   ArrayFieldDescriptor,
   JobParameters,
   JobSource,
-  Resource,
+  PageSpec,
   UnknownPayload,
 } from '../protocol/scrapeer'
 
@@ -44,7 +44,7 @@ export class PageManager {
 
   constructor(
     document: Document,
-    private resources: Resource[],
+    private resources: PageSpec[],
   ) {
     this.evaluator = new PageEvaluator(document, resources)
     this.isInIframe = window.self !== window.top
@@ -88,7 +88,7 @@ export class PageManager {
     }
   }
 
-  updateResourcesAndRun(document: Document, resources: Resource[]) {
+  updateResourcesAndRun(document: Document, resources: PageSpec[]) {
     if (isEqual(resources, this.resources)) {
       console.debug(
         '[spatula:page-manager] skipping rerun after resource update because nothing changed',
@@ -129,7 +129,7 @@ export class PageManager {
 
   #observeArrays(
     document: Document,
-    resource: Resource,
+    resource: PageSpec,
     variables: MatchingResource['variables'],
     source: JobSource,
     generation: number,
@@ -174,7 +174,7 @@ export class PageManager {
 
   async #buildPage(
     document: Document,
-    resource: Resource,
+    resource: PageSpec,
     variables: MatchingResource['variables'],
     source: JobSource,
     generation: number,
@@ -202,7 +202,7 @@ export class PageManager {
     }
   }
 
-  #getArrayFields(resource: Resource): [string, ArrayFieldDescriptor][] {
+  #getArrayFields(resource: PageSpec): [string, ArrayFieldDescriptor][] {
     const out: [string, ArrayFieldDescriptor][] = []
     walkFields(resource.$fields, {
       onArrayField: (path, descriptor) => out.push([path, descriptor]),
@@ -210,7 +210,7 @@ export class PageManager {
     return out
   }
 
-  #deduplicatePayload(resource: Resource, payload: UnknownPayload) {
+  #deduplicatePayload(resource: PageSpec, payload: UnknownPayload) {
     if (!this.#seenKeys.has(resource.$id)) {
       this.#seenKeys.set(resource.$id, new Map())
     }
@@ -308,12 +308,12 @@ export class PageManager {
 
 export interface PageManagerOptions {
   document: Document
-  resources: Resource[]
+  resources: PageSpec[]
   onPageMatch(match: ScrapedPage): void
 }
 
 export interface ScrapedPage {
-  resourceId: Resource['$id']
+  resourceId: PageSpec['$id']
   source: JobSource
   payload: UnknownPayload
   variables: Record<string, unknown>

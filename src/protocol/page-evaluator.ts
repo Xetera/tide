@@ -1,11 +1,11 @@
 import { isCloudflareChallengePage } from './detection'
-import type { Resource } from './scrapeer'
+import type { PageSpec } from './scrapeer'
 import { parseVariables } from './shared'
 
 export class PageEvaluator {
   constructor(
     private document: Document,
-    private readonly resources: Resource[],
+    private readonly resources: PageSpec[],
   ) {}
 
   updateDocument(document: Document) {
@@ -41,7 +41,7 @@ export class PageEvaluator {
     }
   }
 
-  observe(resource: Resource, fn: MutationCallback): MutationObserver {
+  observe(resource: PageSpec, fn: MutationCallback): MutationObserver {
     const mo = new MutationObserver(fn)
     // for (const descriptor of resource.descriptors) {
     //   if (descriptor.kind === 'selector:array') {
@@ -53,7 +53,7 @@ export class PageEvaluator {
     return mo
   }
 
-  private matchingHosts(url: URL): readonly Resource[] {
+  private matchingHosts(url: URL): readonly PageSpec[] {
     return Object.freeze(
       this.resources
         .filter((resource) => url.hostname === resource.$hostname)
@@ -73,16 +73,15 @@ export class PageEvaluator {
 
   static waitForLoad(
     document: Document,
-    resource: Resource,
+    resource: PageSpec,
     { maxWait = 10_000 }: { maxWait?: number } = {},
   ): Promise<void> {
     if (!resource.$waitFor || resource.$waitFor.length === 0)
       return Promise.resolve()
 
     const selectors = resource.$waitFor
-    console.log('selectors', selectors)
     const isLoaded = () =>
-      selectors.every((s) => document.querySelector(s) !== null)
+      selectors.some((s) => document.querySelector(s) !== null)
 
     if (isLoaded()) {
       return Promise.resolve()
@@ -113,7 +112,7 @@ export type PageCheckResult = MatchingResource | NoMatchFailure
 
 export type MatchingResource = {
   kind: 'match'
-  resource: Resource
+  resource: PageSpec
   variables: Record<string, unknown>
 }
 

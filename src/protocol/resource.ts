@@ -1,4 +1,4 @@
-import type { Resource } from './scrapeer'
+import type { PageSpec } from './scrapeer'
 
 export const constructPathRegex = (pattern: string): RegExp => {
   const regexValue = normalizePath(pattern).replaceAll(
@@ -16,6 +16,6 @@ export const normalizePath = (path: string): string => path.replace(/\/$/, '')
 export const originToUrl = (origin: string) =>
   `https://${origin.replace(/^\./, '')}`
 
-export const toOrigin = (resource: Resource) => `*://${resource.$hostname}/*`
+export const toOrigin = (resource: PageSpec) => `*://${resource.$hostname}/*`
 
-export const toOrigins = (resources: Resource[]) => resources.map(toOrigin)
+export const toOrigins = (resources: PageSpec[]) => resources.map(toOrigin)

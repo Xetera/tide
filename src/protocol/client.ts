@@ -9,7 +9,7 @@ import type {
   JobPollParameters,
   JobPollResponse,
   JobResult,
-  Resource,
+  PageSpec,
   ResourcesResponse,
 } from './scrapeer'
 import { ServerAutonomy } from './scrapeer'
@@ -28,7 +28,7 @@ export class Client {
   // TODO: turn this mess into an array of stateful classes
   #timers = new WeakMap<ServerDefinition, NodeJS.Timeout>()
   #rescheduleTimers = new WeakMap<ServerDefinition, NodeJS.Timeout>()
-  #resources = new Map<ServerDefinition, Resource[]>()
+  #resources = new Map<ServerDefinition, PageSpec[]>()
   #lastResourceRequest = new Map<ServerDefinition, Date>()
 
   readonly #pollIntervalSeconds: number
@@ -59,7 +59,7 @@ export class Client {
     this.enabledResources = enabledResources
   }
 
-  get allResources(): Resource[] {
+  get allResources(): PageSpec[] {
     return Array.from(this.#resources.values()).flat()
   }
 
@@ -106,7 +106,7 @@ export class Client {
     this.#rescheduleTimers.delete(server)
   }
 
-  setResources(server: ServerDefinition, resources: Resource[]) {
+  setResources(server: ServerDefinition, resources: PageSpec[]) {
     this.#resources.set(server, resources)
     this.#events.emit('updatedResources', server, resources)
   }
@@ -166,7 +166,7 @@ export class Client {
       },
     })
     let server: ServerDefinition
-    let resource: Resource
+    let resource: PageSpec
     try {
       ;({ server, resource } = this.#findResource(page.resourceId))
     } catch (err) {
@@ -399,7 +399,7 @@ export class Client {
     this.#rescheduleTimers.set(server, timer)
   }
 
-  #findResource(id: string): { server: ServerDefinition; resource: Resource } {
+  #findResource(id: string): { server: ServerDefinition; resource: PageSpec } {
     for (const server of this.servers) {
       const resources = this.#resources.get(server) ?? []
       for (const resource of resources) {
@@ -438,10 +438,10 @@ export interface ClientEvents {
   pageScraped(page: ScrapedPage): void
   // from client
   runJob(job: Job): void
-  updatedResources(server: ServerDefinition, resources: Resource[]): void
+  updatedResources(server: ServerDefinition, resources: PageSpec[]): void
   polled(server: ServerDefinition, parameters: JobParameters[]): void
   resourceRateLimit(server: ServerDefinition, lastRequest: Date): void
-  insufficientAutonomyForJob(server: ServerDefinition, resource: Resource): void
+  insufficientAutonomyForJob(server: ServerDefinition, resource: PageSpec): void
 }
 
 export interface PopupEvents {

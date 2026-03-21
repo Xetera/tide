@@ -1,4 +1,4 @@
-import type { JobParameters, Resource } from '~/protocol/scrapeer'
+import type { JobParameters, PageSpec } from '~/protocol/scrapeer'
 
 export const sahibindenSmallJobs: JobParameters[] = [
   {
@@ -10,7 +10,7 @@ export const sahibindenSmallJobs: JobParameters[] = [
   },
 ]
 
-export const sahibinden: Resource = {
+export const sahibinden: PageSpec = {
   $id: 'sahibinden:city_listing',
   $hostname: 'www.sahibinden.com',
   $variables: {
@@ -53,7 +53,9 @@ export const sahibinden: Resource = {
         name: {
           $extractor: {
             $extractor: 'text',
-            $transformers: [{ $transformer: 'trim', $options: ['outside', 'inside'] }],
+            $transformers: [
+              { $transformer: 'trim', $options: ['outside', 'inside'] },
+            ],
           },
         },
         class: {
@@ -71,7 +73,11 @@ export const sahibinden: Resource = {
         $extractor: 'attribute',
         $attribute: 'data-lat',
         $transformers: [
-          { $transformer: 'cast', $cast: 'number', $options: { $forceLocale: 'en' } },
+          {
+            $transformer: 'cast',
+            $cast: 'number',
+            $options: { $forceLocale: 'en' },
+          },
         ],
       },
     },
@@ -81,12 +87,17 @@ export const sahibinden: Resource = {
         $extractor: 'attribute',
         $attribute: 'data-lon',
         $transformers: [
-          { $transformer: 'cast', $cast: 'number', $options: { $forceLocale: 'en' } },
+          {
+            $transformer: 'cast',
+            $cast: 'number',
+            $options: { $forceLocale: 'en' },
+          },
         ],
       },
     },
     rows: {
-      $selectorEach: '.searchResultsItem:not(.nativeAd):not(.searchResultsPromoSuper)',
+      $selectorEach:
+        '.searchResultsItem:not(.nativeAd):not(.searchResultsPromoSuper)',
       $fields: {
         id: {
           $extractor: {
@@ -118,7 +129,9 @@ export const sahibinden: Resource = {
               $extractor: {
                 $extractor: 'attribute',
                 $attribute: 'class',
-                $transformers: [{ $transformer: 'trim', $options: ['outside'] }],
+                $transformers: [
+                  { $transformer: 'trim', $options: ['outside'] },
+                ],
               },
             },
           },
@@ -129,7 +142,9 @@ export const sahibinden: Resource = {
             content: {
               $extractor: {
                 $extractor: 'text',
-                $transformers: [{ $transformer: 'trim', $options: ['outside', 'inside'] }],
+                $transformers: [
+                  { $transformer: 'trim', $options: ['outside', 'inside'] },
+                ],
               },
             },
           },

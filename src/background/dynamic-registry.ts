@@ -1,11 +1,11 @@
-import type { Resource } from '~/protocol/scrapeer'
+import type { PageSpec } from '~/protocol/scrapeer'
 import script from '../content-scripts/spatula?script'
 import { toOrigin } from '~/protocol/resource'
 
 export class ScriptRegistry {
-  constructor(private resources: Resource[]) {}
+  constructor(private resources: PageSpec[]) {}
   static async loadFromResources(
-    resources: Resource[],
+    resources: PageSpec[],
   ): Promise<ScriptRegistry> {
     const { origins = [] } = await chrome.permissions.getAll()
     const scripts: chrome.scripting.RegisteredContentScript[] = resources
@@ -28,5 +28,5 @@ export class ScriptRegistry {
 
 export interface UserResource {
   allowed(): Promise<boolean>
-  resource: Resource
+  resource: PageSpec
 }

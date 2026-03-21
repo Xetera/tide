@@ -49,7 +49,7 @@ export class HTMLParser {
 
   #currentDocument!: Document
 
-  constructor(private readonly resource: S.Resource) {}
+  constructor(private readonly resource: S.PageSpec) {}
 
   get highlights(): readonly HighlightEntry[] {
     return this._highlights
@@ -206,7 +206,7 @@ export class HTMLParser {
         return this.#handleIfMissing(descriptor.$ifMissing, key, label)
       }
       throw new ParserError(
-        descriptor.$selector,
+        descriptor,
         'No node was found and no fallback was provided',
       )
     }
@@ -473,14 +473,18 @@ export class HTMLParser {
   }
 
   #transformExpandSuffix(value: unknown): unknown {
-    if (typeof value !== 'string') return value
+    if (typeof value !== 'string') {
+      return value
+    }
     const suffixes: Record<string, number> = {
       K: 1_000,
       M: 1_000_000,
       B: 1_000_000_000,
     }
     const match = value.match(/^([\d.]+)\s*([KMB])$/i)
-    if (!match) return value
+    if (!match) {
+      return value
+    }
     const multiplier = suffixes[match[2].toUpperCase()]
     return String(parseFloat(match[1]) * multiplier)
   }
@@ -526,9 +530,9 @@ export class BailSignal {}
 
 export class ParserError extends Error {
   constructor(
-    public readonly selector: string,
+    public readonly descriptor: S.NodeFieldDescriptor,
     message: string,
   ) {
-    super(`${message} [selector] ${selector}`)
+    super(`${message} [selector] ${descriptor}`)
   }
 }

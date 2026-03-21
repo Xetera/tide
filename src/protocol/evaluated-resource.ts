@@ -1,4 +1,11 @@
-import type { ArrayFieldDescriptor, FieldDescriptor, NodeFieldDescriptor, Resource, UnknownPayload, VariantDescriptor } from './scrapeer'
+import type {
+  ArrayFieldDescriptor,
+  FieldDescriptor,
+  NodeFieldDescriptor,
+  PageSpec,
+  UnknownPayload,
+  VariantDescriptor,
+} from './scrapeer'
 
 export interface MediaRef {
   url: string
@@ -13,8 +20,14 @@ function isArrayField(value: FieldDescriptor): value is ArrayFieldDescriptor {
   return '$selectorEach' in value
 }
 
-function isMediaNodeField(value: FieldDescriptor): value is NodeFieldDescriptor & { $extractor: { $extractor: 'media' } } {
-  return '$extractor' in value && typeof value.$extractor === 'object' && value.$extractor.$extractor === 'media'
+function isMediaNodeField(
+  value: FieldDescriptor,
+): value is NodeFieldDescriptor & { $extractor: { $extractor: 'media' } } {
+  return (
+    '$extractor' in value &&
+    typeof value.$extractor === 'object' &&
+    value.$extractor.$extractor === 'media'
+  )
 }
 
 function isMediaRef(value: unknown): value is MediaRef {
@@ -30,7 +43,7 @@ function isMediaRef(value: unknown): value is MediaRef {
 
 export class EvaluatedResource {
   constructor(
-    readonly resource: Resource,
+    readonly resource: PageSpec,
     readonly payload: UnknownPayload,
   ) {}
 
@@ -48,10 +61,18 @@ export class EvaluatedResource {
     for (const [key, descriptor] of Object.entries(schema)) {
       if (isVariantArray(descriptor)) {
         const value = payload[key]
-        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        if (
+          typeof value === 'object' &&
+          value !== null &&
+          !Array.isArray(value)
+        ) {
           for (const variant of descriptor) {
             if (variant.$fields) {
-              this.#collectFromSchema(variant.$fields, value as UnknownPayload, out)
+              this.#collectFromSchema(
+                variant.$fields,
+                value as UnknownPayload,
+                out,
+              )
             }
           }
         }

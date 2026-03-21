@@ -1,4 +1,4 @@
-export interface Resource {
+export interface PageSpec {
   /** An opaque identifier unique for the backend that defines it */
   $id: string
   /** A fixed url for which sites should be matched */
@@ -146,7 +146,7 @@ export interface VariableDefinition {
 
 export interface ResourcesResponse {
   name: string
-  resources: Resource[]
+  resources: PageSpec[]
 }
 
 export type JobSource = { kind: 'active'; id: string } | { kind: 'passive' }

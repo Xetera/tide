@@ -63,6 +63,9 @@ export class HighlightManager {
   #hues = new Map<string, number>()
   #canvas: HTMLCanvasElement | null = null
   #raf = 0
+  #observer: MutationObserver | null = null
+  #dirty = false
+  #listeners: (() => void)[] = []
 
   toggle(entries: readonly HighlightEntry[]) {
     if (this.#active) {
@@ -81,7 +84,8 @@ export class HighlightManager {
       hueFor(label, this.#hues)
     }
     this.#ensureCanvas()
-    this.#startLoop()
+    this.#scheduleDraw()
+    this.#observe()
   }
 
   clear() {
@@ -90,6 +94,10 @@ export class HighlightManager {
     cancelAnimationFrame(this.#raf)
     this.#canvas?.remove()
     this.#canvas = null
+    this.#observer?.disconnect()
+    this.#observer = null
+    for (const off of this.#listeners) off()
+    this.#listeners = []
   }
 
   get active() {
@@ -112,12 +120,30 @@ export class HighlightManager {
     this.#canvas = canvas
   }
 
-  #startLoop() {
-    const draw = () => {
+  #scheduleDraw() {
+    cancelAnimationFrame(this.#raf)
+    this.#raf = requestAnimationFrame(() => {
       this.#draw()
-      this.#raf = requestAnimationFrame(draw)
-    }
-    this.#raf = requestAnimationFrame(draw)
+    })
+  }
+
+  #observe() {
+    const invalidate = () => this.#scheduleDraw()
+
+    window.addEventListener('scroll', invalidate, { capture: true, passive: true })
+    window.addEventListener('resize', invalidate)
+    this.#listeners.push(
+      () => window.removeEventListener('scroll', invalidate, { capture: true }),
+      () => window.removeEventListener('resize', invalidate),
+    )
+
+    this.#observer = new MutationObserver(invalidate)
+    this.#observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'class'],
+    })
   }
 
   #draw() {

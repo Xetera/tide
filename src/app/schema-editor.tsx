@@ -1,13 +1,16 @@
 import { createSignal, onMount } from 'solid-js'
 import { sendMessage } from 'webext-bridge/popup'
-import type { Resource } from '~/protocol/scrapeer'
+import type { PageSpec } from '~/protocol/scrapeer'
 
 export function SchemaEditor() {
   const [text, setText] = createSignal('')
 
   onMount(async () => {
-    const { 'schema:local': stored } = await chrome.storage.local.get('schema:local')
-    if (stored) setText(stored)
+    const { 'schema:local': stored } =
+      await chrome.storage.local.get('schema:local')
+    if (stored) {
+      setText(stored as string)
+    }
   })
   const [error, setError] = createSignal<string | null>(null)
   const [success, setSuccess] = createSignal(false)
@@ -15,7 +18,7 @@ export function SchemaEditor() {
   async function apply() {
     setError(null)
     setSuccess(false)
-    let parsed: Resource[]
+    let parsed: PageSpec[]
     try {
       parsed = JSON.parse(text())
     } catch (e) {

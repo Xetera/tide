@@ -1,11 +1,11 @@
 import { constructPathRegexes } from './resource'
-import type { JobParameters, Resource, ServerAutonomy } from './scrapeer'
+import type { JobParameters, PageSpec, ServerAutonomy } from './scrapeer'
 
 export class Job {
   readonly url: URL
   constructor(
     readonly params: JobParameters,
-    readonly resource: Resource,
+    readonly resource: PageSpec,
     readonly autonomy: ServerAutonomy,
   ) {
     const url = new URL(params.url)

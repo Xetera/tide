@@ -3,9 +3,12 @@ import { describe, expect, it } from 'vitest'
 import { instagram } from '~/fixtures/instagram/instagram'
 import { sahibinden } from '~/fixtures/sahibinden/sahibinden'
 import { HTMLParser } from './html-parser'
-import type { FieldDescriptor, Resource } from './scrapeer'
+import type { FieldDescriptor, PageSpec } from './scrapeer'
 
-function p(fields: Record<string, FieldDescriptor>, opts: Partial<Omit<Resource, '$fields'>> = {}) {
+function p(
+  fields: Record<string, FieldDescriptor>,
+  opts: Partial<Omit<PageSpec, '$fields'>> = {},
+) {
   return new HTMLParser({
     $id: 'test-case',
     $hostname: 'example.com',
@@ -26,7 +29,9 @@ function generateFixture(name: string) {
 
 describe.concurrent('html-parser', () => {
   it('should parse sahibinden fixture', async () => {
-    const { html, result } = generateFixture('sahibinden/sahibinden.real-estate')
+    const { html, result } = generateFixture(
+      'sahibinden/sahibinden.real-estate',
+    )
     const rp = new HTMLParser(sahibinden)
     const output = rp.parse(html)
     expect(output).toStrictEqual(result)
@@ -73,13 +78,20 @@ describe.concurrent('html-parser', () => {
   })
 
   it('extracts nodes', () => {
-    const parser = p({ text: { $selector: 'div', $extractor: { $extractor: 'text' } } })
-    expect(parser.parse('<div>  hello  </div>')).toStrictEqual({ text: '  hello  ' })
+    const parser = p({
+      text: { $selector: 'div', $extractor: { $extractor: 'text' } },
+    })
+    expect(parser.parse('<div>  hello  </div>')).toStrictEqual({
+      text: '  hello  ',
+    })
   })
 
   it('extracts attributes', () => {
     const parser = p({
-      hello: { $selector: 'a', $extractor: { $extractor: 'attribute', $attribute: 'hello' } },
+      hello: {
+        $selector: 'a',
+        $extractor: { $extractor: 'attribute', $attribute: 'hello' },
+      },
     })
     expect(parser.parse('<a hello="3">link</a>')).toStrictEqual({ hello: '3' })
   })
@@ -112,7 +124,9 @@ describe.concurrent('html-parser', () => {
       },
       { $hostname: 'example.com' },
     )
-    expect(parser.parse('<a href="/1"></a>')).toStrictEqual({ href: 'https://example.com/1' })
+    expect(parser.parse('<a href="/1"></a>')).toStrictEqual({
+      href: 'https://example.com/1',
+    })
   })
 
   it('transforms regex', () => {
@@ -125,7 +139,9 @@ describe.concurrent('html-parser', () => {
         },
       },
     })
-    expect(parser.parse('<div><span>stan</span> dreamcatcher</div>')).toStrictEqual({
+    expect(
+      parser.parse('<div><span>stan</span> dreamcatcher</div>'),
+    ).toStrictEqual({
       name: 'dreamcatcher',
     })
   })
@@ -140,7 +156,9 @@ describe.concurrent('html-parser', () => {
         },
       },
     })
-    expect(parser.parse('<div>100 good memes</div>')).toStrictEqual({ name: '100' })
+    expect(parser.parse('<div>100 good memes</div>')).toStrictEqual({
+      name: '100',
+    })
   })
 
   it('ignores unrecognized transformers', () => {
@@ -158,7 +176,9 @@ describe.concurrent('html-parser', () => {
         },
       },
     })
-    expect(parser.parse('<div>4815162342</div>')).toStrictEqual({ name: '4815162342' })
+    expect(parser.parse('<div>4815162342</div>')).toStrictEqual({
+      name: '4815162342',
+    })
     expect(parser.warnings).toHaveLength(1)
   })
 
@@ -186,7 +206,10 @@ describe.concurrent('html-parser', () => {
           $selector: '.image',
           $fields: {
             type: { $literal: 'image' },
-            src: { $selector: 'img', $extractor: { $extractor: 'attribute', $attribute: 'src' } },
+            src: {
+              $selector: 'img',
+              $extractor: { $extractor: 'attribute', $attribute: 'src' },
+            },
           },
         },
       ],
@@ -230,7 +253,9 @@ describe.concurrent('html-parser', () => {
         },
       },
     })
-    expect(parser.parse('<div>HELLO WORLD</div>')).toStrictEqual({ name: 'hello world' })
+    expect(parser.parse('<div>HELLO WORLD</div>')).toStrictEqual({
+      name: 'hello world',
+    })
   })
 
   it('parses $selectorEach inside nested $fields', () => {
