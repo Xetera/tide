@@ -76,14 +76,20 @@ export class PageEvaluator {
     resource: PageSpec,
     { maxWait = 10_000 }: { maxWait?: number } = {},
   ): Promise<void> {
-    if (!resource.$waitFor || resource.$waitFor.length === 0)
+    const selectors = resource.$waitFor ?? []
+    const isLoaded = selectors.length > 0
+      ? () => selectors.some((s) => document.querySelector(s) !== null)
+      : () => false
+
+    const isGone = resource.$gone
+      ? () => PageEvaluator.#matchExpression(document, resource.$gone!)
+      : () => false
+
+    if (isLoaded() || isGone()) {
       return Promise.resolve()
+    }
 
-    const selectors = resource.$waitFor
-    const isLoaded = () =>
-      selectors.some((s) => document.querySelector(s) !== null)
-
-    if (isLoaded()) {
+    if (selectors.length === 0 && !resource.$gone) {
       return Promise.resolve()
     }
 
@@ -93,7 +99,7 @@ export class PageEvaluator {
         clearTimeout(timer)
       }
       const mo = new MutationObserver(() => {
-        if (isLoaded()) {
+        if (isLoaded() || isGone()) {
           cleanup()
           resolve()
         }
@@ -105,6 +111,15 @@ export class PageEvaluator {
       }, maxWait)
       mo.observe(document.documentElement, { childList: true, subtree: true })
     })
+  }
+
+  static #matchExpression(node: Node, expr: { $css: string } | { $xpath: string }): boolean {
+    if ('$css' in expr) {
+      return (node as ParentNode).querySelector(expr.$css) !== null
+    }
+    const doc = node.ownerDocument ?? (node as Document)
+    const result = doc.evaluate(expr.$xpath, node, null, XPathResult.BOOLEAN_TYPE, null)
+    return result.booleanValue
   }
 }
 

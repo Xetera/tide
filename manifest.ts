@@ -31,4 +31,10 @@ export default defineManifest({
     },
   ],
   background: { service_worker: 'src/background/index.ts' },
+  web_accessible_resources: [
+    {
+      resources: ['scrape-viewer.html'],
+      matches: ['<all_urls>'],
+    },
+  ],
 })

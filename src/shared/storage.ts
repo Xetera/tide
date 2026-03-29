@@ -106,9 +106,13 @@ export type BrowserStorageSchema = {
   enabledResources: string[]
   'server:url'?: string
   'server:name'?: string
-  'server:token'?: string
+  'server:pool-id'?: string
+  'server:worker-id'?: string
+  'server:worker-secret'?: string
   'server:enabled'?: boolean
   'server:autonomy'?: ServerAutonomy
   'schema:local'?: string
   'scrape:last'?: ScrapedPage
+  'debug:visual'?: boolean
+  'resources:all'?: import('~/protocol/scrapeer').PageSpec[]
 }

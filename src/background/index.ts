@@ -23,13 +23,13 @@ function emitUrlUpdate(
     // request sent from our iframe
     return
   }
-  sendMessage('url-update', details.url, {
-    context: 'content-script',
-    tabId: details.tabId,
-  })
+  chrome.tabs.sendMessage(details.tabId, { type: 'url-update', url: details.url }).catch(() => {})
 }
 ;(async () => {
   const origins = ['webhook.site', 'instagram.com', 'www.sahibinden.com']
+  let client: Client | undefined
+
+
   try {
     const cst = new ContentScriptTracker()
     chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
@@ -38,14 +38,19 @@ function emitUrlUpdate(
 
     const serverUrl = await storage.get('server:url', '')
     const serverName = await storage.get('server:name', '')
-    const serverToken = await storage.get('server:token', '')
-    const autonomy = await storage.get(
-      'server:autonomy',
-      ServerAutonomy.Passive,
-    )
+    const poolId = await storage.get('server:pool-id', '')
+    const autonomy = await storage.get('server:autonomy', ServerAutonomy.Passive)
+
+    let workerId = await storage.get('server:worker-id', '')
+    if (!workerId) {
+      workerId = crypto.randomUUID()
+      await storage.set('server:worker-id', workerId)
+    }
+
+    const workerSecret = await storage.get('server:worker-secret', '')
 
     const events = new TypedEmitter<ClientEvents>()
-    const client = new Client({
+    client = new Client({
       events,
       pollIntervalSeconds: 30,
       queueIntervalSeconds: 1,
@@ -55,7 +60,9 @@ function emitUrlUpdate(
           name: serverName,
           url: serverUrl,
           autonomy,
-          token: serverToken,
+          poolId,
+          workerId,
+          workerSecret,
         },
       ],
       async enabledResources(_server) {
@@ -115,18 +122,18 @@ function emitUrlUpdate(
         'enabledResources',
         resources.map((resource) => resource.$id),
       )
+      storage.set('resources:all', resources)
       ScriptRegistry.loadFromResources(resources)
       const hostnames = resources.map((re) => re.$hostname)
       disableIframeSecurity(hostnames)
       for (const tabId of tabIds) {
-        sendMessage('update-resources', resources, {
-          context: 'content-script',
-          tabId,
-        })
+        chrome.tabs.sendMessage(tabId, { type: 'update-resources', resources }).catch(() => {})
       }
       chrome.webNavigation.onHistoryStateUpdated.removeListener(emitUrlUpdate)
       chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
-        url: resources.map((resource) => ({ hostContains: resource.$hostname })),
+        url: resources.map((resource) => ({
+          hostContains: resource.$hostname,
+        })),
       })
     })
 
@@ -134,17 +141,15 @@ function emitUrlUpdate(
     addIframeSecurityListener()
     addDisableChipsListener(origins)
 
-    onMessage('resources', async () => {
-      console.log(chrome.runtime.lastError)
-      console.log('got RESOURCES REQUQEST')
-      console.log(client.allResources)
-      return client.allResources
-    })
     onMessage('page-match', ({ data }) => {
       try {
         console.log('scrape data', data)
         console.log(`Got a matching page for ${data.resourceId}`)
         storage.set('scrape:last', data)
+        log({
+          severity: 'info',
+          text: `Matched ${data.resourceId}`,
+        })
         return events.emit('pageMatched', data)
       } catch (err) {
         console.error(err)
@@ -153,6 +158,7 @@ function emitUrlUpdate(
 
     onMessage('set-schema', ({ data }) => {
       storage.set('schema:local', JSON.stringify(data))
+      storage.set('resources:all', data)
       client.setResources(client.getServer(), data)
     })
     onMessage('toggle-resource', () => {})
@@ -162,8 +168,12 @@ function emitUrlUpdate(
 
     const storageListener = new StorageListener()
 
-    storageListener.on('server:token', (token) => {
-      client.updateServer({ token })
+    storageListener.on('server:worker-secret', (workerSecret) => {
+      client.updateServer({ workerSecret })
+    })
+
+    storageListener.on('server:pool-id', (poolId) => {
+      client.updateServer({ poolId })
     })
 
     storageListener.on('server:url', (url) => {

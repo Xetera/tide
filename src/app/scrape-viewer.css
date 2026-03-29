@@ -1,0 +1,42 @@
+/* Shiki CSS variables theme tokens — light */
+:root {
+  --shiki-foreground: #24292e;
+  --shiki-background: var(--background);
+  --shiki-token-constant: #005cc5;
+  --shiki-token-string: #032f62;
+  --shiki-token-comment: #6a737d;
+  --shiki-token-keyword: #d73a49;
+  --shiki-token-parameter: #24292e;
+  --shiki-token-function: #6f42c1;
+  --shiki-token-string-expression: #032f62;
+  --shiki-token-punctuation: #24292e;
+  --shiki-token-link: #032f62;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --shiki-foreground: #adbac7;
+    --shiki-background: var(--background);
+    --shiki-token-constant: #6cb6ff;
+    --shiki-token-string: #96d0ff;
+    --shiki-token-comment: #768390;
+    --shiki-token-keyword: #f47067;
+    --shiki-token-parameter: #adbac7;
+    --shiki-token-function: #dcbdfb;
+    --shiki-token-string-expression: #96d0ff;
+    --shiki-token-punctuation: #adbac7;
+    --shiki-token-link: #96d0ff;
+  }
+}
+
+.shiki-pre,
+.shiki {
+  margin: 0;
+  padding: 1rem;
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  background-color: var(--background) !important;
+}

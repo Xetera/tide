@@ -8,17 +8,15 @@ import {
 import { server } from '~/msw'
 import { TEST_URL_ENDPOINT } from '~/setup-tools'
 import { Client, type ClientEvents, type ServerDefinition } from './client'
-import {
-  type JobPollResponse,
-  type JobResult,
-  ServerAutonomy,
-} from './scrapeer'
+import { type JobPollResponse, ServerAutonomy } from './scrapeer'
 
 const serverDefinition: ServerDefinition = {
   id: '----',
   name: 'test server',
   autonomy: ServerAutonomy.Active,
-  token: '0000',
+  poolId: 'test-pool',
+  workerId: 'test-worker',
+  workerSecret: 'test-secret',
   url: TEST_URL_ENDPOINT,
 }
 
@@ -68,7 +66,7 @@ describe('client', () => {
     expect(runJob).toBeCalledTimes(0)
     expect(resourceUpdater).toBeCalledTimes(1)
     server.use(
-      http.get(`${TEST_URL_ENDPOINT}/worker/jobs`, () => {
+      http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/worker/jobs`, () => {
         return HttpResponse.json<JobPollResponse>({
           jobs: sahibindenSmallJobs,
           refetch: ['resources'],
@@ -98,9 +96,9 @@ describe('client', () => {
 
     server.use(
       http.post(
-        `${TEST_URL_ENDPOINT}/worker/jobs`,
+        `${TEST_URL_ENDPOINT}/api/pool/:poolId/worker/jobs`,
         () => {
-          return HttpResponse.json({})
+          return HttpResponse.json({ assets: { upload_required: [] } })
         },
         { once: true },
       ),
@@ -125,9 +123,10 @@ describe('client', () => {
       success: true,
       payload: { hello: 'world' },
       resource_id: 'sahibinden:city_listing',
+      entity_id: 'sahibinden:city_listing',
       job: { kind: 'passive' },
       variables: {},
       warnings: [],
-    } satisfies JobResult)
+    })
   })
 })

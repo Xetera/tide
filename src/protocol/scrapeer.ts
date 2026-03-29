@@ -26,6 +26,8 @@ export interface PageSpec {
    * Works like puppeteer's `page.waitForSelector()`
    */
   $waitFor?: string[]
+  /** If matched, indicates the entity no longer exists */
+  $gone?: MatchExpression
   /**
    * opaque string for the resource that should be sent with a
    * `If-Match` header when submitting jobs
@@ -86,8 +88,10 @@ export interface LiteralFieldDescriptor {
   $literal: unknown
 }
 
+export type MatchExpression = { $css: string } | { $xpath: string }
+
 export interface VariantDescriptor {
-  $match?: { $css: string }
+  $match?: MatchExpression
   $selector?: string
   $selectorEach?: string
   $literal?: unknown
@@ -115,7 +119,26 @@ export interface AttributeExtractorDescriptor {
 
 export interface MediaExtractorDescriptor {
   $extractor: 'media'
-  $transformers?: TransformerDescriptor[]
+  /**
+   * Signals that the server can offload this asset
+   * by getting it directly from the source URL without
+   * requiring any bypasses or authentication.
+   *
+   * Servers are not required to obey this hint and
+   * may still require the user to upload the asset regardless
+   **/
+  $offload?: boolean
+  /**
+   * Whether the given source URL will expire.
+   * A string like "1h" can be used to further specify when
+   * the link will stop being valid.
+   *
+   * This works with {@link $offload} to help schedule
+   * priority for asset offloading.
+   *
+   * @example instagram links
+   **/
+  $urlExpires?: true | string
 }
 
 export interface ExistsExtractorDescriptor {

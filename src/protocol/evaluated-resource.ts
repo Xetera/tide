@@ -10,6 +10,22 @@ import type {
 export interface MediaRef {
   url: string
   hash: string
+  offload?: boolean
+  urlExpires?: true | string
+}
+
+export interface ResolvedMediaField {
+  hash: string
+  size: number
+  content_type: string
+  source_url: string
+}
+
+export interface DownloadedMedia {
+  sha256hash: string
+  mimeType: string
+  bytes: number
+  buffer: ArrayBuffer
 }
 
 function isVariantArray(value: FieldDescriptor): value is VariantDescriptor[] {
@@ -30,14 +46,46 @@ function isMediaNodeField(
   )
 }
 
+function resolveMediaRef(
+  ref: MediaRef,
+  downloaded: Record<string, DownloadedMedia>,
+): ResolvedMediaField | MediaRef {
+  const result = downloaded[ref.hash]
+  if (!result) return ref
+  return {
+    hash: result.sha256hash,
+    size: result.bytes,
+    content_type: result.mimeType,
+    source_url: ref.url,
+  }
+}
+
+function substituteValue(
+  value: unknown,
+  downloaded: Record<string, DownloadedMedia>,
+): unknown {
+  if (isMediaRef(value)) return resolveMediaRef(value, downloaded)
+  if (Array.isArray(value))
+    return value.map((item) => substituteValue(item, downloaded))
+  if (typeof value === 'object' && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [
+        k,
+        substituteValue(v, downloaded),
+      ]),
+    )
+  }
+  return value
+}
+
 function isMediaRef(value: unknown): value is MediaRef {
   return (
     typeof value === 'object' &&
     value !== null &&
     'url' in value &&
     'hash' in value &&
-    typeof (value as Record<string, unknown>).url === 'string' &&
-    typeof (value as Record<string, unknown>).hash === 'string'
+    typeof value.url === 'string' &&
+    typeof value.hash === 'string'
   )
 }
 
@@ -51,6 +99,12 @@ export class EvaluatedResource {
     const out: MediaRef[] = []
     this.#collectFromSchema(this.resource.$fields, this.payload, out)
     return out
+  }
+
+  substituteMediaRefs(
+    downloaded: Record<string, DownloadedMedia>,
+  ): UnknownPayload {
+    return substituteValue(this.payload, downloaded) as UnknownPayload
   }
 
   #collectFromSchema(

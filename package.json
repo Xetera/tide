@@ -22,6 +22,7 @@
     "dayjs": "^1.11.20",
     "lodash": "^4.17.23",
     "p-queue": "^9.1.0",
+    "shiki": "^4.0.2",
     "solid-js": "^1.9.11",
     "tailwind-merge": "^3.5.0",
     "tiny-typed-emitter": "^2.1.0",

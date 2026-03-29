@@ -1,5 +1,5 @@
 import PQueue from 'p-queue'
-import { EVENTS_KEY, generateUID, type Log } from '~/shared'
+import { EVENTS_KEY, generateUID, type Log, type PlainLog, type ScrapeLog } from '~/shared'
 
 const MAX_LOG_RETENTION = 200
 const q = new PQueue()
@@ -30,20 +30,23 @@ const push = async <T>(
   )
 }
 
-export function log(payload: Omit<Log, 'date' | 'type' | 'id'>) {
+export function log(payload: Omit<PlainLog, 'date' | 'id' | 'type'> | Omit<ScrapeLog, 'date' | 'id'>) {
   const toPush: Log = {
     id: generateUID(),
+    date: Date.now(),
     type: 'plain',
     ...payload,
-    date: Date.now(),
-  }
+  } as Log
   push(EVENTS_KEY, toPush, { trim: MAX_LOG_RETENTION })
 
+  const label = 'resourceId' in payload
+    ? `Scraped ${payload.resourceId} (${payload.entity})`
+    : payload.text
   if (payload.severity === 'error') {
-    console.error(payload.text, payload.data)
+    console.error(label, payload)
   } else if (payload.severity === 'info') {
-    console.log(payload.text, payload.data)
+    console.log(label, payload)
   } else if (payload.severity === 'debug') {
-    console.debug(payload.text, payload.data)
+    console.debug(label, payload)
   }
 }

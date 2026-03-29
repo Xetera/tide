@@ -1,5 +1,6 @@
 import { NumberParser } from '@internationalized/number'
 import { PageEvaluator } from './page-evaluator'
+import type { MediaRef } from './evaluated-resource'
 import type * as S from './scrapeer'
 
 function fnv1a(str: string): string {
@@ -46,10 +47,16 @@ export class HTMLParser {
   private numberParser?: NumberParser
   private _warnings: string[] = []
   private _highlights: HighlightEntry[] = []
+  private _gone = false
+  #mediaReady = new Map<string, Promise<void>>()
 
   #currentDocument!: Document
 
   constructor(private readonly resource: S.PageSpec) {}
+
+  get mediaReady(): ReadonlyMap<string, Promise<void>> {
+    return this.#mediaReady
+  }
 
   get highlights(): readonly HighlightEntry[] {
     return this._highlights
@@ -59,12 +66,18 @@ export class HTMLParser {
     return Object.freeze(this._warnings)
   }
 
+  get gone(): boolean {
+    return this._gone
+  }
+
   async parseAsync(
     html: string | Document,
     { maxWait = 10_000 } = {},
   ): Promise<S.UnknownPayload> {
     this._warnings = []
     this._highlights = []
+    this._gone = false
+    this.#mediaReady = new Map()
     const doc = HTMLParser.createDocument(html)
     const waitFor = this.resource.$waitFor
     if (
@@ -82,6 +95,8 @@ export class HTMLParser {
   parse(html: string | Document) {
     this._warnings = []
     this._highlights = []
+    this._gone = false
+    this.#mediaReady = new Map()
     const element = HTMLParser.createDocument(html)
     return this.#process(element)
   }
@@ -90,6 +105,15 @@ export class HTMLParser {
     try {
       this.#currentDocument = document
       this.numberParser = new NumberParser('en')
+
+      if (
+        this.resource.$gone &&
+        this.#matchExpression(document, this.resource.$gone)
+      ) {
+        this._gone = true
+        console.warn('Document is marked $gone')
+        return {}
+      }
 
       if (this.resource.$meta) {
         const meta = this.#parseMeta(document, this.resource.$meta)
@@ -113,8 +137,10 @@ export class HTMLParser {
   ): Record<string, unknown> {
     const out: Record<string, unknown> = {}
     for (const [key, descriptor] of Object.entries(meta)) {
-      const node = document.querySelector(
-        descriptor.$selector,
+      const node = (
+        descriptor.$selector
+          ? document.querySelector(descriptor.$selector)
+          : document
       ) as HTMLElement | null
       if (!node) continue
       const value = this.#runExtractor(node, descriptor.$extractor)
@@ -207,7 +233,7 @@ export class HTMLParser {
       }
       throw new ParserError(
         descriptor,
-        'No node was found and no fallback was provided',
+        `No node was found and no fallback was provided [field] ${label}`,
       )
     }
 
@@ -355,7 +381,33 @@ export class HTMLParser {
     const transformed = this.#transformAll(src, extractor.$transformers ?? [])
     const url = this.#castUrl(transformed)
     const hash = fnv1a(url)
-    return { url, hash }
+    if (!this.#mediaReady.has(hash)) {
+      const ready = new Promise<void>((resolve) => {
+        if (
+          !(element instanceof HTMLImageElement) &&
+          !(element instanceof HTMLVideoElement)
+        ) {
+          resolve()
+          return
+        }
+        if (
+          (element instanceof HTMLImageElement && element.complete) ||
+          (element instanceof HTMLVideoElement && element.readyState >= 2)
+        ) {
+          resolve()
+          return
+        }
+        element.addEventListener('load', () => resolve(), { once: true })
+        element.addEventListener('loadeddata', () => resolve(), { once: true })
+        element.addEventListener('error', () => resolve(), { once: true })
+      })
+      this.#mediaReady.set(hash, ready)
+    }
+    const ref: MediaRef = { url, hash }
+    if (extractor.$offload !== undefined) ref.offload = extractor.$offload
+    if (extractor.$urlExpires !== undefined)
+      ref.urlExpires = extractor.$urlExpires
+    return ref
   }
 
   #castUrl(value: unknown): string {
@@ -517,6 +569,20 @@ export class HTMLParser {
     return clone
   }
 
+  #matchExpression(node: Node, expr: S.MatchExpression): boolean {
+    if ('$css' in expr) {
+      return (node as ParentNode).querySelector(expr.$css) !== null
+    }
+    const result = (node.ownerDocument ?? (node as Document)).evaluate(
+      expr.$xpath,
+      node,
+      null,
+      XPathResult.BOOLEAN_TYPE,
+      null,
+    )
+    return result.booleanValue
+  }
+
   #highlight(element: Element, label: string, isArrayItem?: boolean) {
     this._highlights.push({ element, label, isArrayItem })
   }
@@ -533,6 +599,6 @@ export class ParserError extends Error {
     public readonly descriptor: S.NodeFieldDescriptor,
     message: string,
   ) {
-    super(`${message} [selector] ${descriptor}`)
+    super(`${message} [selector] ${descriptor.$selector ?? '(none)'}`)
   }
 }

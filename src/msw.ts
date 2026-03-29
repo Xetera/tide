@@ -5,12 +5,12 @@ import { sahibinden } from '~/fixtures/sahibinden/sahibinden'
 import { TEST_URL_ENDPOINT } from './setup-tools'
 
 export const restHandlers = [
-  http.get(`${TEST_URL_ENDPOINT}/resources`, () => {
+  http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/resources`, () => {
     return HttpResponse.json<ResourcesResponse>({
       resources: [sahibinden],
     })
   }),
-  http.get(`${TEST_URL_ENDPOINT}/worker/jobs`, () => {
+  http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/worker/jobs`, () => {
     return HttpResponse.json<JobPollResponse>({
       jobs: [],
     })

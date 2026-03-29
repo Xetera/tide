@@ -1,6 +1,6 @@
 import { sendMessage } from 'webext-bridge/content-script'
-import type { Log } from '~/shared'
+import type { PlainLog } from '~/shared'
 
-export function sendLog(log: Omit<Log, 'date' | 'type' | 'id'>) {
+export function sendLog(log: Omit<PlainLog, 'date' | 'type' | 'id'>) {
   sendMessage('log', log)
 }

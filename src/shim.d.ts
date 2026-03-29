@@ -1,10 +1,12 @@
 /// <reference types="chrome" />
 
+/// <reference types="chrome" />
+
 import type { ProtocolWithReturn } from 'webext-bridge'
 import type { ScrapedPage } from './content-scripts/page-manager'
 import type { Resource } from './protocol/spatula'
 import type { JobParameters } from './protocol/spatula'
-import type { Log } from './shared'
+import type { PlainLog, ScrapeLog } from './shared'
 declare module 'webext-bridge' {
   export interface ProtocolMap {
     'url-update': unknown
@@ -15,7 +17,7 @@ declare module 'webext-bridge' {
     'page-match': ProtocolWithReturn<ScrapedPage>
     'update-resources': Resource[]
     start: unknown
-    log: Omit<Log, 'date' | 'type' | 'id'>
+    log: Omit<PlainLog, 'date' | 'id' | 'type'> | Omit<ScrapeLog, 'date' | 'id'>
     resources: ProtocolWithReturn<unknown, Resource[]>
     'set-schema': ProtocolWithReturn<Resource[], void>
   }

@@ -156,15 +156,6 @@ export class Client {
   }
 
   async #submitJob(page: ScrapedPage, retryCount = 0) {
-    log({
-      severity: 'info',
-      text: `Scraped ${page.resourceId}`,
-      data: {
-        payload: page.payload,
-        variables: page.variables,
-        warnings: page.warnings,
-      },
-    })
     let server: ServerDefinition
     let resource: PageSpec
     try {
@@ -176,10 +167,29 @@ export class Client {
       })
       return
     }
+    const mediaMetadata: Record<string, { mimeType: string; sha256hash: string; bytes: number }> = {}
+    for (const [hash, result] of Object.entries(page.media)) {
+      mediaMetadata[hash] = {
+        mimeType: result.mimeType,
+        sha256hash: result.sha256hash,
+        bytes: result.bytes,
+      }
+    }
+    log({
+      type: 'scrape',
+      severity: 'info',
+      resourceId: page.resourceId,
+      entity: resource.$entity,
+      url: page.url,
+      variables: page.variables,
+      payload: page.payload,
+      media: mediaMetadata,
+      warnings: page.warnings,
+    })
     const body = await this.#processMatchingPage(page)
 
-    const jobPostReq = this.#requestJobPost(server.url, resource.$hash, body)
-    const request = this.#requestBase(jobPostReq, server)
+    const jobPostReq = this.#requestJobPost(server.url, server.poolId, resource.$hash, body)
+    const request = await this.#requestBase(jobPostReq, server)
     let response: Response
     try {
       response = await fetch(request)
@@ -249,10 +259,42 @@ export class Client {
       return
     }
 
+    const jobResponse = await response.json() as { assets?: { upload_required?: { hash: string; token: string }[] } }
+    const uploadRequired = jobResponse.assets?.upload_required ?? []
+    if (uploadRequired.length > 0) {
+      await this.#uploadAssets(server, uploadRequired, page.media)
+    }
+
     log({
       severity: 'info',
       text: `Successfully submitted (${page.source.kind}) job ${resource.$id}`,
     })
+  }
+
+  async #uploadAssets(
+    server: ServerDefinition,
+    uploadRequired: { hash: string; token: string }[],
+    media: Record<string, import('~/content-scripts/download-media').MediaResult>,
+  ): Promise<void> {
+    const mediaByHash = Object.fromEntries(
+      Object.entries(media).map(([_fnv1a, result]) => [result.sha256hash, result]),
+    )
+    await Promise.all(
+      uploadRequired.map(async ({ hash, token }) => {
+        const result = mediaByHash[hash]
+        if (!result) {
+          log({ severity: 'error', text: `Server requested upload for ${hash} but bytes are not available` })
+          return
+        }
+        const url = new URL(`/api/pool/${server.poolId}/assets/${hash}`, server.url)
+        url.searchParams.set('token', token)
+        try {
+          await fetch(url, { method: 'POST', body: result.buffer, headers: { 'Content-Type': result.mimeType } })
+        } catch (err) {
+          log({ severity: 'error', text: `Failed to upload asset ${hash}`, data: { error: err instanceof Error ? err.message : String(err) } })
+        }
+      }),
+    )
   }
 
   async #processMatchingPage(page: ScrapedPage): Promise<JobResult> {
@@ -268,6 +310,8 @@ export class Client {
 
   async #updateResource(server: ServerDefinition): Promise<void> {
     try {
+      if (!server.url.trim()) return
+
       const lastRequest = this.#lastResourceRequest.get(server)
       if (
         lastRequest &&
@@ -277,8 +321,8 @@ export class Client {
         return
       }
 
-      const request = this.#requestBase(
-        this.#requestResources(server.url),
+      const request = await this.#requestBase(
+        this.#requestResources(server.url, server.poolId),
         server,
       )
 
@@ -301,8 +345,8 @@ export class Client {
     }
     try {
       const resourceIds = await this.enabledResources(server)
-      const request = this.#requestBase(
-        this.#requestJobs(url, {
+      const request = await this.#requestBase(
+        this.#requestJobs(url, server.poolId, {
           autonomy: server.autonomy,
           resourceIds,
         }),
@@ -353,32 +397,49 @@ export class Client {
     }
   }
 
-  #requestBase(request: Request, server: ServerDefinition): Request {
+  async #requestBase(request: Request, server: ServerDefinition): Promise<Request> {
+    const body = request.method === 'GET' ? '' : await request.clone().text()
+    const encoder = new TextEncoder()
+    const keyData = encoder.encode(server.workerSecret)
+    const msgData = encoder.encode(body)
+    const key = await crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    )
+    const sig = await crypto.subtle.sign('HMAC', key, msgData)
+    const hmac = Array.from(new Uint8Array(sig))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
     return new Request(request, {
       headers: {
         ...Object.fromEntries(request.headers.entries()),
-        Authorization: `${server.token}`,
+        Authorization: `Worker ${server.workerId}:${hmac}`,
         'Idempotency-Key': Math.random().toString(36).substring(2),
         'Content-Type': 'application/json; charset=utf-8',
       },
     })
   }
 
-  #requestResources(base: string) {
-    return new Request(new URL('/resources', base), { method: 'GET' })
+  #requestResources(base: string, poolId: string) {
+    return new Request(new URL(`/api/pool/${poolId}/resources`, base), { method: 'GET' })
   }
-  #requestJobs(base: string, options: JobPollParameters) {
-    const url = new URL('/worker/jobs', base)
+
+  #requestJobs(base: string, poolId: string, options: JobPollParameters) {
+    const url = new URL(`/api/pool/${poolId}/worker/jobs`, base)
     url.searchParams.set('autonomy', options.autonomy)
     for (const id of options.resourceIds) {
       url.searchParams.append('resource[]', id)
     }
     return new Request(url, { method: 'GET' })
   }
-  #requestJobPost(base: string, resourceHash: string, data: JobResult) {
-    return new Request(new URL('/worker/jobs', base), {
+
+  #requestJobPost(base: string, poolId: string, resourceHash: string, data: JobResult) {
+    return new Request(new URL(`/api/pool/${poolId}/worker/jobs`, base), {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...data, entity_id: (data as any).resource_id }),
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
         'If-Match': resourceHash,
@@ -428,7 +489,9 @@ export interface ServerDefinition {
   id: string
   name: string
   url: string
-  token: string
+  poolId: string
+  workerId: string
+  workerSecret: string
   autonomy: ServerAutonomy
 }
 

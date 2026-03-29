@@ -189,12 +189,18 @@ export class PageManager {
     const evaluated = new EvaluatedResource(resource, extracted)
     const mediaRefs = evaluated.mediaUrls()
     let media: Record<string, MediaResult> = {}
+    let payload = extracted
     if (mediaRefs.length > 0) {
+      await Promise.all(
+        mediaRefs.map((ref) => parser.mediaReady.get(ref.hash)),
+      )
       media = await downloadCachedMedia(mediaRefs)
+      payload = evaluated.substituteMediaRefs(media)
     }
     return {
       resourceId: resource.$id,
-      payload: extracted,
+      url: document.URL,
+      payload,
       variables,
       source,
       media,
@@ -314,6 +320,7 @@ export interface PageManagerOptions {
 
 export interface ScrapedPage {
   resourceId: PageSpec['$id']
+  url: string
   source: JobSource
   payload: UnknownPayload
   variables: Record<string, unknown>

@@ -1,4 +1,3 @@
-import type { MediaResult } from './download-media'
 
 async function fetchMedia(
   url: string,
@@ -26,10 +25,7 @@ window.addEventListener('message', async (evt) => {
         refs.map(async ({ url, hash }) => {
           try {
             const { buffer, mimeType, sha256hash } = await fetchMedia(url)
-            return { hash, buffer, mimeType, sha256hash } satisfies MediaResult & {
-              hash: string
-              sha256hash: string
-            }
+            return { hash, buffer, mimeType, sha256hash }
           } catch (err) {
             console.warn(`[spatula] failed to capture media ${url}`, err)
             return null

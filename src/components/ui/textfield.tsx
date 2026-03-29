@@ -20,7 +20,7 @@ export const TextFieldRoot = <T extends ValidComponent = 'div'>(
 }
 
 const textfieldLabel = cva(
-  'text-sm data-[disabled]:(cursor-not-allowed opacity-70) font-medium',
+  'text-sm data-[disabled]:(cursor-not-allowed opacity-70) font-medium text-muted-foreground',
   {
     variants: {
       label: {

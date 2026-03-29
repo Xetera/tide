@@ -1,6 +1,6 @@
 export const EVENTS_KEY = 'events'
 
-export type Log = {
+export type PlainLog = {
   /** randomly generated id */
   id: string
   type: 'plain'
@@ -13,6 +13,30 @@ export type Log = {
   viewedAt?: Date
   name?: 'REQUEST_SENT'
 }
+
+export type ScrapeLogMedia = {
+  mimeType: string
+  sha256hash: string
+  /** byte length of the original buffer */
+  bytes: number
+}
+
+export type ScrapeLog = {
+  id: string
+  type: 'scrape'
+  severity: 'info'
+  /** unix timestamp */
+  date: number
+  resourceId: string
+  entity: string
+  url: string
+  variables: Record<string, unknown>
+  payload: Record<string, unknown>
+  media: Record<string, ScrapeLogMedia>
+  warnings: readonly string[]
+}
+
+export type Log = PlainLog | ScrapeLog
 
 export function generateUID() {
   const firstPart = (Math.random() * 46656) | 0

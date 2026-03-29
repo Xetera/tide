@@ -11,6 +11,9 @@ export const instagram: PageSpec = {
       $description: 'Instagram handle',
     },
   },
+  $gone: {
+    $xpath: `//main//*[contains(text(), "The link you followed may be broken, or the page may have been removed.")]`,
+  },
   $meta: {
     locale: {
       $selector: 'html',
