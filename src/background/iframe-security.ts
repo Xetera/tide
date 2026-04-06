@@ -8,18 +8,18 @@ export function disableIframeSecurity(origins: string[]) {
         id: 1,
         priority: 1,
         condition: {
-          resourceTypes: [chrome.declarativeNetRequest.ResourceType.SUB_FRAME],
+          resourceTypes: ['sub_frame'],
           requestDomains: origins,
         },
         action: {
-          type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
+          type: 'modifyHeaders',
           responseHeaders: [
             {
-              operation: chrome.declarativeNetRequest.HeaderOperation.REMOVE,
+              operation: 'remove',
               header: 'X-Frame-Options',
             },
             {
-              operation: chrome.declarativeNetRequest.HeaderOperation.REMOVE,
+              operation: 'remove',
               header: 'Content-Security-Policy',
             },
           ],
@@ -30,23 +30,23 @@ export function disableIframeSecurity(origins: string[]) {
         id: 2,
         priority: 1,
         condition: {
-          resourceTypes: [chrome.declarativeNetRequest.ResourceType.SUB_FRAME],
+          resourceTypes: ['sub_frame'],
           requestDomains: origins,
         },
         action: {
-          type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
+          type: 'modifyHeaders',
           requestHeaders: [
             {
-              operation: chrome.declarativeNetRequest.HeaderOperation.SET,
+              operation: 'set',
               header: 'Sec-Fetch-Site',
               value: 'none',
             },
             {
-              operation: chrome.declarativeNetRequest.HeaderOperation.REMOVE,
+              operation: 'remove',
               header: 'Referer',
             },
             {
-              operation: chrome.declarativeNetRequest.HeaderOperation.SET,
+              operation: 'set',
               header: 'Sec-Fetch-Dest',
               value: 'document',
             },
@@ -55,7 +55,7 @@ export function disableIframeSecurity(origins: string[]) {
       },
     ],
   })
-  chrome.declarativeNetRequest.onRuleMatchedDebug.addListener(console.log)
+  chrome.declarativeNetRequest.onRuleMatchedDebug?.addListener(console.log)
 }
 
 export function addIframeSecurityListener() {

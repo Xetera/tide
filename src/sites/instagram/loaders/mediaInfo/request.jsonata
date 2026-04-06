@@ -1,0 +1,46 @@
+[
+  items.{
+    "_entity": "@instagram/post",
+    "_id": pk,
+    "_createdAt": $timestamp(taken_at),
+    "title": caption.text,
+    "media": video_versions ? {
+      "kind": "video",
+      "video": $video(video_versions[0].url) ~> $with_dimensions(width, height) ~> $unique_id(id)
+    } : carousel_media ? {
+      "kind": "carousel",
+      "images": carousel_media[]@$M.(
+        image_versions2.candidates[0].($image(url) ~> $with_dimensions(width, height) ~> $unique_id($M.pk))
+      )
+    } : image_versions2 ? {
+      "kind": "image",
+      "image": $image(image_versions2.candidates[0].url)
+    },
+    "commentsDisabled": comments_disabled,
+    "likeCountsDisabled": like_and_view_counts_disabled ?: false,
+    /* like counts are set to 3 if they're disabled */
+    "likeCount": like_and_view_counts_disabled ? null : like_count,
+    /* but not the play counts... */
+    "playCount": play_count,
+    "commentCount": comment_count,
+    "author": $ref("@instagram:user", user.pk)
+  },
+
+  items.user.{
+    "_entity": "@instagram/user",
+    "_id": pk,
+    "username": username,
+    "nickname": full_name,
+    "profilePic": $image(profile_pic_url),
+    "isPrivate": is_private
+  },
+
+  items.facepile_top_likers[].{
+    "_entity": "@instagram/user",
+    "_id": pk,
+    "username": username,
+    "nickname": full_name,
+    "profilePic": $image(profile_pic_url),
+    "isPrivate": is_private
+  }
+]

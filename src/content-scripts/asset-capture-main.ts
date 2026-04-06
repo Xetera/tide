@@ -29,7 +29,6 @@
     const hasAudio = audioSegmentsByMediaSource.get(this) ?? false
 
     if (!hasAudio) {
-      // delay endOfStream until audio arrives or 5s timeout
       let resolved = false
       const finish = () => {
         if (resolved) {

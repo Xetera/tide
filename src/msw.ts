@@ -1,13 +1,14 @@
 import { setupServer } from 'msw/node'
 import { HttpResponse, http } from 'msw'
 import type { JobPollResponse, ResourcesResponse } from './protocol/scrapeer'
-import { sahibinden } from '~/fixtures/sahibinden/sahibinden'
+import { sahibindenSite } from '~/sites/sahibinden'
 import { TEST_URL_ENDPOINT } from './setup-tools'
 
 export const restHandlers = [
   http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/resources`, () => {
     return HttpResponse.json<ResourcesResponse>({
-      resources: [sahibinden],
+      name: 'test',
+      resources: sahibindenSite.pages,
     })
   }),
   http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/worker/jobs`, () => {

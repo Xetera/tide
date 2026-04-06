@@ -1,20 +1,16 @@
-import { HighlightManager } from './highlight-manager'
-import { PageManager } from './page-manager'
+import { sendMessage } from 'webext-bridge/content-script'
+import { allSites } from '~/sites'
+import { HighlightManager } from '~/sources/highlight-manager'
+import { HtmlPageSource } from '~/sources/html-page-source'
+import { registerLoaders } from '~/sources/network-source'
+import type { SourceEmission } from '~/sources/data-source'
 import './stream-capture'
 
 ;(async () => {
   try {
     console.log('[spatula] init', window.location.href)
 
-    let manager: PageManager | undefined
     const highlighter = new HighlightManager()
-
-    chrome.runtime.onMessage.addListener((message) => {
-      if (message?.type === 'url-update') manager?.run()
-      if (message?.type === 'update-resources' && manager) {
-        manager.updateResourcesAndRun(document, message.resources)
-      }
-    })
 
     const { 'debug:visual': visualDebug } = await chrome.storage.local.get({
       'debug:visual': false,
@@ -23,34 +19,49 @@ import './stream-capture'
 
     chrome.storage.local.onChanged.addListener((changes) => {
       const change = changes['debug:visual']
-      if (!change) return
+      if (!change) {
+        return
+      }
       debugEnabled = change.newValue as boolean
       if (debugEnabled) {
-        highlighter.apply(manager?.lastHighlights ?? [])
+        highlighter.apply(source.lastHighlights)
       } else {
         highlighter.clear()
       }
     })
 
-    console.group('[spatula] running')
-    console.log('[spatula] getting resources from background...')
-    const { 'resources:all': resources = [] } = await chrome.storage.local.get({
-      'resources:all': [],
+    function onEmit(emission: SourceEmission) {
+      sendMessage('entity-patches', emission)
+    }
+
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message?.type === 'url-update') {
+        source.stop()
+        source.start()
+      }
+      if (message?.type === 'update-resources') {
+        source.updateResources(message.resources)
+      }
     })
-    console.log('[spatula] injecting page manager')
-    console.log('resources', resources)
-    manager = new PageManager(document, resources)
-    manager.onHighlightsChanged = (highlights) => {
+
+    console.group('[spatula] running')
+    console.log('[spatula] injecting page source')
+    const defaultPages = allSites.flatMap((s) => s.pages)
+    console.log('[spatula] loaded sites', allSites.map((s) => s.hostname))
+    console.log('[spatula] loaded pages', defaultPages.map((p) => p.$entity))
+    registerLoaders(allSites)
+    const source = new HtmlPageSource(defaultPages, onEmit)
+    source.onHighlightsChanged = (highlights) => {
       if (debugEnabled) {
         highlighter.apply(highlights)
       }
     }
-    await manager.run()
+    source.start()
     if (debugEnabled) {
-      highlighter.apply(manager.lastHighlights)
+      highlighter.apply(source.lastHighlights)
     }
 
-    console.log('[spatula] page manager running')
+    console.log('[spatula] page source running')
     console.groupEnd()
   } catch (err) {
     console.error(err)

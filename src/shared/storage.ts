@@ -1,19 +1,15 @@
 import PQueue from 'p-queue'
-import type { ServerDefinition } from '~/protocol/client'
-import type { ServerAutonomy } from '~/protocol/scrapeer'
-import type { ScrapedPage } from '~/content-scripts/page-manager'
+import type { ServerDefinition } from '~/server/client'
+import type { EntityPatch, JobSource, ServerAutonomy } from '~/site-spec/types'
 import type { Log } from '~/shared'
 
 export class Storage<T extends Record<string, unknown>> {
   #q = new PQueue()
 
-  async get<K extends keyof T>(
-    key: K,
-    defaultValue: T[K],
-  ): Promise<NonNullable<T[K]>> {
+  async get<K extends keyof T>(key: K, defaultValue: T[K]): Promise<T[K]> {
     const data = await chrome.storage.local.get({ [key]: defaultValue })
 
-    return data[key as string]
+    return data[key as string] as T[K]
   }
 
   async set<K extends keyof T>(key: K, value: T[K]): Promise<void> {
@@ -112,7 +108,11 @@ export type BrowserStorageSchema = {
   'server:enabled'?: boolean
   'server:autonomy'?: ServerAutonomy
   'schema:local'?: string
-  'scrape:last'?: ScrapedPage
+  'scrape:last'?: {
+    patches: EntityPatch[]
+    source: JobSource
+    warnings: string[]
+  }
   'debug:visual'?: boolean
-  'resources:all'?: import('~/protocol/scrapeer').PageSpec[]
+  'resources:all'?: import('~/site-spec/types').PageSpec[]
 }

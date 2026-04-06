@@ -4,8 +4,8 @@ import { For, Show, createEffect, createSignal } from 'solid-js'
 import { onMessage, sendMessage } from 'webext-bridge/popup'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { Badge } from '~/components/ui/badge'
-import { toOrigin } from '~/protocol/resource'
-import type { PageSpec } from '~/protocol/scrapeer'
+import { toOrigin } from '~/site-spec/resource'
+import type { PageSpec } from '~/site-spec/types'
 import { type BrowserStorageSchema, Storage } from '~/shared/storage'
 import { useBrowserStorage } from '~/shared/hooks'
 import type { Log, ScrapeLog } from '~/shared'
@@ -45,24 +45,16 @@ function ResourceRow({
       <span
         class={`h-1.5 w-1.5 rounded-full shrink-0 ${hostAllowed ? 'bg-green-500' : 'bg-muted-foreground'}`}
       />
-      <span class='flex-1 font-medium truncate'>{resource.$id}</span>
+      <span class='flex-1 font-medium truncate'>{resource.$entity}</span>
       <Badge variant='muted'>{resource.$entity}</Badge>
     </button>
   )
 }
 
-function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes < 0) return '? B'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
 
 function ScrapeLogEntry({ log }: { log: ScrapeLog }) {
   const time = formatter.format(new Date(log.date))
-  const payloadBytes = new TextEncoder().encode(JSON.stringify(log.payload)).length
-  const mediaEntries = Object.entries(log.media ?? {})
-  const mediaBytes = mediaEntries.reduce((sum, [, m]) => sum + m.bytes, 0)
+  const entities = [...new Set(log.patches.map((p) => p._entity))]
 
   function openViewer() {
     chrome.tabs.create({
@@ -73,9 +65,7 @@ function ScrapeLogEntry({ log }: { log: ScrapeLog }) {
   function copyToClipboard() {
     const data = JSON.stringify(
       {
-        entity: log.entity,
-        variables: log.variables,
-        payload: log.payload,
+        patches: log.patches,
         ...(log.warnings.length > 0 ? { warnings: log.warnings } : {}),
       },
       null,
@@ -93,45 +83,15 @@ function ScrapeLogEntry({ log }: { log: ScrapeLog }) {
         <summary class='cursor-pointer px-3 py-2 select-none flex items-center gap-2'>
           <span class='tabular-nums font-mono text-muted-foreground shrink-0'>{time}</span>
           <span class='font-medium'>scrape</span>
-          <span class='text-muted-foreground truncate'>{log.entity}</span>
-          <span class='ml-auto text-muted-foreground shrink-0'>not sent</span>
+          <span class='text-muted-foreground truncate'>{entities.join(', ')}</span>
+          <span class={`ml-auto shrink-0 ${log.status === 'submitted' ? 'text-green-500' : log.status === 'failed' ? 'text-red-500' : 'text-muted-foreground'}`}>
+            {log.status ?? 'pending'}
+          </span>
         </summary>
         <div class='border-t border-border'>
-          <div class='grid grid-cols-2 divide-x divide-border border-b border-border'>
-            <div class='px-3 py-2'>
-              <div class='text-muted-foreground mb-0.5'>payload</div>
-              <div class='font-mono'>{formatBytes(payloadBytes)}</div>
-            </div>
-            <Show
-              when={mediaEntries.length > 0}
-              fallback={
-                <div class='px-3 py-2'>
-                  <div class='text-muted-foreground mb-0.5'>media</div>
-                  <div class='text-muted-foreground'>none</div>
-                </div>
-              }
-            >
-              <details class='group'>
-                <summary class='px-3 py-2 cursor-pointer select-none list-none'>
-                  <div class='text-muted-foreground mb-0.5'>
-                    media
-                    <span class='ml-1 text-foreground'>{mediaEntries.length}</span>
-                  </div>
-                  <div class='font-mono'>{formatBytes(mediaBytes)}</div>
-                </summary>
-                <div class='border-t border-border divide-y divide-border col-span-2'>
-                  <For each={mediaEntries}>
-                    {([hash, m]) => (
-                      <div class='px-3 py-1.5 flex items-center gap-2 font-mono'>
-                        <span class='text-muted-foreground truncate flex-1'>{hash}</span>
-                        <span class='text-muted-foreground shrink-0'>{m.mimeType.replace('image/', '')}</span>
-                        <span class='shrink-0'>{formatBytes(m.bytes)}</span>
-                      </div>
-                    )}
-                  </For>
-                </div>
-              </details>
-            </Show>
+          <div class='px-3 py-2'>
+            <div class='text-muted-foreground mb-0.5'>patches</div>
+            <div class='font-mono'>{log.patches.length}</div>
           </div>
           <div class='px-3 py-2 flex gap-2'>
             <button
@@ -235,7 +195,7 @@ function Page() {
 
   function getNewPermissions(resource: PageSpec) {
     requestNewPermissions(resource)
-    storage.push('enabledResources', resource.$id)
+    storage.push('enabledResources', resource.$entity)
   }
 
   const [tab, setTab] = createSignal('dashboard')
@@ -297,10 +257,10 @@ function Page() {
                   <details class='group'>
                     <summary class='cursor-pointer flex items-center justify-between px-3 py-2 text-sm font-medium select-none hover:bg-accent'>
                       <span>Last scrape</span>
-                      <Badge variant='outline'>{scrape().resourceId}</Badge>
+                      <Badge variant='outline'>{scrape().patches.length} patches</Badge>
                     </summary>
                     <code class='block px-3 pb-3 whitespace-pre text-wrap text-xs text-muted-foreground font-mono'>
-                      {JSON.stringify(scrape().payload, null, 2)}
+                      {JSON.stringify(scrape().patches, null, 2)}
                     </code>
                   </details>
                 </div>

@@ -1,7 +1,7 @@
-import { robloxCharts } from '../fixtures/roblox/roblox'
-import { instagram, instagramPost } from '../fixtures/instagram/instagram'
-import { sahibinden } from '../fixtures/sahibinden/sahibinden'
+import { robloxSite } from '../sites/roblox'
+import { instagramSite } from '../sites/instagram'
+import { sahibindenSite } from '../sites/sahibinden'
 
 process.stdout.write(
-  JSON.stringify([instagram, instagramPost, sahibinden, robloxCharts]) + '\n',
+  JSON.stringify([instagramSite, sahibindenSite, robloxSite]) + '\n',
 )

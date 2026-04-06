@@ -8,7 +8,34 @@ import { r } from './src/scripts'
 import devtools from 'solid-devtools/vite'
 
 export default defineConfig({
-  plugins: [crx({ manifest }), devtools(), solidPlugin(), uno()],
+  plugins: [
+    {
+      name: 'jsonata-hmr',
+      configureServer(server) {
+        server.watcher.add('src/**/*.jsonata')
+      },
+      async handleHotUpdate({ file, server }) {
+        if (!file.endsWith('.jsonata')) return
+        const mods = server.moduleGraph.getModulesByFile(file)
+        if (!mods) return
+        const affected = new Set<(typeof mods extends Set<infer T> ? T : never)>()
+        const collect = (mod: typeof mods extends Set<infer T> ? T : never) => {
+          if (affected.has(mod)) return
+          affected.add(mod)
+          for (const importer of mod.importers) collect(importer)
+        }
+        for (const mod of mods) {
+          await server.moduleGraph.invalidateModule(mod)
+          collect(mod)
+        }
+        return [...affected]
+      },
+    },
+    crx({ manifest, browser: (process.env.BROWSER as 'chrome' | 'firefox') ?? 'chrome' }),
+    devtools(),
+    solidPlugin(),
+    uno(),
+  ],
   // root: r("src"),
   resolve: {
     alias: [

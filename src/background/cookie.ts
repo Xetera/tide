@@ -1,4 +1,4 @@
-import { originToUrl } from '~/protocol/resource'
+import { originToUrl } from '~/site-spec/resource'
 
 const CF_CLEARANCE = 'cf_clearance'
 
@@ -49,7 +49,6 @@ export async function addDisableChipsListener(origins: string[]) {
     )
   }
   chrome.cookies.onChanged.addListener(async (changeInfo) => {
-    console.log('changeinfo', changeInfo)
     if (changeInfo.cookie.name !== CF_CLEARANCE || changeInfo.removed) {
       return
     }

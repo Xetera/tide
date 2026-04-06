@@ -1,4 +1,3 @@
-
 async function fetchMedia(
   url: string,
 ): Promise<{ buffer: ArrayBuffer; mimeType: string; sha256hash: string }> {
@@ -12,7 +11,7 @@ async function fetchMedia(
   return { buffer, mimeType, sha256hash }
 }
 
-window.addEventListener('message', async (evt) => {
+window.addEventListener('message', (evt) => {
   if (!evt.data?.__spatula) return
 
   if (evt.data.kind === 'download-cached-media') {
@@ -20,8 +19,8 @@ window.addEventListener('message', async (evt) => {
       refs: { url: string; hash: string }[]
       id: string
     }
-    const results = (
-      await Promise.all(
+    ;(
+      Promise.all(
         refs.map(async ({ url, hash }) => {
           try {
             const { buffer, mimeType, sha256hash } = await fetchMedia(url)
@@ -32,27 +31,15 @@ window.addEventListener('message', async (evt) => {
           }
         }),
       )
-    ).filter((r) => r !== null)
-    const buffers = results.map((r) => r.buffer)
-    window.postMessage(
-      { __spatula: true, kind: 'download-cached-media:response', id, results },
-      '*',
-      buffers,
-    )
+    ).then((all) => {
+      const filtered = all.filter((r) => r !== null)
+      const buffers = filtered.map((r) => r.buffer)
+      window.postMessage(
+        { __spatula: true, kind: 'download-cached-media:response', id, results: filtered },
+        '*',
+        buffers,
+      )
+    })
     return
   }
-
-  if (evt.data.kind !== 'stream-end') return
-
-  // const { mimeType, segments, reconstructable } = evt.data as {
-  //   mimeType: string
-  //   segments: ArrayBuffer[]
-  //   reconstructable: boolean
-  // }
-  // if (!reconstructable) {
-  //   console.warn(
-  //     `[spatula] missing init segment for ${mimeType}, skipping download`,
-  //   )
-  //   return
-  // }
 })

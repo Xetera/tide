@@ -1,13 +1,12 @@
-import { TypedEmitter } from '~/shared/emitter'
 import { onMessage, sendMessage } from 'webext-bridge/background'
-import { Client, type ClientEvents } from '~/protocol/client'
-import { ServerAutonomy } from '~/protocol/scrapeer'
+import { Client } from '~/server/client'
+import { ServerAutonomy, type PageSpec } from '~/site-spec/types'
+import { instagramSite } from '~/sites/instagram'
 import { generateUID } from '~/shared'
 import { type BrowserStorageSchema, Storage } from '~/shared/storage'
 import { log } from './backend-logger'
 import { ContentScriptTracker } from './content-script-tracker'
 import { addDisableChipsListener } from './cookie'
-import { ScriptRegistry } from './dynamic-registry'
 import {
   addIframeSecurityListener,
   disableIframeSecurity,
@@ -29,7 +28,6 @@ function emitUrlUpdate(
   const origins = ['webhook.site', 'instagram.com', 'www.sahibinden.com']
   let client: Client | undefined
 
-
   try {
     const cst = new ContentScriptTracker()
     chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
@@ -49,9 +47,8 @@ function emitUrlUpdate(
 
     const workerSecret = await storage.get('server:worker-secret', '')
 
-    const events = new TypedEmitter<ClientEvents>()
     client = new Client({
-      events,
+      cst,
       pollIntervalSeconds: 30,
       queueIntervalSeconds: 1,
       defaultServers: [
@@ -68,98 +65,38 @@ function emitUrlUpdate(
       async enabledResources(_server) {
         return storage.get('enabledResources', [])
       },
-    })
-
-    events.on('runJob', async (job) => {
-      const tabId = await cst.getScriptTab(job.resource)
-      log({
-        text: `Running job: ${job.resource.$id}`,
-        severity: 'debug',
-        data: { url: job.url.toString(), resourceId: job.resource.$id, tabId },
-      })
-      console.log('[events] sending run-job event')
-      console.log('parapsm', job.params)
-      console.log(await chrome.tabs.query({}))
-      try {
-        await sendMessage('run-job', job.params, {
-          context: 'content-script',
-          tabId,
-        })
-      } catch (err) {
-        if (err instanceof Error) {
-          log({
-            severity: 'error',
-            text: 'Something went wrong while trying to run job',
-            data: { message: err.message, tabId },
-          })
+      onPatches(emission) {
+        storage.set('scrape:last', emission)
+      },
+      async onResourcesUpdated(server, resources) {
+        const tabIds = await cst.getAllScriptTabs()
+        storage.set(
+          'enabledResources',
+          resources.map((resource) => resource.$entity),
+        )
+        storage.set('resources:all', resources)
+        const hostnames = resources.map((re) => re.$hostname)
+        disableIframeSecurity(hostnames)
+        for (const tabId of tabIds) {
+          chrome.tabs.sendMessage(tabId, { type: 'update-resources', resources }).catch(() => {})
         }
-      }
-    })
-    // setTimeout(async () => {
-    //   const id = await cst.getScriptTab(sahibinden)
-    //   const params: JobParameters = {
-    //     id: '1',
-    //     issued_at: new Date(),
-    //     expires_at: new Date(),
-    //     resource_id: 'sahibinden:city_listing',
-    //     url: 'https://www.sahibinden.com/satilik/istanbul',
-    //   }
-    //   const page = await sendMessage('run-job', params, {
-    //     context: 'content-script',
-    //     tabId: id,
-    //   })
-    //   console.log(page)
-    // }, 5_000)
-
-    events.on('updatedResources', async (server, resources) => {
-      const tabIds = await cst.getAllScriptTabs()
-      console.log('[events] updated resources')
-      // sendMessage('update-resources', resources, {
-      //   context: 'popup',
-      //   tabId: 0,
-      // })
-      storage.set(
-        'enabledResources',
-        resources.map((resource) => resource.$id),
-      )
-      storage.set('resources:all', resources)
-      ScriptRegistry.loadFromResources(resources)
-      const hostnames = resources.map((re) => re.$hostname)
-      disableIframeSecurity(hostnames)
-      for (const tabId of tabIds) {
-        chrome.tabs.sendMessage(tabId, { type: 'update-resources', resources }).catch(() => {})
-      }
-      chrome.webNavigation.onHistoryStateUpdated.removeListener(emitUrlUpdate)
-      chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
-        url: resources.map((resource) => ({
-          hostContains: resource.$hostname,
-        })),
-      })
+        chrome.webNavigation.onHistoryStateUpdated.removeListener(emitUrlUpdate)
+        chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
+          url: resources.map((resource) => ({
+            hostContains: resource.$hostname,
+          })),
+        })
+      },
     })
 
     disableIframeSecurity(origins)
     addIframeSecurityListener()
     addDisableChipsListener(origins)
 
-    onMessage('page-match', ({ data }) => {
-      try {
-        console.log('scrape data', data)
-        console.log(`Got a matching page for ${data.resourceId}`)
-        storage.set('scrape:last', data)
-        log({
-          severity: 'info',
-          text: `Matched ${data.resourceId}`,
-        })
-        return events.emit('pageMatched', data)
-      } catch (err) {
-        console.error(err)
-      }
-    })
-
     onMessage('set-schema', ({ data }) => {
       storage.set('schema:local', JSON.stringify(data))
       storage.set('resources:all', data)
-      client.setResources(client.getServer(), data)
+      client!.setResources(client!.getServer(), data)
     })
     onMessage('toggle-resource', () => {})
     onMessage('log', ({ data }) => {
@@ -169,15 +106,15 @@ function emitUrlUpdate(
     const storageListener = new StorageListener()
 
     storageListener.on('server:worker-secret', (workerSecret) => {
-      client.updateServer({ workerSecret })
+      client!.updateServer({ workerSecret })
     })
 
     storageListener.on('server:pool-id', (poolId) => {
-      client.updateServer({ poolId })
+      client!.updateServer({ poolId })
     })
 
     storageListener.on('server:url', (url) => {
-      client.updateServer({ url })
+      client!.updateServer({ url })
     })
 
     storageListener.on('server:enabled', (enabled) => {
@@ -186,22 +123,23 @@ function emitUrlUpdate(
           severity: 'info',
           text: 'Server enabled, starting...',
         })
-        client.start(client.getServer())
+        client!.start(client!.getServer())
       } else {
         log({
           severity: 'info',
           text: 'Server disabled, stopping...',
         })
-        client.stop(client.getServer())
+        client!.stop(client!.getServer())
       }
     })
 
     const localSchema = await storage.get('schema:local', '')
-    if (localSchema) {
-      try {
-        client.setResources(client.getServer(), JSON.parse(localSchema))
-      } catch {}
-    }
+    const defaultResources = instagramSite.pages
+    const resources: PageSpec[] = localSchema
+      ? (() => { try { return JSON.parse(localSchema) } catch { return defaultResources } })()
+      : defaultResources
+    client.setResources(client.getServer(), resources)
+    storage.set('resources:all', resources)
 
     await client.startAll()
   } catch (err) {

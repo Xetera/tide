@@ -1,0 +1,48 @@
+{
+  "request": {
+    "url": "https://i.instagram.com/api/v1/media/3868587352050111/info/",
+    "method": "GET",
+    "headers": {}
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "items": [
+        {
+          "pk": "3868587352050111",
+          "id": "3868587352050111",
+          "caption": {
+            "text": "Hello gamers"
+          },
+          "taken_at": 1744000000,
+          "comments_disabled": false,
+          "like_count": 53,
+          "carousel_media": [
+            {
+              "url": "https://scontent.cdninstagram.com/v/image1.jpg",
+              "width": 640,
+              "height": 1136
+            },
+            {
+              "url": "https://scontent.cdninstagram.com/v/image2.jpg",
+              "width": 640,
+              "height": 1136
+            }
+          ],
+          "user": {
+            "pk": "6767676767",
+            "full_name": "John Doe",
+            "username": "johndoe",
+            "profile_pic_url": "https://scontent.cdninstagram.com/v/profile.jpg"
+          },
+          "usertags": {
+            "in": []
+          }
+        }
+      ]
+    }
+  }
+}

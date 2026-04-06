@@ -1,0 +1,22 @@
+[
+  /* Map the list of Comments */
+  comments.{
+    "_entity": "@instagram/comment",
+    "_id": $string(pk),
+    "text": text,
+    "likeCount": comment_like_count,
+    "author": $ref("@instagram/user", user.pk),
+    "post": $ref("@instagram/post", media_id)
+  },
+
+  /* Map all unique Comment Authors */
+  comments.user.{
+    "_entity": "@instagram/user",
+    "_id": $string(pk),
+    "username": username,
+    "nickname": full_name,
+    "profilePic": $image(profile_pic_url),
+    "isPrivate": is_private,
+    "isVerified": is_verified
+  }
+]

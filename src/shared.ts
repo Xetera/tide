@@ -14,12 +14,7 @@ export type PlainLog = {
   name?: 'REQUEST_SENT'
 }
 
-export type ScrapeLogMedia = {
-  mimeType: string
-  sha256hash: string
-  /** byte length of the original buffer */
-  bytes: number
-}
+export type ScrapeLogStatus = 'pending' | 'submitted' | 'failed'
 
 export type ScrapeLog = {
   id: string
@@ -27,13 +22,11 @@ export type ScrapeLog = {
   severity: 'info'
   /** unix timestamp */
   date: number
-  resourceId: string
-  entity: string
-  url: string
-  variables: Record<string, unknown>
-  payload: Record<string, unknown>
-  media: Record<string, ScrapeLogMedia>
+  patches: import('./protocol/scrapeer').EntityPatch[]
   warnings: readonly string[]
+  status: ScrapeLogStatus
+  httpStatus?: number
+  serverResponse?: string
 }
 
 export type Log = PlainLog | ScrapeLog

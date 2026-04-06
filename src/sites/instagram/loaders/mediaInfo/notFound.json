@@ -1,0 +1,17 @@
+{
+  "request": {
+    "url": "https://i.instagram.com/api/v1/media/0000000000000/info/",
+    "method": "GET",
+    "headers": {}
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "message": "Media not found or unavailable",
+      "status": "fail"
+    }
+  }
+}

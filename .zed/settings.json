@@ -1,4 +1,11 @@
 {
+  "language_servers": [
+    "typescript-language-server",
+    "!tsgo",
+    "!vtsls",
+    "!deno",
+    "...",
+  ],
   "lsp": {
     "oxlint": {
       "initialization_options": {

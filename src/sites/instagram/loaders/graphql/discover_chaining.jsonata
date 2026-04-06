@@ -1,0 +1,12 @@
+data.xdt_api__v1__discover__chaining.users ?
+[
+  data.xdt_api__v1__discover__chaining.users.{
+    "_entity": "@instagram/user",
+    "_id": id,
+    "username": username,
+    "nickname": full_name,
+    "profilePic": $image(profile_pic_url),
+    "isPrivate": is_private,
+    "isVerified": is_verified
+  }
+]
