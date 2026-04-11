@@ -16,6 +16,10 @@ export type PlainLog = {
 
 export type ScrapeLogStatus = 'pending' | 'submitted' | 'failed'
 
+export type ScrapeSource =
+  | { kind: 'network'; loader: string; file: string }
+  | { kind: 'html' }
+
 export type ScrapeLog = {
   id: string
   type: 'scrape'
@@ -25,6 +29,7 @@ export type ScrapeLog = {
   patches: import('./protocol/scrapeer').EntityPatch[]
   warnings: readonly string[]
   status: ScrapeLogStatus
+  source?: ScrapeSource
   httpStatus?: number
   serverResponse?: string
 }

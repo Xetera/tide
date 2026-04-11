@@ -1,4 +1,3 @@
-
 export interface RequestMatcher {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   url: string
@@ -16,16 +15,8 @@ export interface SiteDefinition {
 }
 
 export interface Entity {
-  $entity: string
-  $fields: import('typebox').TObject
-  $relationships?: Record<string, RelationshipDefinition>
-}
-
-export type RelationshipCardinality = 'one' | 'many'
-
-export interface RelationshipDefinition {
-  $entity: string
-  $cardinality: RelationshipCardinality
+  entity: string
+  fields: import('typebox').TObject
 }
 
 export interface PageSpec {
@@ -38,19 +29,28 @@ export interface PageSpec {
   $waitFor?: string[]
   $gone?: MatchExpression
   $fields: Record<string, FieldDescriptor>
-  $relationships?: Record<string, RelationshipDefinition>
 }
+
+export type EntityId = string | string[]
 
 export interface EntityRef {
-  _ref: string
-  id: unknown
+  _type: 'ref'
+  _id: EntityId
 }
 
-export interface EntityPatch {
+// export class Entity
+
+export interface RawEntityPatch {
   _entity: string
+  _id: EntityId
   [key: string]: unknown
+  // optional
+  _createdAt?: number
 }
 
+declare const validatedBrand: unique symbol
+
+export type EntityPatch = RawEntityPatch & { [validatedBrand]: true }
 
 export type AssetReference = {
   mimeType?: string
@@ -152,7 +152,7 @@ export type JobSource = { kind: 'active'; id: string } | { kind: 'passive' }
 interface JobOkay {
   success: true
   job: JobSource
-  patches: EntityPatch[]
+  patches: RawEntityPatch[]
   warnings: readonly string[]
 }
 

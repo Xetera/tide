@@ -1,47 +1,126 @@
-import { Type } from 'typebox'
+import {
+  type TArray,
+  type TBoolean,
+  type TInteger,
+  type TObject,
+  type TOptional,
+  type TString,
+  type TUnion,
+  Type,
+  TUnsafe,
+} from 'typebox'
 import type { Entity, PageSpec, SiteDefinition } from '~/site-spec/types'
 
-const TimestampRef = Type.Object({
-  _type: Type.Literal('timestamp'),
-  value: Type.String(),
-  precision: Type.String(),
+// just a type to correlate unsafe references
+type TReference = symbol
+
+const TimestampPrecision = Type.Enum(['full', 'year', 'month', 'day'], {
+  default: 'full',
 })
 
-type EntityInput = Omit<Entity, '$fields' | '$entity'> & {
-  $fields: ReturnType<typeof Type.Object>
-}
+const Timestamp = Type.Object({
+  _type: Type.Literal('timestamp'),
+  value: Type.String({ description: 'ISO 8601 string timestamp' }),
+  precision: TimestampPrecision,
+})
 
-export function defineEntity(entityName: string, input: EntityInput): Entity {
-  return {
-    ...input,
-    $entity: entityName,
-    $fields: Type.Object({
-      _entity: Type.String(),
-      _id: Type.Unknown(),
-      _createdAt: Type.Optional(TimestampRef),
-      ...Object.fromEntries(
-        Object.entries(input.$fields.properties).map(([k, v]) => [k, Type.Optional(Type.Union([v as any, Type.Null()]))])
-      ),
-    }),
+const EntityId = Type.Union([Type.Array(Type.String()), Type.String()])
+
+type FieldInput = Record<
+  string,
+  | TUnion
+  | TObject
+  | TArray
+  | TOptional
+  | TString
+  | TInteger
+  | TBoolean
+  | TUnsafe<TReference>
+>
+
+export class EntityBuilder {
+  readonly #entityName: string
+  #fields!: Entity['fields']
+
+  constructor(entityName: string) {
+    this.#entityName = entityName
+  }
+
+  fields(input: FieldInput): this {
+    const fields: FieldInput = {}
+    for (const [key, value] of Object.entries(input)) {
+      fields[key] = Type.Optional(Type.Union([value, Type.Null()]))
+    }
+
+    this.#fields = Type.Object(
+      {
+        ...fields,
+        _entity: Type.Literal(this.#entityName),
+        _id: EntityId,
+        _createdAt: Type.Optional(Timestamp),
+      },
+      { $defs: buildEntityRefs() },
+    )
+    return this
+  }
+
+  build(): Entity {
+    if (!this.#fields)
+      throw new Error(`Entity "${this.#entityName}" has no fields defined`)
+    return { entity: this.#entityName, fields: this.#fields }
   }
 }
 
-type SiteInput = Omit<SiteDefinition, 'loaders' | 'pages'> & {
-  dir: string
+export function entityKey(entityName: string): string {
+  return entityName.replace(/^@/, '').replace('/', '__')
 }
 
-const allLoaderModules = import.meta.glob('../sites/*/loaders/*/*.jsonata', {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-}) as Record<string, string>
+export function buildEntityRefs() {
+  const defs: Record<string, unknown> = {
+    EntityRef: {
+      type: 'object',
+      properties: {
+        _id: {},
+      },
+      required: ['_id'],
+    },
+  }
+  return defs
+}
 
-const allPageModules = import.meta.glob('../sites/*/pages/*/index.ts', {
-  import: 'default',
-  eager: true,
-}) as Record<string, PageSpec>
+export function One(entityName: string) {
+  return Type.Unsafe<TReference>({
+    $ref: `#/$defs/EntityRef`,
+    'x-cardinality': 'one',
+    'x-entity': entityName,
+  })
+}
+
+export function Many(entityName: string) {
+  return Type.Unsafe<TReference>({
+    $ref: `#/$defs/EntityRef`,
+    'x-cardinality': 'many',
+    'x-entity': entityName,
+  })
+}
+
+type SiteInput = Omit<SiteDefinition, 'loaders' | 'pages' | 'entities'> & {
+  dir: string
+  entities: EntityBuilder[]
+}
 
 export function defineSite(input: SiteInput): SiteDefinition {
+  const allLoaderModules = import.meta.glob('../sites/*/loaders/*/*.jsonata', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }) as Record<string, string>
+
+  const allPageModules = import.meta.glob('../sites/*/pages/*/index.ts', {
+    import: 'default',
+    eager: true,
+  }) as Record<string, PageSpec>
+
   const loaders: SiteDefinition['loaders'] = {}
   for (const [path, expression] of Object.entries(allLoaderModules)) {
     const match = path.match(/\/sites\/([^/]+)\/loaders\/([^/]+)\/.*\.jsonata$/)
@@ -70,7 +149,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
 
   return {
     hostname: input.hostname,
-    entities: input.entities,
+    entities: input.entities.map((e) => e.build()),
     requests: input.requests,
     loaders,
     pages,

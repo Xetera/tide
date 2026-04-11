@@ -1,7 +1,16 @@
 import PQueue from 'p-queue'
 import type { ServerDefinition } from '~/server/client'
-import type { EntityPatch, JobSource, ServerAutonomy } from '~/site-spec/types'
+import type {
+  RawEntityPatch,
+  JobSource,
+  ServerAutonomy,
+} from '~/site-spec/types'
 import type { Log } from '~/shared'
+import type {
+  GenerationAttempt,
+  GenerationProgress,
+  GenerationResult,
+} from '~/generation/types'
 
 export class Storage<T extends Record<string, unknown>> {
   #q = new PQueue()
@@ -109,10 +118,15 @@ export type BrowserStorageSchema = {
   'server:autonomy'?: ServerAutonomy
   'schema:local'?: string
   'scrape:last'?: {
-    patches: EntityPatch[]
+    patches: RawEntityPatch[]
     source: JobSource
     warnings: string[]
   }
   'debug:visual'?: boolean
   'resources:all'?: import('~/site-spec/types').PageSpec[]
+  'gemini:api-key'?: string
+  'zai:api-key'?: string
+  'generation:progress'?: GenerationProgress
+  'generation:attempts'?: GenerationAttempt[]
+  'generation:last-result'?: { result: GenerationResult; timestamp: number }
 }

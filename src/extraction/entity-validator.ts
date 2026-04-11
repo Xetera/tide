@@ -1,13 +1,10 @@
-import { Type } from 'typebox'
 import { Value } from 'typebox/value'
-import type { Entity, EntityPatch, SiteDefinition } from '~/site-spec/types'
-
-const RefSchema = Type.Object({
-  _ref: Type.String(),
-  id: Type.Union([Type.String(), Type.Array(Type.String())]),
-})
-
-const RefArraySchema = Type.Array(RefSchema)
+import type {
+  Entity,
+  EntityPatch,
+  RawEntityPatch,
+  SiteDefinition,
+} from '~/site-spec/types'
 
 export interface EntityValidationError {
   entity: string
@@ -23,7 +20,7 @@ export class EntityValidator {
     this.#entities = new Map()
     for (const site of sites) {
       for (const entity of site.entities) {
-        this.#entities.set(entity.$entity, entity)
+        this.#entities.set(entity.entity, entity)
       }
     }
   }
@@ -40,7 +37,7 @@ export class EntityValidator {
         },
       ]
     }
-    return [...Value.Errors(entity.$fields, data)].map((err) => ({
+    return [...Value.Errors(entity.fields, data)].map((err) => ({
       entity: name,
       path: err.instancePath ?? '',
       message: err.message,
@@ -48,48 +45,69 @@ export class EntityValidator {
     }))
   }
 
-  parse(name: string, data: unknown): unknown {
+  parse(name: string, data: RawEntityPatch): EntityPatch {
     const entity = this.#entities.get(name)
     if (!entity) throw new Error(`Unknown entity "${name}"`)
-    const parsed = Value.Parse(entity.$fields, data) as Record<string, unknown>
-    if (entity.$relationships) {
-      for (const [field, rel] of Object.entries(entity.$relationships)) {
-        if (!(field in parsed) || parsed[field] == null) {
-          continue
-        }
-        const schema = rel.$cardinality === 'many' ? RefArraySchema : RefSchema
-        const errors = [...Value.Errors(schema, parsed[field])]
-        if (errors.length > 0) {
-          throw new Error(
-            `Relationship "${field}" on entity "${name}" failed validation: ${errors.map((e) => `${e.instancePath} ${e.message}`).join(', ')}`,
-          )
-        }
-      }
-    }
-    return parsed
+    return Value.Parse(entity.fields, data) as EntityPatch
   }
 
-  parsePatches(result: unknown, context?: { loader: string; file: string; url: string }): EntityPatch[] {
-    const raw =
-      result === undefined ? [] : Array.isArray(result) ? result : [result]
-    return raw.flatMap((item) => {
-      if (item === null || typeof item !== 'object' || !('_entity' in item)) {
-        return []
+  parsePatches(
+    result: unknown,
+    context?: { loader: string; file: string; url: string },
+  ): { patches: EntityPatch[]; errors: EntityValidationError[] } {
+    if (result === undefined) {
+      throw new Error('parsePatches received undefined result')
+    }
+    const raw: unknown[] = Array.isArray(result) ? result : [result]
+    const patches: EntityPatch[] = []
+    const errors: EntityValidationError[] = []
+    for (const item of raw) {
+      if (!EntityValidator.isEntityPatch(item)) {
+        continue
       }
-      const entityName = (item as Record<string, unknown>)._entity as string
+      const entityName = item._entity
       try {
-        return [this.parse(entityName, item) as EntityPatch]
-      } catch (err) {
-        const errors = this.validate(entityName, item)
-        console.warn(
-          `[spatula] entity "${entityName}" failed schema validation, dropping`,
-          ...(context ? [`loader: ${context.loader}/${context.file}`, `url: ${context.url}`] : []),
-          errors,
-          err instanceof Error ? err.message : err,
-          item,
-        )
-        return []
+        patches.push(this.parse(entityName, item))
+      } catch {
+        errors.push(...this.validate(entityName, item))
       }
-    })
+    }
+    const deduped = EntityValidator.deduplicateByIdentity(patches)
+    const removed = patches.length - deduped.length
+    if (removed > 0) {
+      console.log(
+        `[spatula] removed ${removed} duplicate patch${removed === 1 ? '' : 'es'}`,
+      )
+    }
+    return { patches: deduped, errors }
+  }
+
+  static deduplicateByIdentity(patches: EntityPatch[]): EntityPatch[] {
+    const byPopularity = patches.toSorted(
+      (a, b) => Object.keys(b).length - Object.keys(a).length,
+    )
+    const seen = new Map<string, EntityPatch>()
+    for (const patch of byPopularity) {
+      const key = EntityValidator.patchKey(patch)
+      if (seen.has(key)) {
+        continue
+      }
+      seen.set(key, patch)
+    }
+    return [...seen.values()]
+  }
+
+  static patchKey(patch: RawEntityPatch): string {
+    const id = Array.isArray(patch._id) ? patch._id.join(',') : patch._id
+    return `${patch._entity}:${id}`
+  }
+
+  static isEntityPatch(item: unknown): item is RawEntityPatch {
+    return (
+      item !== null &&
+      typeof item === 'object' &&
+      '_entity' in item &&
+      typeof item._entity === 'string'
+    )
   }
 }

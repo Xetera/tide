@@ -1,0 +1,11 @@
+sectional_items.layout_content.*.**.items.media.{
+  /* Map media items to @instagram/post entities */
+  "_entity": "@instagram/post",
+  "_id": $string(pk),
+  "_createdAt": $timestamp(taken_at),
+  "likeCount": null,
+  "media": media_type = 2 ? {
+    "kind": "image",
+    "image": image_versions2.candidates[0].($image(url) ~> $with_dimensions(width, height))
+  } : null
+}

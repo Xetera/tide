@@ -1,7 +1,4 @@
-import type {
-  EntityPatch,
-  PageSpec,
-} from '~/site-spec/types'
+import type { RawEntityPatch, PageSpec } from '~/site-spec/types'
 
 export interface MediaRef {
   url: string
@@ -24,18 +21,20 @@ export interface DownloadedMedia {
   buffer: ArrayBuffer
 }
 
-
 function resolveMediaRef(
   ref: MediaRef,
   downloaded: Record<string, DownloadedMedia>,
 ): ResolvedMediaField | MediaRef {
   const result = downloaded[ref.hash]
   if (!result) {
-    console.warn('[spatula] failed to resolve media ref, will submit unresolved', {
-      url: ref.url,
-      hash: ref.hash,
-      availableHashes: Object.keys(downloaded),
-    })
+    console.warn(
+      '[spatula] failed to resolve media ref, will submit unresolved',
+      {
+        url: ref.url,
+        hash: ref.hash,
+        availableHashes: Object.keys(downloaded),
+      },
+    )
     return ref
   }
   return {
@@ -78,7 +77,7 @@ function isMediaRef(value: unknown): value is MediaRef {
 export class EvaluatedResource {
   constructor(
     readonly resource: PageSpec,
-    readonly patches: readonly EntityPatch[],
+    readonly patches: readonly RawEntityPatch[],
   ) {}
 
   mediaUrls(): MediaRef[] {
@@ -91,8 +90,10 @@ export class EvaluatedResource {
 
   substituteMediaRefs(
     downloaded: Record<string, DownloadedMedia>,
-  ): EntityPatch[] {
-    return this.patches.map((patch) => substituteValue(patch, downloaded) as EntityPatch)
+  ): RawEntityPatch[] {
+    return this.patches.map(
+      (patch) => substituteValue(patch, downloaded) as RawEntityPatch,
+    )
   }
 }
 

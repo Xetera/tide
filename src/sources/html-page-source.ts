@@ -6,7 +6,7 @@ import {
 } from '~/extraction/page-evaluator'
 import { EvaluatedResource } from '~/extraction/evaluated-resource'
 import type {
-  EntityPatch,
+  RawEntityPatch,
   JobParameters,
   JobSource,
   PageSpec,
@@ -145,7 +145,7 @@ export class HtmlPageSource implements DataSource {
 
     const evaluated = new EvaluatedResource(resource, patches)
     const mediaRefs = evaluated.mediaUrls()
-    let resolvedPatches: EntityPatch[] = patches
+    let resolvedPatches: RawEntityPatch[] = patches
     if (mediaRefs.length > 0) {
       await Promise.all(mediaRefs.map((ref) => parser.mediaReady.get(ref.hash)))
       const downloaded = await downloadCachedMedia(mediaRefs)

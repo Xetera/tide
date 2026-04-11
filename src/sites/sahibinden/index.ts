@@ -1,6 +1,6 @@
-import { Type } from 'typebox'
-import { defineEntity, defineSite } from '~/site-spec/site-builder'
+import { defineSite } from '~/site-spec/site-builder'
 import type { JobParameters } from '~/site-spec/types'
+import { sahibindenEntities } from './entities'
 
 export const sahibindenSmallJobs: JobParameters[] = [
   {
@@ -15,22 +15,7 @@ export const sahibindenSmallJobs: JobParameters[] = [
 export const sahibindenSite = defineSite({
   dir: 'sahibinden',
   hostname: 'www.sahibinden.com',
-  entities: [
-    defineEntity('@sahibinden/city_listing', {
-      $fields: Type.Object({
-        id: Type.String(),
-        price: Type.Optional(Type.Number()),
-        latitude: Type.Optional(Type.Number()),
-        longitude: Type.Optional(Type.Number()),
-        agency: Type.Optional(
-          Type.Object({
-            name: Type.String(),
-            link: Type.String({ format: 'uri' }),
-          }),
-        ),
-      }),
-    }),
-  ],
+  entities: sahibindenEntities,
   requests: {},
 })
 

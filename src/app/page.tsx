@@ -13,6 +13,7 @@ import { AddServer } from './add-server'
 import { useLogs } from './hooks'
 import { SchemaEditor } from './schema-editor'
 import { Pool } from './pool'
+import { SpecGenerator } from './spec-generator'
 
 const formatter = createDateFormatter({
   timeStyle: 'medium',
@@ -54,7 +55,17 @@ function ResourceRow({
 
 function ScrapeLogEntry({ log }: { log: ScrapeLog }) {
   const time = formatter.format(new Date(log.date))
-  const entities = [...new Set(log.patches.map((p) => p._entity))]
+  const title = log.source?.kind === 'network'
+    ? `${log.source.loader} / ${log.source.file}`
+    : log.source?.kind === 'html'
+      ? 'html'
+      : [...new Set(log.patches.map((p) => p._entity))].join(', ')
+  const patchesByEntity = Object.entries(
+    log.patches.reduce<Record<string, number>>((acc, p) => {
+      acc[p._entity] = (acc[p._entity] ?? 0) + 1
+      return acc
+    }, {})
+  )
 
   function openViewer() {
     chrome.tabs.create({
@@ -83,7 +94,7 @@ function ScrapeLogEntry({ log }: { log: ScrapeLog }) {
         <summary class='cursor-pointer px-3 py-2 select-none flex items-center gap-2'>
           <span class='tabular-nums font-mono text-muted-foreground shrink-0'>{time}</span>
           <span class='font-medium'>scrape</span>
-          <span class='text-muted-foreground truncate'>{entities.join(', ')}</span>
+          <span class='text-muted-foreground truncate'>{title}</span>
           <span class={`ml-auto shrink-0 ${log.status === 'submitted' ? 'text-green-500' : log.status === 'failed' ? 'text-red-500' : 'text-muted-foreground'}`}>
             {log.status ?? 'pending'}
           </span>
@@ -91,7 +102,14 @@ function ScrapeLogEntry({ log }: { log: ScrapeLog }) {
         <div class='border-t border-border'>
           <div class='px-3 py-2'>
             <div class='text-muted-foreground mb-0.5'>patches</div>
-            <div class='font-mono'>{log.patches.length}</div>
+            <div class='font-mono flex flex-col gap-0.5'>
+              {patchesByEntity.map(([entity, count]) => (
+                <div class='flex gap-2'>
+                  <span class='text-muted-foreground'>{entity}</span>
+                  <span>{count}</span>
+                </div>
+              ))}
+            </div>
           </div>
           <div class='px-3 py-2 flex gap-2'>
             <button
@@ -223,6 +241,12 @@ function Page() {
             Pool
           </TabsTrigger>
           <TabsTrigger
+            value='generate'
+            class='flex-1 h-full rounded-none border-b-2 border-transparent data-[selected]:(border-foreground bg-transparent) text-muted-foreground data-[selected]:text-foreground'
+          >
+            Generate
+          </TabsTrigger>
+          <TabsTrigger
             value='settings'
             class='flex-1 h-full rounded-none border-b-2 border-transparent data-[selected]:(border-foreground bg-transparent) text-muted-foreground data-[selected]:text-foreground'
           >
@@ -284,6 +308,10 @@ function Page() {
 
         <TabsContent value='pool' class='mt-0'>
           <Pool />
+        </TabsContent>
+
+        <TabsContent value='generate' class='mt-0'>
+          <SpecGenerator />
         </TabsContent>
 
         <TabsContent value='settings' class='mt-0'>

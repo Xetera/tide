@@ -1,6 +1,6 @@
 data.xdt_api__v1__feed__user_timeline_graphql_connection
   /* some false positives without this
-  and $request.headers`x-root-field-name` = "xdt_api__v1__feed__user_timeline_graphql_connection" */ ?
+  and $request.headers.`x-root-field-name` = "xdt_api__v1__feed__user_timeline_graphql_connection" */ ?
 [
   data.xdt_api__v1__feed__user_timeline_graphql_connection.edges.node.{
     "_entity": "@instagram/post",
@@ -23,8 +23,7 @@ data.xdt_api__v1__feed__user_timeline_graphql_connection
     },
     "commentsDisabled": comments_disabled ?? false,
     "likeCount": like_count,
-    "author": $ref("@instagram/user", $string(user.pk)),
-    "likedBy": facepile_top_likers[].$ref("@instagram/user", id)
+    "author": $ref($string(user.pk))
   },
 
   data.xdt_api__v1__feed__user_timeline_graphql_connection.edges.node.user.{

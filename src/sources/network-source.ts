@@ -6,7 +6,14 @@ let validator: EntityValidator | null = null
 
 export function registerLoaders(sites: SiteDefinition[]) {
   validator = new EntityValidator(sites)
-  const loaders: Record<string, { url: string; method: string; expressions: { file: string; expression: string }[] }> = {}
+  const loaders: Record<
+    string,
+    {
+      url: string
+      method: string
+      expressions: { file: string; expression: string }[]
+    }
+  > = {}
   for (const site of sites) {
     for (const [name, expressions] of Object.entries(site.loaders)) {
       const matcher = site.requests[name]
@@ -16,17 +23,78 @@ export function registerLoaders(sites: SiteDefinition[]) {
       loaders[name] = { url: matcher.url, method: matcher.method, expressions }
     }
   }
-  window.postMessage({ __spatula: true, kind: 'register-loaders', loaders }, '*')
+  window.postMessage(
+    { __spatula: true, kind: 'register-loaders', loaders },
+    '*',
+  )
 }
 
 window.addEventListener('message', (evt) => {
   if (!evt.data?.__spatula) return
-  if (evt.data.kind !== 'loader-result') return
 
-  const { name, file, result, url } = evt.data as { name: string; file: string; result: unknown; url: string }
-  const patches = validator?.parsePatches(result, { loader: name, file, url }) ?? []
+  if (evt.data.kind === 'loader-result') {
+    const { name, file, result, url } = evt.data as {
+      name: string
+      file: string
+      result: unknown
+      url: string
+    }
+    if (!validator) {
+      console.error(`loader-result was called before validator was assigned`)
+      return
+    }
 
-  if (patches.length > 0) {
-    sendMessage('entity-patches', { patches, source: { kind: 'passive' }, warnings: [], loader: { name, file } })
+    const { patches, errors } = validator.parsePatches(result, {
+      loader: name,
+      file,
+      url,
+    })
+
+    if (errors.length > 0) {
+      console.warn(
+        `[spatula] entity validation errors from ${name}/${file}`,
+        errors,
+      )
+    }
+    if (patches.length > 0) {
+      sendMessage('entity-patches', {
+        patches,
+        source: { kind: 'passive' },
+        warnings: [],
+        loader: { name, file },
+      })
+    }
+  }
+
+  if (evt.data.kind === 'raw-capture') {
+    const {
+      url,
+      method,
+      status,
+      requestBody,
+      responseBody,
+      requestHeaders,
+      responseHeaders,
+      capturedAt,
+    } = evt.data as {
+      url: string
+      method: string
+      status: number
+      requestBody: string | null
+      responseBody: string
+      requestHeaders: Record<string, string>
+      responseHeaders: Record<string, string>
+      capturedAt: number
+    }
+    sendMessage('raw-capture', {
+      url,
+      method,
+      status,
+      requestBody,
+      responseBody,
+      requestHeaders,
+      responseHeaders,
+      capturedAt,
+    }).catch(() => {})
   }
 })

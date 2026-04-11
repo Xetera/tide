@@ -2,10 +2,18 @@
 
 /// <reference types="chrome" />
 
-
 import type { ProtocolWithReturn } from 'webext-bridge'
-import type { JobParameters, EntityPatch, JobSource } from './site-spec/types'
+import type {
+  JobParameters,
+  RawEntityPatch,
+  JobSource,
+} from './site-spec/types'
 import type { PlainLog, ScrapeLog } from './shared'
+import type {
+  CaptureEntry,
+  GenerationRequest,
+  GenerationResult,
+} from './generation/types'
 declare module 'webext-bridge' {
   export interface ProtocolMap {
     'url-update': unknown
@@ -16,6 +24,23 @@ declare module 'webext-bridge' {
     log: Omit<PlainLog, 'date' | 'id' | 'type'> | Omit<ScrapeLog, 'date' | 'id'>
     resources: ProtocolWithReturn<unknown, Resource[]>
     'set-schema': ProtocolWithReturn<Resource[], void>
-    'entity-patches': { patches: EntityPatch[]; source: JobSource; warnings: string[]; loader?: { name: string; file: string } }
+    'entity-patches': {
+      patches: RawEntityPatch[]
+      source: JobSource
+      warnings: string[]
+      loader?: { name: string; file: string }
+    }
+    'raw-capture': {
+      url: string
+      method: string
+      status: number
+      requestBody: string | null
+      responseBody: string
+      requestHeaders: Record<string, string>
+      responseHeaders: Record<string, string>
+      capturedAt: number
+    }
+    'get-captures': ProtocolWithReturn<{ hostname: string }, CaptureEntry[]>
+    'generate-spec': ProtocolWithReturn<GenerationRequest, GenerationResult>
   }
 }

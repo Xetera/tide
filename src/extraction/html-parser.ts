@@ -13,7 +13,6 @@ function fnv1a(str: string): string {
   return hash.toString(36)
 }
 
-
 function isNodeField(value: unknown): value is S.NodeFieldDescriptor {
   return (
     typeof value === 'object' &&
@@ -81,7 +80,10 @@ export class HTMLParser {
 
   async parseAsync(
     html: string | Document,
-    options: { maxWait?: number; loaderResults?: Record<string, unknown[]> } = {},
+    options: {
+      maxWait?: number
+      loaderResults?: Record<string, unknown[]>
+    } = {},
   ): Promise<S.EntityPatch[]> {
     this._warnings = []
     this._highlights = []
@@ -100,7 +102,9 @@ export class HTMLParser {
         `wait_for selectors were immediately available — page may have been pre-rendered: ${waitFor.join(', ')}`,
       )
     }
-    await PageEvaluator.waitForLoad(doc, this.resource, { maxWait: options.maxWait ?? 10_000 })
+    await PageEvaluator.waitForLoad(doc, this.resource, {
+      maxWait: options.maxWait ?? 10_000,
+    })
     const fields = this.#process(doc)
     await Promise.race([
       Promise.all(this.#mediaReady.values()),
@@ -110,7 +114,10 @@ export class HTMLParser {
       const value = await promise
       this.#setNestedPath(fields, path, value)
     }
-    const mainPatch: S.EntityPatch = { _entity: this.resource.$entity, ...fields }
+    const mainPatch: S.EntityPatch = {
+      _entity: this.resource.$entity,
+      ...fields,
+    }
     return [mainPatch, ...this.#entityPatches]
   }
 
@@ -127,7 +134,10 @@ export class HTMLParser {
     this.#loaderResults = options.loaderResults ?? {}
     const element = HTMLParser.createDocument(html)
     const fields = this.#process(element)
-    const mainPatch: S.EntityPatch = { _entity: this.resource.$entity, ...fields }
+    const mainPatch: S.EntityPatch = {
+      _entity: this.resource.$entity,
+      ...fields,
+    }
     return [mainPatch, ...this.#entityPatches]
   }
 
@@ -174,7 +184,10 @@ export class HTMLParser {
         if (!node) continue
         value = this.#runTransform(node, descriptor.$transform ?? [])
       } else if (!source) {
-        value = this.#runTransform(document as unknown as HTMLElement, descriptor.$transform ?? [])
+        value = this.#runTransform(
+          document as unknown as HTMLElement,
+          descriptor.$transform ?? [],
+        )
       }
       out[key] = value
     }
@@ -192,7 +205,9 @@ export class HTMLParser {
     context: ParentNode,
   ): HTMLElement | { loaderResult: unknown } | null {
     if ('$css' in source) {
-      return (context instanceof Element ? context : this.#currentDocument).querySelector(source.$css) as HTMLElement | null
+      return (
+        context instanceof Element ? context : this.#currentDocument
+      ).querySelector(source.$css) as HTMLElement | null
     }
     const result = this.#resolveLoaderResult(source.$query)
     if (result === null) return null
@@ -203,7 +218,9 @@ export class HTMLParser {
     source: S.SourceEachDescriptor,
     context: ParentNode,
   ): HTMLElement[] {
-    return Array.from(context.querySelectorAll(source.$cssEach)) as HTMLElement[]
+    return Array.from(
+      context.querySelectorAll(source.$cssEach),
+    ) as HTMLElement[]
   }
 
   #runTransform(value: unknown, steps: S.TransformStep[]): unknown {
@@ -239,7 +256,9 @@ export class HTMLParser {
 
     if ('$regex' in step) {
       if (typeof value !== 'string') {
-        throw new Error(`$regex step requires a string value, got: ${typeof value}`)
+        throw new Error(
+          `$regex step requires a string value, got: ${typeof value}`,
+        )
       }
       const regex = new RegExp(step.$regex)
       if (step.$replacement === undefined || step.$replacement === null) {
@@ -324,12 +343,20 @@ export class HTMLParser {
     return out
   }
 
-  #setNestedPath(payload: S.UnknownPayload, path: string, value: unknown): void {
+  #setNestedPath(
+    payload: S.UnknownPayload,
+    path: string,
+    value: unknown,
+  ): void {
     const parts = path.split('.')
     let target: Record<string, unknown> = payload
     for (let i = 0; i < parts.length - 1; i++) {
       const part = parts[i]!
-      if (!(part in target) || typeof target[part] !== 'object' || target[part] === null) {
+      if (
+        !(part in target) ||
+        typeof target[part] !== 'object' ||
+        target[part] === null
+      ) {
         target[part] = {}
       }
       target = target[part] as Record<string, unknown>
@@ -529,7 +556,9 @@ export class HTMLParser {
       }
       return result
     } catch (err) {
-      this.#warn(`$json expression error: ${err instanceof Error ? err.message : String(err)}`)
+      this.#warn(
+        `$json expression error: ${err instanceof Error ? err.message : String(err)}`,
+      )
       return null
     }
   }
@@ -539,7 +568,9 @@ export class HTMLParser {
     options: Partial<S.MediaOptions>,
   ): unknown {
     const src = (
-      (element instanceof HTMLImageElement ? element.currentSrc || null : null) ??
+      (element instanceof HTMLImageElement
+        ? element.currentSrc || null
+        : null) ??
       element.getAttribute('src') ??
       element.getAttribute('href')
     )?.trim()
@@ -595,7 +626,9 @@ export class HTMLParser {
       if (typeof value === 'number') return value
       if (typeof value === 'string') {
         if (!this.numberParser) {
-          throw new Error('this.numberParser is undefined. This should never happen')
+          throw new Error(
+            'this.numberParser is undefined. This should never happen',
+          )
         }
         const forceLocale = step.$options?.$forceLocale
         const parser = forceLocale
@@ -689,11 +722,12 @@ export class ParserError extends Error {
     public readonly descriptor: S.NodeFieldDescriptor,
     message: string,
   ) {
-    const source = descriptor.$source && '$css' in descriptor.$source
-      ? descriptor.$source.$css
-      : descriptor.$source && '$query' in descriptor.$source
-        ? `query:${descriptor.$source.$query}`
-        : '(none)'
+    const source =
+      descriptor.$source && '$css' in descriptor.$source
+        ? descriptor.$source.$css
+        : descriptor.$source && '$query' in descriptor.$source
+          ? `query:${descriptor.$source.$query}`
+          : '(none)'
     super(`${message} [source] ${source}`)
   }
 }

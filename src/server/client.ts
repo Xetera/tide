@@ -5,7 +5,7 @@ import type { ContentScriptTracker } from '~/background/content-script-tracker'
 import { Job } from './job'
 import { JobQueue } from './job-queue'
 import type {
-  EntityPatch,
+  RawEntityPatch,
   JobParameters,
   JobPollParameters,
   JobPollResponse,
@@ -47,7 +47,10 @@ function stableStringify(value: unknown): string {
 export class Client {
   readonly servers: ServerDefinition[]
   readonly #cst: ContentScriptTracker
-  readonly #onResourcesUpdated: (server: ServerDefinition, resources: PageSpec[]) => void
+  readonly #onResourcesUpdated: (
+    server: ServerDefinition,
+    resources: PageSpec[],
+  ) => void
 
   // TODO: turn this mess into an array of stateful classes
   #timers = new WeakMap<ServerDefinition, NodeJS.Timeout>()
@@ -87,7 +90,14 @@ export class Client {
 
     onMessage('entity-patches', ({ data }) => {
       onPatches?.(data)
-      this.#submitJob(data.patches, data.source, data.warnings, 0, undefined, data.loader)
+      this.#submitJob(
+        data.patches,
+        data.source,
+        data.warnings,
+        0,
+        undefined,
+        data.loader,
+      )
     })
     this.enabledResources = enabledResources
   }
@@ -185,7 +195,10 @@ export class Client {
         data: { url: job.url.toString(), resourceId: resource.$entity, tabId },
       })
       try {
-        await sendMessage('run-job', job.params, { context: 'content-script', tabId })
+        await sendMessage('run-job', job.params, {
+          context: 'content-script',
+          tabId,
+        })
       } catch (err) {
         if (err instanceof Error) {
           log({
@@ -204,7 +217,7 @@ export class Client {
   }
 
   async #submitJob(
-    patches: EntityPatch[],
+    patches: RawEntityPatch[],
     source: JobSource,
     warnings: string[],
     retryCount = 0,
@@ -215,13 +228,19 @@ export class Client {
     if (!server) {
       return
     }
-    console.log(`[spatula] scraped${loader ? ` ${loader.name}/${loader.file}` : ''}`, patches)
-    const scrapeLogId = existingScrapeLogId ?? log({
-      type: 'scrape',
-      severity: 'info',
+    console.log(
+      `[spatula] scraped${loader ? ` ${loader.name}/${loader.file}` : ''}`,
       patches,
-      warnings,
-    })
+    )
+    const scrapeLogId =
+      existingScrapeLogId ??
+      log({
+        type: 'scrape',
+        severity: 'info',
+        patches,
+        warnings,
+        source: loader ? { kind: 'network', loader: loader.name, file: loader.file } : { kind: 'html' },
+      })
     const body: JobResult = {
       success: true,
       patches,
@@ -277,7 +296,14 @@ export class Client {
       this.stop(server)
       try {
         await this.#updateResource(server)
-        await this.#submitJob(patches, source, warnings, retryCount + 1, scrapeLogId, loader)
+        await this.#submitJob(
+          patches,
+          source,
+          warnings,
+          retryCount + 1,
+          scrapeLogId,
+          loader,
+        )
       } catch (err) {
         if (err instanceof Error) {
           log({
@@ -303,7 +329,10 @@ export class Client {
       if (responseText.length > 1000) {
         responseText = responseText.slice(0, 1000).replace(/.{3}$/, '...')
       }
-      updateScrapeLogStatus(scrapeLogId, 'failed', { httpStatus: response.status, serverResponse: responseText })
+      updateScrapeLogStatus(scrapeLogId, 'failed', {
+        httpStatus: response.status,
+        serverResponse: responseText,
+      })
       log({
         severity: 'error',
         text: 'Failed to submit job',
@@ -313,8 +342,15 @@ export class Client {
     }
 
     const responseText = await response.text()
-    this.#recentSubmissions.set(dedupKey, { hash: payloadHash, sentAt: Date.now(), serialized })
-    updateScrapeLogStatus(scrapeLogId, 'submitted', { httpStatus: response.status, serverResponse: responseText })
+    this.#recentSubmissions.set(dedupKey, {
+      hash: payloadHash,
+      sentAt: Date.now(),
+      serialized,
+    })
+    updateScrapeLogStatus(scrapeLogId, 'submitted', {
+      httpStatus: response.status,
+      serverResponse: responseText,
+    })
   }
 
   async #updateResource(server: ServerDefinition): Promise<void> {
@@ -508,7 +544,11 @@ export interface ScrapeerClientOptions {
   cst: ContentScriptTracker
   enabledResources(server: ServerDefinition): Promise<string[]>
   onResourcesUpdated(server: ServerDefinition, resources: PageSpec[]): void
-  onPatches?: (emission: { patches: EntityPatch[]; source: JobSource; warnings: string[] }) => void
+  onPatches?: (emission: {
+    patches: RawEntityPatch[]
+    source: JobSource
+    warnings: string[]
+  }) => void
 }
 
 export interface ServerDefinition {
@@ -520,4 +560,3 @@ export interface ServerDefinition {
   workerSecret: string
   autonomy: ServerAutonomy
 }
-

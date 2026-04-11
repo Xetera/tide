@@ -1,19 +1,12 @@
 import jsonata from 'jsonata'
-import type { EntityRef } from '~/site-spec/types'
+import type { RawEntityPatch, EntityRef } from '~/site-spec/types'
+import { EntityValidator } from './entity-validator'
 
 type MediaRef = {
   _type: 'image' | 'video'
   url: string
-  hash: string
   width?: number
   height?: number
-}
-
-export interface ParsedEntity {
-  _entity: string
-  _id: unknown
-  _createdAt?: string
-  [key: string]: unknown
 }
 
 export interface JsonataContext {
@@ -43,14 +36,14 @@ export class JsonataExpression {
       if (typeof url !== 'string') {
         return null
       }
-      return { _type: 'image', url, hash: '' }
+      return { _type: 'image', url }
     })
 
     this.#expr.assign('video', (url: unknown): MediaRef | null => {
       if (typeof url !== 'string') {
         return null
       }
-      return { _type: 'video', url, hash: '' }
+      return { _type: 'video', url }
     })
 
     this.#expr.assign('unique_id', (obj: unknown, id: unknown) => {
@@ -75,18 +68,12 @@ export class JsonataExpression {
       },
     )
 
-    this.#expr.assign(
-      'ref',
-      (entityName: unknown, id: unknown): EntityRef | EntityRef[] | null => {
-        if (typeof entityName !== 'string') {
-          return null
-        }
-        if (Array.isArray(id)) {
-          return id.map((id) => ({ _ref: entityName, id: String(id) }))
-        }
-        return { _ref: entityName, id: String(id) }
-      },
-    )
+    this.#expr.assign('ref', (id: unknown): EntityRef | EntityRef[] | null => {
+      if (Array.isArray(id)) {
+        return id.map((id) => ({ _type: 'ref', _id: String(id) }))
+      }
+      return { _type: 'ref', _id: String(id) }
+    })
 
     this.#expr.assign('entity', (fields: unknown, entityName: unknown) => {
       if (typeof entityName !== 'string') {
@@ -127,14 +114,11 @@ export class JsonataExpression {
     return this.#expr.evaluate(input as Record<string, unknown>)
   }
 
-  async entities(input: unknown): Promise<ParsedEntity[]> {
+  async entities(input: unknown): Promise<RawEntityPatch[]> {
     const result = await this.#expr.evaluate(input as Record<string, unknown>)
     if (!Array.isArray(result)) {
       return []
     }
-    return result.filter(
-      (r): r is ParsedEntity =>
-        r !== null && typeof r === 'object' && typeof r._entity === 'string',
-    )
+    return result.filter(EntityValidator.isEntityPatch)
   }
 }

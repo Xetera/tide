@@ -5,8 +5,8 @@
     "_id": $string(pk),
     "text": text,
     "likeCount": comment_like_count,
-    "author": $ref("@instagram/user", user.pk),
-    "post": $ref("@instagram/post", media_id)
+    "author": $ref(user.pk),
+    "post": $ref(media_id)
   },
 
   /* Map all unique Comment Authors */

@@ -127,6 +127,40 @@ window.fetch = new Proxy(window.fetch, {
         .text()
         .then((body) => {
           evaluateLoaders(url, method, body, headers)
+          try {
+            JSON.parse(body)
+          } catch {
+            return
+          }
+          const resolvedUrl = new URL(url, window.location.origin).href
+          console.log('[spatula] raw-capture:', method, resolvedUrl)
+          const requestHeaders: Record<string, string> = {}
+          if (init?.headers) {
+            new Headers(init.headers as HeadersInit).forEach((v, k) => {
+              requestHeaders[k] = v
+            })
+          }
+          const requestBody =
+            init?.body != null
+              ? typeof init.body === 'string'
+                ? init.body.slice(0, 200_000)
+                : '[binary]'
+              : null
+          window.postMessage(
+            {
+              __spatula: true,
+              kind: 'raw-capture',
+              url: resolvedUrl,
+              method,
+              status: response.status,
+              requestBody,
+              responseBody: body,
+              requestHeaders,
+              responseHeaders: headers,
+              capturedAt: Date.now(),
+            },
+            '*',
+          )
         })
     })
     return promise
@@ -162,11 +196,30 @@ XMLHttpRequest.prototype.send = new Proxy(XMLHttpRequest.prototype.send, {
           headers[line.slice(0, idx).toLowerCase()] = line.slice(idx + 2)
         }
       }
-      evaluateLoaders(
-        (thisArg as any).__spatula_url,
-        (thisArg as any).__spatula_method ?? 'GET',
-        thisArg.responseText,
-        headers,
+      const xhrUrl = new URL((thisArg as any).__spatula_url as string, window.location.origin).href
+      const xhrMethod = ((thisArg as any).__spatula_method ?? 'GET') as string
+      evaluateLoaders(xhrUrl, xhrMethod, thisArg.responseText, headers)
+      try {
+        JSON.parse(thisArg.responseText)
+      } catch {
+        return
+      }
+      const requestBody =
+        typeof args[0] === 'string' ? args[0].slice(0, 200_000) : null
+      window.postMessage(
+        {
+          __spatula: true,
+          kind: 'raw-capture',
+          url: xhrUrl,
+          method: xhrMethod,
+          status: thisArg.status,
+          requestBody,
+          responseBody: thisArg.responseText,
+          requestHeaders: {},
+          responseHeaders: headers,
+          capturedAt: Date.now(),
+        },
+        '*',
       )
     })
     return Reflect.apply(target, thisArg, args)

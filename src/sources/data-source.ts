@@ -1,7 +1,7 @@
-import type { EntityPatch, JobSource } from '~/site-spec/types'
+import type { RawEntityPatch, JobSource } from '~/site-spec/types'
 
 export interface SourceEmission {
-  patches: EntityPatch[]
+  patches: RawEntityPatch[]
   source: JobSource
   warnings: string[]
 }

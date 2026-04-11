@@ -20,8 +20,8 @@ describe('instagram mediaInfo loader', () => {
 
     expect(post).toBeDefined()
     expect(user).toBeDefined()
-    expect(() => validator.parse('@instagram/post', post)).not.toThrow()
-    expect(() => validator.parse('@instagram/user', user)).not.toThrow()
+    expect(() => validator.parse('@instagram/post', post!)).not.toThrow()
+    expect(() => validator.parse('@instagram/user', user!)).not.toThrow()
   })
 
   it('returns no entities for not found response', async () => {

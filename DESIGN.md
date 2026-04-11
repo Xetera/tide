@@ -162,8 +162,8 @@ We can extract data from this payload using the following jsonata query:
     },
     "commentsDisabled": disable_caption_and_comment,
     "likeCount": like_count,
-    "author": $ref("@instagram/user", author.id),
-    "likedBy": $ref("@instagram/user", top_likes.id)
+    "author": $ref(author.id),
+    "likedBy": $ref(top_likes.id)
   },
 
   items.author.{
@@ -223,16 +223,13 @@ This will produce the folowing output
     "commentsDisabled": false,
     "likeCount": 53,
     "author": {
-      "_ref": "@instagram/user",
       "id": "6767676767"
     },
     "likedBy": [
       {
-        "_ref": "@instagram/user",
         "id": "696969696"
       },
       {
-        "_ref": "@instagram/user",
         "id": "111111111111"
       }
     ]

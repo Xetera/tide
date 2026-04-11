@@ -76,7 +76,13 @@ function ScrapeViewer() {
             <div class='max-w-4xl mx-auto flex flex-col gap-6'>
               <div class='flex items-start justify-between gap-4'>
                 <div class='flex flex-col gap-1'>
-                  <h1 class='text-lg font-semibold'>{entry().patches.map((p) => p._entity).join(', ')}</h1>
+                  <h1 class='text-lg font-semibold font-mono'>
+                    {entry().source?.kind === 'network'
+                      ? `network / ${entry().source.loader} / ${entry().source.file}`
+                      : entry().source?.kind === 'html'
+                        ? 'html'
+                        : null}
+                  </h1>
                   <p class='text-sm text-muted-foreground'>{new Date(entry().date).toLocaleString()}</p>
                 </div>
                 <Show
