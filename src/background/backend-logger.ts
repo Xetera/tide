@@ -58,8 +58,8 @@ export function updateScrapeLogStatus(
   id: string,
   status: ScrapeLogStatus,
   meta?: { httpStatus?: number; serverResponse?: string },
-): void {
-  q.add(async () => {
+): Promise<void> {
+  return q.add(async () => {
     const logs = await get<Log[]>(EVENTS_KEY, [])
     const idx = logs.findIndex((e) => e.id === id)
     if (idx !== -1 && logs[idx]!.type === 'scrape') {

@@ -43,6 +43,7 @@ export class EntityBuilder {
   #fields!: Entity['fields']
   #canonicalUrl?: string
   #uniqueFields?: string[]
+  #displayField?: string
 
   constructor(entityName: string) {
     this.#entityName = entityName
@@ -55,6 +56,11 @@ export class EntityBuilder {
 
   unique(fields: string[]): this {
     this.#uniqueFields = fields
+    return this
+  }
+
+  display(field: string): this {
+    this.#displayField = field
     return this
   }
 
@@ -79,7 +85,7 @@ export class EntityBuilder {
   build(): Entity {
     if (!this.#fields)
       throw new Error(`Entity "${this.#entityName}" has no fields defined`)
-    return { entity: this.#entityName, fields: this.#fields, canonicalUrl: this.#canonicalUrl, uniqueFields: this.#uniqueFields }
+    return { entity: this.#entityName, fields: this.#fields, canonicalUrl: this.#canonicalUrl, uniqueFields: this.#uniqueFields, displayField: this.#displayField }
   }
 }
 
@@ -159,6 +165,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
 
   return {
     hostname: input.hostname,
+    dir: input.dir,
     entities: input.entities.map((e) => e.build()),
     requests: input.requests,
     loaders,

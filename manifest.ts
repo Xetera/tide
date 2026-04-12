@@ -26,6 +26,13 @@ export default defineManifest({
   content_scripts: [
     {
       matches: ['<all_urls>'],
+      js: ['src/content-scripts/network-intercept.js'],
+      run_at: 'document_start',
+      world: 'MAIN',
+      all_frames: true,
+    },
+    {
+      matches: ['<all_urls>'],
       js: ['src/content-scripts/asset-capture-main.ts'],
       run_at: 'document_start',
       world: 'MAIN',
@@ -34,7 +41,7 @@ export default defineManifest({
     {
       matches: ['<all_urls>'],
       js: ['src/content-scripts/network-capture-main.ts'],
-      run_at: 'document_start',
+      run_at: 'document_idle',
       world: 'MAIN',
       all_frames: true,
     },

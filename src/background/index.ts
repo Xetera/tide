@@ -1,6 +1,6 @@
 import { onMessage } from 'webext-bridge/background'
 import { Client } from '~/server/client'
-import { ServerAutonomy, type PageSpec } from '~/site-spec/types'
+import { ServerAutonomy, type PageSpec, type Entity } from '~/site-spec/types'
 import { instagramSite } from '~/sites/instagram'
 import { allSites } from '~/sites'
 import { generateUID } from '~/shared'
@@ -87,7 +87,27 @@ const BUILTIN_EXAMPLES = buildBuiltinExamples()
 
 let validator: EntityValidator | null = null
 
-async function callGemini(apiKey: string, prompt: string): Promise<string> {
+interface LLMOutput {
+  jsonataExpression: string
+  suggestedLoaderName: string
+  suggestedRequestUrl: string
+  suggestedRequestMethod: string
+  potentialEntities: string
+}
+
+const LLM_RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    jsonataExpression: { type: 'string' },
+    suggestedLoaderName: { type: 'string' },
+    suggestedRequestUrl: { type: 'string' },
+    suggestedRequestMethod: { type: 'string' },
+    potentialEntities: { type: 'string' },
+  },
+  required: ['jsonataExpression', 'suggestedLoaderName', 'suggestedRequestUrl', 'suggestedRequestMethod', 'potentialEntities'],
+}
+
+async function callGemini(apiKey: string, prompt: string): Promise<LLMOutput> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 25_000)
   try {
@@ -98,7 +118,11 @@ async function callGemini(apiKey: string, prompt: string): Promise<string> {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.2 },
+          generationConfig: {
+            temperature: 0.2,
+            responseMimeType: 'application/json',
+            responseSchema: LLM_RESPONSE_SCHEMA,
+          },
         }),
         signal: controller.signal,
       },
@@ -111,13 +135,15 @@ async function callGemini(apiKey: string, prompt: string): Promise<string> {
     const data = (await response.json()) as {
       candidates: { content: { parts: { text: string }[] } }[]
     }
-    return data.candidates[0]!.content.parts[0]!.text
+    const output = JSON.parse(data.candidates[0]!.content.parts[0]!.text) as LLMOutput
+    output.jsonataExpression = output.jsonataExpression.replace(/\\n/g, '\n').replace(/\\t/g, '\t')
+    return output
   } finally {
     clearTimeout(timeout)
   }
 }
 
-async function callZai(apiKey: string, prompt: string): Promise<string> {
+async function callZai(apiKey: string, prompt: string): Promise<LLMOutput> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 25_000)
   try {
@@ -128,6 +154,10 @@ async function callZai(apiKey: string, prompt: string): Promise<string> {
         model: 'glm-4.1v-flash',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.2,
+        response_format: {
+          type: 'json_schema',
+          json_schema: { name: 'LLMOutput', schema: LLM_RESPONSE_SCHEMA, strict: true },
+        },
       }),
       signal: controller.signal,
     })
@@ -135,56 +165,21 @@ async function callZai(apiKey: string, prompt: string): Promise<string> {
       throw new Error(`z.ai API returned ${response.status}: ${await response.text()}`)
     }
     const data = (await response.json()) as { choices: { message: { content: string } }[] }
-    return data.choices[0]!.message.content
+    const output = JSON.parse(data.choices[0]!.message.content) as LLMOutput
+    output.jsonataExpression = output.jsonataExpression.replace(/\\n/g, '\n').replace(/\\t/g, '\t')
+    return output
   } finally {
     clearTimeout(timeout)
   }
 }
 
-async function callLLM(prompt: string, geminiKey: string, zaiKey: string): Promise<string> {
+async function callLLM(prompt: string, geminiKey: string, zaiKey: string): Promise<LLMOutput> {
   if (zaiKey) {
     return callZai(zaiKey, prompt)
   }
   return callGemini(geminiKey, prompt)
 }
 
-function parseGeminiOutput(raw: string):
-  | {
-      ok: true
-      jsonataExpression: string
-      suggestedLoaderName: string
-      suggestedRequestUrl: string
-      suggestedRequestMethod: string
-      potentialEntities: string
-    }
-  | { ok: false; error: string } {
-  const match = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
-  if (!match) {
-    return { ok: false, error: 'No code block found in model output' }
-  }
-  try {
-    const parsed = JSON.parse(match[1]!) as Record<string, string>
-    if (!parsed.jsonataExpression) {
-      return { ok: false, error: 'Missing jsonataExpression in model output' }
-    }
-    const afterBlock = raw
-      .slice(raw.indexOf('```', raw.indexOf('```') + 3) + 3)
-      .trim()
-    return {
-      ok: true,
-      jsonataExpression: parsed.jsonataExpression,
-      suggestedLoaderName: parsed.suggestedLoaderName ?? 'loader',
-      suggestedRequestUrl: parsed.suggestedRequestUrl ?? '/',
-      suggestedRequestMethod: parsed.suggestedRequestMethod ?? 'GET',
-      potentialEntities: afterBlock,
-    }
-  } catch (err) {
-    return {
-      ok: false,
-      error: `Failed to parse model output JSON: ${err instanceof Error ? err.message : String(err)}`,
-    }
-  }
-}
 
 async function validateExpression(
   expression: string,
@@ -217,6 +212,9 @@ async function validateExpression(
     const errors: string[] = []
     const raw =
       result === undefined ? [] : Array.isArray(result) ? result : [result]
+    if (raw.length === 0) {
+      return ['Expression evaluated successfully but produced no patches — check field mappings and that the expression returns a non-empty array']
+    }
     for (const item of raw) {
       if (item === null || typeof item !== 'object' || !('_entity' in item)) {
         continue
@@ -229,7 +227,13 @@ async function validateExpression(
     }
     return errors
   } catch (err) {
-    return [err instanceof Error ? err.message : String(err)]
+    if (err instanceof Error) {
+      return [err.message]
+    }
+    if (err !== null && typeof err === 'object' && 'message' in err) {
+      return [String((err as { message: unknown }).message)]
+    }
+    return [String(err)]
   }
 }
 
@@ -239,8 +243,12 @@ async function runGenerationLoop(
   captures: CaptureEntry[],
   geminiKey: string,
   zaiKey: string,
+  entities: Entity[],
+  initialExpression?: string,
+  userNote?: string,
 ): Promise<GenerationResult> {
   let previousErrors: string[] = []
+  let previousExpression: string | undefined = initialExpression
   const attempts: GenerationAttempt[] = []
   await storage.set('generation:attempts', [])
 
@@ -255,7 +263,9 @@ async function runGenerationLoop(
       captures,
       previousErrors,
       examples: BUILTIN_EXAMPLES,
-      entities: instagramSite.entities,
+      entities,
+      currentExpression: previousExpression,
+      userNote: attempt === 1 ? userNote : undefined,
     })
 
     await storage.set('generation:progress', {
@@ -264,9 +274,9 @@ async function runGenerationLoop(
       timestamp: Date.now(),
     })
 
-    let rawOutput: string
+    let llmOutput: LLMOutput
     try {
-      rawOutput = await callLLM(prompt, geminiKey, zaiKey)
+      llmOutput = await callLLM(prompt, geminiKey, zaiKey)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       if (attempt === MAX_ATTEMPTS) {
@@ -282,29 +292,14 @@ async function runGenerationLoop(
       timestamp: Date.now(),
     })
 
-    const parseResult = parseGeminiOutput(rawOutput)
-    if (!parseResult.ok) {
-      attempts.push({
-        attempt,
-        jsonataExpression: '',
-        validationErrors: [parseResult.error],
-      })
-      await storage.set('generation:attempts', [...attempts])
-      if (attempt === MAX_ATTEMPTS) {
-        return { success: false, error: parseResult.error }
-      }
-      previousErrors = [parseResult.error]
-      continue
-    }
-
     const validationErrors = await validateExpression(
-      parseResult.jsonataExpression,
+      llmOutput.jsonataExpression,
       captures[0]!,
     )
 
     attempts.push({
       attempt,
-      jsonataExpression: parseResult.jsonataExpression,
+      jsonataExpression: llmOutput.jsonataExpression,
       validationErrors,
     })
     await storage.set('generation:attempts', [...attempts])
@@ -317,7 +312,7 @@ async function runGenerationLoop(
       })
       const result: GenerationResult = {
         success: true,
-        jsonataExpression: parseResult.jsonataExpression,
+        jsonataExpression: llmOutput.jsonataExpression,
         fixtureJson: JSON.stringify(
           {
             request: {
@@ -334,10 +329,10 @@ async function runGenerationLoop(
           null,
           2,
         ),
-        suggestedLoaderName: parseResult.suggestedLoaderName,
-        suggestedRequestUrl: parseResult.suggestedRequestUrl,
-        suggestedRequestMethod: parseResult.suggestedRequestMethod,
-        potentialEntities: parseResult.potentialEntities,
+        suggestedLoaderName: llmOutput.suggestedLoaderName,
+        suggestedRequestUrl: llmOutput.suggestedRequestUrl,
+        suggestedRequestMethod: llmOutput.suggestedRequestMethod,
+        potentialEntities: llmOutput.potentialEntities,
       }
       await storage.set('generation:last-result', {
         result,
@@ -347,6 +342,7 @@ async function runGenerationLoop(
     }
 
     previousErrors = validationErrors
+    previousExpression = llmOutput.jsonataExpression
     await storage.set('generation:progress', {
       stage: 'retrying',
       attempt,
@@ -372,6 +368,8 @@ function emitUrlUpdate(
     .sendMessage(details.tabId, { type: 'url-update', url: details.url })
     .catch(() => {})
 }
+
+
 ;(async () => {
   const origins = ['webhook.site', 'instagram.com', 'www.sahibinden.com']
   let client: Client | undefined
@@ -588,25 +586,13 @@ function emitUrlUpdate(
       if (!geminiKey && !zaiKey) {
         return { ok: false, error: 'No API key configured in settings (Gemini or z.ai)' }
       }
-      const currentExprNote = data.currentExpression.trim()
-        ? `\n\n## Current expression (modify or replace as needed)\n\`\`\`jsonata\n${data.currentExpression}\n\`\`\`` : ''
-      const prompt = buildPrompt({
-        captures: [capture],
-        previousErrors: [],
-        examples: BUILTIN_EXAMPLES,
-        entities: instagramSite.entities,
-      }) + currentExprNote
-      try {
-        const raw = await callLLM(prompt, geminiKey ?? '', zaiKey ?? '')
-        const parsed = parseGeminiOutput(raw)
-        if (!parsed.ok) {
-          return { ok: false, error: parsed.error }
-        }
-        const afterBlock = raw.slice(raw.indexOf('```', raw.indexOf('```') + 3) + 3).trim()
-        return { ok: true, expression: parsed.jsonataExpression, explanation: afterBlock }
-      } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      const site = allSites.find((s) => capture.hostname.endsWith(s.hostname))
+      const entities = site?.entities ?? instagramSite.entities
+      const result = await runGenerationLoop([capture], geminiKey ?? '', zaiKey ?? '', entities, data.currentExpression || undefined, data.userNote || undefined)
+      if (!result.success) {
+        return { ok: false, error: result.error }
       }
+      return { ok: true, expression: result.jsonataExpression, explanation: result.potentialEntities }
     })
 
     onMessage('generate-spec', async ({ data }) => {
@@ -627,7 +613,9 @@ function emitUrlUpdate(
           error: 'No API key configured in settings (Gemini or z.ai)',
         } as const
       }
-      return runGenerationLoop(captures, geminiKey ?? '', zaiKey ?? '')
+      const site = allSites.find((s) => captures[0] && captures[0].hostname.endsWith(s.hostname))
+      const entities = site?.entities ?? instagramSite.entities
+      return runGenerationLoop(captures, geminiKey ?? '', zaiKey ?? '', entities)
     })
 
     const storageListener = new StorageListener()
@@ -660,7 +648,7 @@ function emitUrlUpdate(
       }
     })
 
-    validator = new EntityValidator([instagramSite])
+    validator = new EntityValidator(allSites)
 
     const localSchema = await storage.get('schema:local', '')
     const defaultResources = instagramSite.pages

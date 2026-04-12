@@ -1,0 +1,29 @@
+[ 
+  /* Extract Tweets from the timeline instructions */
+  data.home.home_timeline_urt.instructions.entries.itemContent.tweet_results.result.{ 
+    "_entity": "@twitter/tweet", 
+    "_id": rest_id, 
+    "text": legacy.full_text, 
+    "likeCount": legacy.favorite_count, 
+    "retweetCount": legacy.retweet_count, 
+    "replyCount": legacy.reply_count, 
+    "viewCount": $number(views.count), 
+    "author": $ref("@twitter/user", core.user_results.result.rest_id), 
+    "_createdAt": $timestamp(legacy.created_at) 
+  }, 
+  /* Extract Users from the timeline instructions */
+  data.home.home_timeline_urt.instructions.entries.itemContent.tweet_results.result.core.user_results.result.{ 
+    "_entity": "@twitter/user", 
+    "_id": rest_id, 
+    "username": core.screen_name, 
+    "nickname": core.name, 
+    "profilePic": $image(avatar.image_url), 
+    "followerCount": legacy.followers_count, 
+    "followingCount": legacy.friends_count, 
+    "tweetCount": legacy.statuses_count, 
+    "isVerified": is_blue_verified, 
+    "isProtected": privacy.protected, 
+    "bio": profile_bio.description, 
+    "_createdAt": $timestamp(core.created_at) 
+  } 
+]

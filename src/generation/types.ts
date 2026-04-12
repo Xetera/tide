@@ -46,6 +46,7 @@ export interface LoaderFixture {
 }
 
 export interface LoaderInfo {
+  site: string
   loader: string
   file: string
   path: string

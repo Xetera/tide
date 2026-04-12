@@ -1,0 +1,35 @@
+(
+  /* Extract all tweet objects from the nested response structure */
+  $tweets := data.threaded_conversation_with_injections_v2.instructions.entries.content.itemContent.tweet_results.result ~> $append(data.threaded_conversation_with_injections_v2.instructions.entries.content.items.item.itemContent.tweet_results.result);
+  
+  /* Extract all user objects associated with those tweets */
+  $users := $tweets.core.user_results.result;
+
+  [
+    $tweets.{
+      "_entity": "@twitter/tweet",
+      "_id": rest_id,
+      "text": legacy.full_text,
+      "likeCount": legacy.favorite_count,
+      "retweetCount": legacy.retweet_count,
+      "replyCount": legacy.reply_count,
+      "viewCount": $number(views.count),
+      "author": $ref(core.user_results.result.rest_id),
+      "_createdAt": $timestamp(legacy.created_at)
+    },
+    $users.{
+      "_entity": "@twitter/user",
+      "_id": rest_id,
+      "username": core.screen_name,
+      "nickname": core.name,
+      "profilePic": $image(avatar.image_url),
+      "followerCount": legacy.followers_count,
+      "followingCount": legacy.friends_count,
+      "tweetCount": legacy.statuses_count,
+      "isVerified": verification.verified,
+      "isProtected": privacy.protected,
+      "bio": profile_bio.description,
+      "_createdAt": $timestamp(core.created_at)
+    }
+  ]
+)

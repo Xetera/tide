@@ -17,7 +17,7 @@ export const instagramEntities = [
       postCount: Type.Integer(),
       isPrivate: Type.Boolean(),
       isVerified: Type.Boolean(),
-      description: Type.String(),
+      bio: Type.String(),
       posts: Many('@instagram/post'),
       bioLinks: Type.Array(
         Type.Object({
@@ -26,7 +26,8 @@ export const instagramEntities = [
           url: Type.String({ format: 'url' }),
         }),
       ),
-    }),
+    })
+    .display('username'),
   new EntityBuilder('@instagram/post')
     .canonicalUrl('https://instagram.com/p/{code}')
     .fields({
@@ -47,11 +48,14 @@ export const instagramEntities = [
       likeCount: Type.Integer(),
       author: One('@instagram/user'),
     })
-    .unique(['code']),
-  new EntityBuilder('@instagram/comment').fields({
-    text: Type.String(),
-    likeCount: Type.Integer(),
-    author: One('@instagram/user'),
-    post: One('@instagram/post'),
-  }),
+    .unique(['code'])
+    .display('title'),
+  new EntityBuilder('@instagram/comment')
+    .fields({
+      text: Type.String(),
+      likeCount: Type.Integer(),
+      author: One('@instagram/user'),
+      post: One('@instagram/post'),
+    })
+    .display('text'),
 ]

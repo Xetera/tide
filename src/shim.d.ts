@@ -47,6 +47,6 @@ declare module 'webext-bridge' {
     'match-capture': ProtocolWithReturn<{ captureId: string }, LoaderMatchResult[]>
     'get-loaders': ProtocolWithReturn<void, LoaderInfo[]>
     'write-loader': ProtocolWithReturn<{ path: string; content: string }, { ok: boolean; error?: string }>
-    'generate-jsonata': ProtocolWithReturn<{ captureId: string; currentExpression: string }, { ok: true; expression: string; explanation: string } | { ok: false; error: string }>
+    'generate-jsonata': ProtocolWithReturn<{ captureId: string; currentExpression: string; userNote?: string }, { ok: true; expression: string; explanation: string } | { ok: false; error: string }>
   }
 }

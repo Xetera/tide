@@ -17,6 +17,7 @@ import type {
   LoaderInfo,
   LoaderFixture,
   CaptureEntry,
+  GenerationAttempt,
 } from '~/generation/types'
 import Resizable from '@corvu/resizable'
 import {
@@ -827,6 +828,8 @@ function Playground() {
   >('idle')
   const [llmExplanation, setLlmExplanation] = createSignal<string | null>(null)
   const [llmError, setLlmError] = createSignal<string | null>(null)
+  const [llmNote, setLlmNote] = createSignal('')
+  const [generationAttempts, setGenerationAttempts] = createSignal<GenerationAttempt[]>([])
   const [writeError, setWriteError] = createSignal<string | null>(null)
   const [inputTab, setInputTab] = createSignal<'fixture' | 'capture'>('capture')
   const [newCaptureIds, setNewCaptureIds] = createSignal<Set<string>>(new Set())
@@ -888,6 +891,14 @@ function Playground() {
     const interval = setInterval(refreshLoaders, 2000)
     onCleanup(() => clearInterval(interval))
 
+    const onStorageChanged = (changes: Record<string, chrome.storage.StorageChange>) => {
+      if (changes['generation:attempts']) {
+        setGenerationAttempts(changes['generation:attempts'].newValue ?? [])
+      }
+    }
+    chrome.storage.local.onChanged.addListener(onStorageChanged)
+    onCleanup(() => chrome.storage.local.onChanged.removeListener(onStorageChanged))
+
     const tabs = await chrome.tabs.query({ windowType: 'normal' })
     const extensionOrigin = new URL(chrome.runtime.getURL('')).origin
     const tab =
@@ -905,14 +916,25 @@ function Playground() {
     }
   })
 
+  const effectiveHostname = () => {
+    const loader = selectedLoader()
+    if (loader) {
+      const site = allSites.find((s) => s.dir === loader.site)
+      if (site) {
+        return site.hostname
+      }
+    }
+    return captureHostname()
+  }
+
   createEffect(() => {
-    const hostname = captureHostname()
+    const hostname = effectiveHostname()
+    const request = selectedLoader()?.request
     if (!hostname) {
       return
     }
-    const request = selectedLoader()?.request
     refreshCaptures(hostname, request, false)
-    const interval = setInterval(() => refreshCaptures(hostname, request), 2000)
+    const interval = setInterval(() => refreshCaptures(hostname, selectedLoader()?.request), 2000)
     onCleanup(() => clearInterval(interval))
   })
 
@@ -1052,9 +1074,10 @@ function Playground() {
     setLlmStatus('loading')
     setLlmExplanation(null)
     setLlmError(null)
+    setGenerationAttempts([])
     const res = await sendMessage(
       'generate-jsonata',
-      { captureId: cap.id, currentExpression: expression() },
+      { captureId: cap.id, currentExpression: expression(), userNote: llmNote() || undefined },
       { context: 'background', tabId: 0 },
     )
     if (res.ok) {
@@ -1067,14 +1090,18 @@ function Playground() {
     }
   }
 
-  const loadersByGroup = () => {
+  const loadersBySite = () => {
     const all = loaders() ?? []
-    const groups: Record<string, LoaderInfo[]> = {}
+    const sites: Record<string, Record<string, LoaderInfo[]>> = {}
     for (const l of all) {
-      groups[l.loader] ??= []
-      groups[l.loader]!.push(l)
+      sites[l.site] ??= {}
+      sites[l.site]![l.loader] ??= []
+      sites[l.site]![l.loader]!.push(l)
     }
-    return Object.entries(groups)
+    return Object.entries(sites).map(([site, groups]) => ({
+      site,
+      groups: Object.entries(groups),
+    }))
   }
 
   const fixtureJson = () => {
@@ -1129,39 +1156,48 @@ function Playground() {
           <Show when={loadersLoading()}>
             <p class='text-xs text-muted-foreground p-3'>Loading...</p>
           </Show>
-          <For each={loadersByGroup()}>
-            {([group, files]) => (
+          <For each={loadersBySite()}>
+            {({ site, groups }) => (
               <div>
-                <div class='px-3 py-1.5 text-xs font-medium sticky top-0 bg-background border-b border-border flex items-center gap-2 min-w-0 justify-between'>
-                  <span class='text-muted-foreground uppercase tracking-wider shrink-0'>
-                    {group}
-                  </span>
-                  <Show when={files[0]?.request}>
-                    {(req) => (
-                      <span
-                        class='text-muted-foreground truncate font-mono normal-case tracking-normal'
-                        style='font-size: 0.65rem'
-                      >
-                        <span class='uppercase'>{req().method}</span>{' '}
-                        {req().url}
-                      </span>
-                    )}
-                  </Show>
+                <div class='px-3 py-2 text-xs font-semibold sticky top-0 bg-background border-b border-border text-foreground'>
+                  {site}
                 </div>
-                <For each={files}>
-                  {(loader) => {
-                    const isSelected = () =>
-                      selectedLoader()?.path === loader.path
-                    return (
-                      <button
-                        type='button'
-                        onClick={() => selectLoader(loader)}
-                        class={`w-full text-left px-3 py-1.5 text-xs font-mono truncate transition-colors hover:bg-accent ${isSelected() ? 'bg-accent text-foreground' : 'text-muted-foreground'}`}
-                      >
-                        {loader.file}
-                      </button>
-                    )
-                  }}
+                <For each={groups}>
+                  {([group, files]) => (
+                    <div>
+                      <div class='px-3 py-1.5 text-xs font-medium bg-background border-b border-border flex items-center gap-2 min-w-0 justify-between'>
+                        <span class='text-muted-foreground uppercase tracking-wider shrink-0'>
+                          {group}
+                        </span>
+                        <Show when={files[0]?.request}>
+                          {(req) => (
+                            <span
+                              class='text-muted-foreground truncate font-mono normal-case tracking-normal'
+                              style='font-size: 0.65rem'
+                            >
+                              <span class='uppercase'>{req().method}</span>{' '}
+                              {req().url}
+                            </span>
+                          )}
+                        </Show>
+                      </div>
+                      <For each={files}>
+                        {(loader) => {
+                          const isSelected = () =>
+                            selectedLoader()?.path === loader.path
+                          return (
+                            <button
+                              type='button'
+                              onClick={() => selectLoader(loader)}
+                              class={`w-full text-left px-3 py-1.5 text-xs font-mono truncate transition-colors hover:bg-accent ${isSelected() ? 'bg-accent text-foreground' : 'text-muted-foreground'}`}
+                            >
+                              {loader.file}
+                            </button>
+                          )
+                        }}
+                      </For>
+                    </div>
+                  )}
                 </For>
               </div>
             )}
@@ -1229,63 +1265,95 @@ function Playground() {
                       s.entities.map((e) => e.entity),
                     )}
                   />
-                  <Show
-                    when={
-                      llmExplanation() ||
-                      llmStatus() === 'loading' ||
-                      llmStatus() === 'error'
-                    }
-                  >
-                    <div class='border-t border-border bg-accent/50 shrink-0 max-h-48 overflow-y-auto'>
-                      <Show when={llmStatus() === 'loading'}>
-                        <p class='px-3 py-2 text-xs text-muted-foreground'>
-                          Generating...
-                        </p>
-                      </Show>
-                      <Show when={llmStatus() === 'error'}>
-                        <p class='px-3 py-2 text-xs text-destructive font-mono'>
-                          {llmError()}
-                        </p>
-                      </Show>
-                      <Show when={llmExplanation()}>
-                        <div class='px-3 py-2 text-xs text-foreground whitespace-pre-wrap font-sans leading-relaxed'>
-                          {llmExplanation()}
-                        </div>
-                      </Show>
+                  <Show when={llmStatus() !== 'idle' || generationAttempts().length > 0}>
+                    <div class='border-t border-border flex flex-col overflow-hidden shrink-0' style='max-height: 40%'>
+                      <div class='px-3 py-1.5 flex items-center justify-between border-b border-border shrink-0'>
+                        <span class='text-xs text-muted-foreground'>
+                          {llmStatus() === 'loading'
+                            ? `Attempt ${generationAttempts().length + 1}...`
+                            : llmStatus() === 'error'
+                              ? 'Generation failed'
+                              : `${generationAttempts().length} attempt${generationAttempts().length === 1 ? '' : 's'}`}
+                        </span>
+                        <button
+                          type='button'
+                          onClick={() => {
+                            setLlmStatus('idle')
+                            setLlmExplanation(null)
+                            setGenerationAttempts([])
+                          }}
+                          class='text-xs text-muted-foreground hover:text-foreground transition-colors'
+                        >
+                          dismiss
+                        </button>
+                      </div>
+                      <div class='overflow-y-auto flex flex-col gap-0'>
+                        <For each={generationAttempts()}>
+                          {(attempt) => (
+                            <div class='border-b border-border last:border-b-0'>
+                              <div class='px-3 py-1.5 flex items-center gap-2 bg-accent/30'>
+                                <span class='text-xs font-medium text-muted-foreground'>
+                                  Attempt {attempt.attempt}
+                                </span>
+                                <Show when={attempt.validationErrors.length === 0}>
+                                  <span class='text-xs text-green-600 dark:text-green-400'>passed</span>
+                                </Show>
+                                <Show when={attempt.validationErrors.length > 0}>
+                                  <span class='text-xs text-destructive'>{attempt.validationErrors.length} error{attempt.validationErrors.length === 1 ? '' : 's'}</span>
+                                </Show>
+                              </div>
+                              <Show when={attempt.jsonataExpression}>
+                                <pre class='px-3 py-2 text-xs font-mono text-muted-foreground overflow-x-auto border-b border-border whitespace-pre-wrap break-all bg-background/50'>{attempt.jsonataExpression}</pre>
+                              </Show>
+                              <Show when={attempt.validationErrors.length > 0}>
+                                <div class='px-3 py-1.5 flex flex-col gap-0.5'>
+                                  <For each={attempt.validationErrors}>
+                                    {(err) => (
+                                      <p class='text-xs font-mono text-destructive'>{err}</p>
+                                    )}
+                                  </For>
+                                </div>
+                              </Show>
+                            </div>
+                          )}
+                        </For>
+                        <Show when={llmStatus() === 'loading'}>
+                          <div class='px-3 py-2'>
+                            <p class='text-xs text-muted-foreground'>Calling model...</p>
+                          </div>
+                        </Show>
+                      </div>
                     </div>
                   </Show>
-                  <div class='px-3 py-2 border-t border-border shrink-0 flex items-center justify-between'>
-                    <Show
-                      when={selectedCapture()}
-                      fallback={
-                        <span class='text-xs text-muted-foreground'>
-                          Select a capture to generate
-                        </span>
-                      }
-                    >
-                      <button
-                        type='button'
-                        onClick={generateJsonata}
-                        disabled={llmStatus() === 'loading'}
-                        class='text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors disabled:opacity-50'
+                  <div class='border-t border-border shrink-0 flex flex-col'>
+                    <textarea
+                      value={llmNote()}
+                      onInput={(e) => setLlmNote(e.currentTarget.value)}
+                      placeholder='Additional instructions...'
+                      rows={2}
+                      class='w-full px-3 py-2 text-xs bg-transparent resize-none outline-none text-foreground placeholder:text-muted-foreground border-b border-border'
+                    />
+                    <div class='px-3 py-2 flex items-center justify-between'>
+                      <Show
+                        when={selectedCapture()}
+                        fallback={
+                          <span class='text-xs text-muted-foreground'>
+                            Select a capture to generate
+                          </span>
+                        }
                       >
-                        {llmStatus() === 'loading'
-                          ? 'Generating...'
-                          : '✦ Generate'}
-                      </button>
-                    </Show>
-                    <Show when={llmStatus() === 'done'}>
-                      <button
-                        type='button'
-                        onClick={() => {
-                          setLlmStatus('idle')
-                          setLlmExplanation(null)
-                        }}
-                        class='text-xs text-muted-foreground hover:text-foreground transition-colors'
-                      >
-                        dismiss
-                      </button>
-                    </Show>
+                        <button
+                          type='button'
+                          onClick={generateJsonata}
+                          disabled={llmStatus() === 'loading'}
+                          class='text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors disabled:opacity-50'
+                        >
+                          {llmStatus() === 'loading'
+                            ? 'Generating...'
+                            : '✦ Generate'}
+                        </button>
+                      </Show>
+                    </div>
                   </div>
                   <Show when={evalResult()?.error}>
                     <div

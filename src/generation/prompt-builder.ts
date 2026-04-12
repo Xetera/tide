@@ -10,7 +10,7 @@ const BINDINGS_REFERENCE = `
 - \`$video(url: string)\` → \`{ _type: "video", url, hash: "" }\`
 - \`$with_dimensions(media, width, height)\` → adds \`width\` and \`height\` to a media object
 - \`$unique_id(obj, id)\` → adds \`_id\` to an object, returns \`{ _id: string, ...obj }\`. Returns null if id is null.
-- \`$ref(entityName: string, id: string | string[])\` → \`{ _ref: entityName, id }\` or array of refs
+- \`$ref(id: string | string[])\` → \`{ _type: "ref", _id: id }\` or array of refs
 - \`$entity(fields, entityName: string)\` → adds \`_entity\` to an object or array of objects
 - \`$timestamp(value: number | string)\` → \`{ _type: "timestamp", value: ISO string, precision: "full" }\`
 - \`$request.url\`, \`$request.method\`, \`$request.headers\`
@@ -23,27 +23,18 @@ Relationships use \`$ref\`. Media uses \`$image\` or \`$video\`, optionally chai
 const OUTPUT_FORMAT = `
 ## Required output format
 
-Respond with a JSON code block followed by a markdown list. No other text.
+Return a JSON object with these fields:
+- \`jsonataExpression\`: the JSONata expression string
+- \`suggestedLoaderName\`: short camelCase name for the loader
+- \`suggestedRequestUrl\`: URL pattern like \`/api/path/to/:param\`
+- \`suggestedRequestMethod\`: HTTP method
+- \`potentialEntities\`: markdown list of additional entity types noticed in the response that aren't currently being extracted, with a brief note on available fields. Format as \`- \`@site/entity-name\`: description\`
 
-The JSON block contains the JSONata expression and request matcher:
+The \`jsonataExpression\` MUST return a flat array \`[...]\` at the top level — never a single object. Include every identifiable entity (users, posts, comments, etc.) as separate elements in that array. If the response contains 10 users and 5 posts, the array should have 15 elements.
 
-\`\`\`json
-{
-  "jsonataExpression": "...",
-  "suggestedLoaderName": "...",
-  "suggestedRequestUrl": "/api/path/to/:param",
-  "suggestedRequestMethod": "GET"
-}
-\`\`\`
+Do not deduplicate or filter for uniqueness — emit every entity you find, even if the same ID appears multiple times. The backend handles deduplication via upsert.
 
-The \`jsonataExpression\` must extract ALL identifiable entities from the response — not just one type. Include every distinct object that has a stable ID (users, posts, comments, media, etc.) as a separate entity in the output array.
-
-The expression must be formatted across multiple lines with comments (using \`/* ... */\`) explaining non-obvious field mappings, especially for union types, media fields, and relationships. Do not write the expression as a single line.
-
-After the JSON block, include a markdown list of additional entity types you noticed in the response that aren't currently being extracted, with a brief note on what fields are available:
-
-## Potential additional entities
-- \`@site/entity-name\`: description of what it is and what fields are available
+The expression must be formatted across multiple lines — use \`\\n\` for newlines since it is a JSON string value. Add comments (using \`/* ... */\`) explaining non-obvious field mappings, especially for union types, media fields, and relationships. Do not write the expression as a single line.
 `.trim()
 
 export interface PromptExample {
@@ -57,6 +48,8 @@ export interface BuildPromptOptions {
   previousErrors: string[]
   examples: PromptExample[]
   entities: Entity[]
+  currentExpression?: string
+  userNote?: string
 }
 
 export function buildPrompt(opts: BuildPromptOptions): string {
@@ -105,6 +98,14 @@ Response body${truncated}:
 \`\`\`json
 ${body}
 \`\`\``)
+  }
+
+  if (opts.userNote?.trim()) {
+    parts.push(`## Additional instructions from user\n\n${opts.userNote.trim()}`)
+  }
+
+  if (opts.currentExpression?.trim()) {
+    parts.push(`## Current expression (modify or replace as needed)\n\`\`\`jsonata\n${opts.currentExpression}\n\`\`\``)
   }
 
   if (opts.previousErrors.length > 0) {

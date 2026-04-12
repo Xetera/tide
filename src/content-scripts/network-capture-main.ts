@@ -12,46 +12,53 @@ interface LoaderRegistration {
   expressions: LoaderExpression[]
 }
 
-interface QueuedRequest {
+interface QueuedCapture {
   url: string
   method: string
   body: string
-  headers: Record<string, string>
+  requestBody: string | null
+  requestHeaders: Record<string, string>
+  responseHeaders: Record<string, string>
+  status: number
+  capturedAt: number
+}
+
+declare global {
+  interface Window {
+    __spatulaQueue: QueuedCapture[]
+    __spatulaFlush: ((capture: QueuedCapture) => void) | null
+  }
 }
 
 const loaders = new Map<string, LoaderRegistration>()
-const queue: QueuedRequest[] = []
 let loadersRegistered = false
 
 window.addEventListener('message', (evt) => {
-  if (!evt.data?.__spatula) return
-  if (evt.data.kind !== 'register-loaders') return
+  if (!evt.data?.__spatula) {
+    return
+  }
+  if (evt.data.kind !== 'register-loaders') {
+    return
+  }
 
-  console.log('registering loaders, queue: ', queue.length)
   const incoming = evt.data.loaders as Record<string, LoaderRegistration>
   for (const [name, loader] of Object.entries(incoming)) {
     loaders.set(name, loader)
   }
   if (!loadersRegistered) {
     loadersRegistered = true
-    for (const req of queue) {
-      evaluateLoaders(req.url, req.method, req.body, req.headers)
+    window.__spatulaFlush = (capture) => {
+      void processCapture(capture)
     }
-    queue.length = 0
+    for (const capture of window.__spatulaQueue ?? []) {
+      void processCapture(capture)
+    }
+    window.__spatulaQueue = []
   }
 })
 
-
-async function evaluateLoaders(
-  url: string,
-  method: string,
-  body: string,
-  headers: Record<string, string>,
-) {
-  if (!loadersRegistered) {
-    queue.push({ url, method, body, headers })
-    return
-  }
+async function processCapture(capture: QueuedCapture) {
+  const { url, method, body, requestHeaders, responseHeaders, status, capturedAt, requestBody } = capture
 
   let parsedUrl: URL
   try {
@@ -61,7 +68,9 @@ async function evaluateLoaders(
   }
 
   for (const [name, loader] of loaders) {
-    if (loader.method.toUpperCase() !== method.toUpperCase()) continue
+    if (loader.method.toUpperCase() !== method.toUpperCase()) {
+      continue
+    }
     if (!matchesGlob(loader.url, parsedUrl.pathname)) {
       continue
     }
@@ -70,15 +79,14 @@ async function evaluateLoaders(
     try {
       json = JSON.parse(body)
     } catch {
-      console.log('invalid json')
       continue
     }
 
     for (const { file, expression: expr } of loader.expressions) {
       try {
         const expression = new JsonataExpression(expr, {
-          request: { url, method, headers },
-          response: { url, status: null, headers, body: json },
+          request: { url, method, headers: requestHeaders },
+          response: { url, status, headers: responseHeaders, body: json },
         })
         const result = await expression.evaluate(json as Record<string, unknown>)
         if (result === undefined) {
@@ -89,135 +97,32 @@ async function evaluateLoaders(
           '*',
         )
       } catch (err) {
-        console.warn(
-          `[spatula] loader "${name}/${file}" failed for ${url}:`,
-          err,
-          json,
-        )
+        console.warn(`[spatula] loader "${name}/${file}" failed for ${url}:`, err, json)
       }
     }
   }
+
+  try {
+    JSON.parse(body)
+  } catch {
+    return
+  }
+  console.log('[spatula] raw-capture:', method, url)
+  window.postMessage(
+    {
+      __spatula: true,
+      kind: 'raw-capture',
+      url,
+      method,
+      status,
+      requestBody,
+      responseBody: body,
+      requestHeaders,
+      responseHeaders,
+      capturedAt,
+    },
+    '*',
+  )
 }
-
-window.fetch = new Proxy(window.fetch, {
-  apply(target, thisArg, args: Parameters<typeof fetch>) {
-    const [input, init] = args
-    const url = input instanceof Request ? input.url : input.toString()
-    const method = (
-      init?.method ??
-      (input instanceof Request ? input.method : undefined) ??
-      'GET'
-    ).toUpperCase()
-    const promise = Reflect.apply(target, thisArg, args) as ReturnType<
-      typeof fetch
-    >
-    promise.then((response) => {
-      const headers: Record<string, string> = {}
-      response.headers.forEach((value, key) => {
-        headers[key.toLowerCase()] = value
-      })
-      response
-        .clone()
-        .text()
-        .then((body) => {
-          evaluateLoaders(url, method, body, headers)
-          try {
-            JSON.parse(body)
-          } catch {
-            return
-          }
-          const resolvedUrl = new URL(url, window.location.origin).href
-          console.log('[spatula] raw-capture:', method, resolvedUrl)
-          const requestHeaders: Record<string, string> = {}
-          if (init?.headers) {
-            new Headers(init.headers as HeadersInit).forEach((v, k) => {
-              requestHeaders[k] = v
-            })
-          }
-          const requestBody =
-            init?.body != null
-              ? typeof init.body === 'string'
-                ? init.body.slice(0, 200_000)
-                : '[binary]'
-              : null
-          window.postMessage(
-            {
-              __spatula: true,
-              kind: 'raw-capture',
-              url: resolvedUrl,
-              method,
-              status: response.status,
-              requestBody,
-              responseBody: body,
-              requestHeaders,
-              responseHeaders: headers,
-              capturedAt: Date.now(),
-            },
-            '*',
-          )
-        })
-    })
-    return promise
-  },
-})
-
-XMLHttpRequest.prototype.open = new Proxy(XMLHttpRequest.prototype.open, {
-  apply(
-    target,
-    thisArg: XMLHttpRequest,
-    args: Parameters<XMLHttpRequest['open']>,
-  ) {
-    ;(thisArg as any).__spatula_url = args[1].toString()
-    ;(thisArg as any).__spatula_method = (args[0] ?? 'GET')
-      .toString()
-      .toUpperCase()
-    return Reflect.apply(target, thisArg, args)
-  },
-})
-
-XMLHttpRequest.prototype.send = new Proxy(XMLHttpRequest.prototype.send, {
-  apply(
-    target,
-    thisArg: XMLHttpRequest,
-    args: Parameters<XMLHttpRequest['send']>,
-  ) {
-    thisArg.addEventListener('load', function () {
-      const headers: Record<string, string> = {}
-      const raw = thisArg.getAllResponseHeaders()
-      for (const line of raw.trim().split('\r\n')) {
-        const idx = line.indexOf(': ')
-        if (idx !== -1) {
-          headers[line.slice(0, idx).toLowerCase()] = line.slice(idx + 2)
-        }
-      }
-      const xhrUrl = new URL((thisArg as any).__spatula_url as string, window.location.origin).href
-      const xhrMethod = ((thisArg as any).__spatula_method ?? 'GET') as string
-      evaluateLoaders(xhrUrl, xhrMethod, thisArg.responseText, headers)
-      try {
-        JSON.parse(thisArg.responseText)
-      } catch {
-        return
-      }
-      const requestBody =
-        typeof args[0] === 'string' ? args[0].slice(0, 200_000) : null
-      window.postMessage(
-        {
-          __spatula: true,
-          kind: 'raw-capture',
-          url: xhrUrl,
-          method: xhrMethod,
-          status: thisArg.status,
-          requestBody,
-          responseBody: thisArg.responseText,
-          requestHeaders: {},
-          responseHeaders: headers,
-          capturedAt: Date.now(),
-        },
-        '*',
-      )
-    })
-    return Reflect.apply(target, thisArg, args)
-  },
-})
 
 export default {}

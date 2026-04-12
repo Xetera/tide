@@ -7,6 +7,7 @@ import type { Entity } from '~/site-spec/types'
 import { instagramEntities } from '~/sites/instagram/entities'
 import { robloxEntities } from '~/sites/roblox/entities'
 import { sahibindenEntities } from '~/sites/sahibinden/entities'
+import { twitterEntities } from '~/sites/twitter/entities'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const outDir = resolve(__dirname, '../../schemas')
@@ -17,6 +18,7 @@ const allEntities: Entity[] = [
   ...instagramEntities,
   ...robloxEntities,
   ...sahibindenEntities,
+  ...twitterEntities,
 ].map((e) => e.build())
 
 const defs: Record<string, unknown> = {
@@ -31,6 +33,7 @@ for (const entity of allEntities) {
     $id: entity.entity,
     ...(entity.canonicalUrl ? { 'x-canonical-url': entity.canonicalUrl } : {}),
     ...(entity.uniqueFields ? { 'x-unique-fields': entity.uniqueFields } : {}),
+    ...(entity.displayField ? { 'x-display-field': entity.displayField } : {}),
   }
 }
 

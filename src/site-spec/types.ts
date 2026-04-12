@@ -5,6 +5,7 @@ export interface RequestMatcher {
 
 export interface SiteDefinition {
   hostname: string
+  dir: string
   entities: Entity[]
   /** Named request matchers — what network requests to capture, keyed by name */
   requests: Record<string, RequestMatcher>
@@ -19,6 +20,7 @@ export interface Entity {
   fields: import('typebox').TObject
   canonicalUrl?: string
   uniqueFields?: string[]
+  displayField?: string
 }
 
 export interface PageSpec {

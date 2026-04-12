@@ -268,7 +268,7 @@ export class Client {
     try {
       response = await fetch(request)
     } catch (err) {
-      updateScrapeLogStatus(scrapeLogId, 'failed')
+      await updateScrapeLogStatus(scrapeLogId, 'failed')
       log({
         severity: 'error',
         text: 'Failed to reach server',
@@ -283,7 +283,7 @@ export class Client {
           text: 'Failed job precondition while submitting. Trying to refresh and re-submit...',
         })
       } else {
-        updateScrapeLogStatus(scrapeLogId, 'failed')
+        await updateScrapeLogStatus(scrapeLogId, 'failed')
         log({
           severity: 'error',
           text: 'Failed job precondition more than 3 times while submitting! Giving up and pausing temporarily',
@@ -329,7 +329,7 @@ export class Client {
       if (responseText.length > 1000) {
         responseText = responseText.slice(0, 1000).replace(/.{3}$/, '...')
       }
-      updateScrapeLogStatus(scrapeLogId, 'failed', {
+      await updateScrapeLogStatus(scrapeLogId, 'failed', {
         httpStatus: response.status,
         serverResponse: responseText,
       })
@@ -347,7 +347,7 @@ export class Client {
       sentAt: Date.now(),
       serialized,
     })
-    updateScrapeLogStatus(scrapeLogId, 'submitted', {
+    await updateScrapeLogStatus(scrapeLogId, 'submitted', {
       httpStatus: response.status,
       serverResponse: responseText,
     })

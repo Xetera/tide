@@ -103,6 +103,7 @@ export function buildLoaderInfos(sites: SiteDefinition[]): LoaderInfo[] {
     const site = sites.find((s) => s.loaders[entry.loader])
     const matcher = site?.requests[entry.loader]
     return {
+      site: entry.site,
       loader: entry.loader,
       file: entry.file,
       path: entry.path,

@@ -193,7 +193,7 @@
             }
           ]
         },
-        "description": {
+        "bio": {
           "anyOf": [
             {
               "type": "string"
@@ -302,7 +302,8 @@
         }
       },
       "$id": "@instagram/user",
-      "x-canonical-url": "https://instagram.com/{username}"
+      "x-canonical-url": "https://instagram.com/{username}",
+      "x-display-field": "username"
     },
     "instagram__post": {
       "type": "object",
@@ -564,7 +565,8 @@
       "x-canonical-url": "https://instagram.com/p/{code}",
       "x-unique-fields": [
         "code"
-      ]
+      ],
+      "x-display-field": "title"
     },
     "instagram__comment": {
       "type": "object",
@@ -673,7 +675,8 @@
           ]
         }
       },
-      "$id": "@instagram/comment"
+      "$id": "@instagram/comment",
+      "x-display-field": "text"
     },
     "roblox__game": {
       "type": "object",

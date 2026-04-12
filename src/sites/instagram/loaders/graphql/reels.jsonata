@@ -1,17 +1,17 @@
-data.xdt_api__v1__feed__reels_media.reels_media.items.{ 
+data.xdt_api__v1__feed__reels_media.reels_media.items.{
   /* Map story items to @instagram/post entities */
   "_entity": "@instagram/post",
   "_id": $string(pk),
   "_createdAt": $timestamp(taken_at),
   "media": media_type = 2 ? {
     "kind": "video",
-    "video": $video(video_dash_manifest ~> $substringBefore("</BaseURL>") ~> $substringAfter("<BaseURL>")) 
+    "video": $video(video_dash_manifest ~> $substringBefore("</BaseURL>") ~> $substringAfter("<BaseURL>"))
       ~> $with_dimensions(original_width, original_height)
       ~> $unique_id(pk)
   } : {
     "kind": "image",
-    "image": image_versions2.candidates[0].($image(url) ~> $with_dimensions(width, height)) 
+    "image": image_versions2.candidates[0].($image(url) ~> $with_dimensions(width, height))
       ~> $unique_id(pk)
   },
-  "author": $ref("@instagram/user", $string(user.pk))
+  "author": $ref($string(user.pk))
 }
