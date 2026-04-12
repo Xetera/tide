@@ -14,11 +14,16 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5.0.0
+
+      - uses: actions/setup-node@v6.3.0
         with:
-          run_install: true
+          node-version: '25'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
 
       - name: Generate schemas
         run: pnpm schema
