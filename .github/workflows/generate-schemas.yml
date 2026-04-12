@@ -3,10 +3,6 @@ name: Generate Schemas
 on:
   push:
     branches: [main]
-    paths:
-      - 'src/sites/**'
-      - 'src/site-spec/**'
-      - 'src/scripts/print-schema.ts'
 
 jobs:
   generate:
