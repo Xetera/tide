@@ -6,7 +6,7 @@ Spatula is concerned with packaging data from a browser into a standard format t
 
 ### Entities
 
-Spatula describes a "world view" schema of a website using TypeBox (JSON schema). It describes how entities should look like:
+Spatula describes a "world view" schema of a website using TypeBox (JSON schema). It describes how entities should look like, and sources to transform data sent to the browser into an array of patches.
 
 ```js
 const InstagramEntities: Entity[] = [

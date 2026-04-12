@@ -23,7 +23,7 @@
     /* but not the play counts... */
     "playCount": play_count,
     "commentCount": comment_count,
-    "author": $ref("@instagram:user", user.pk)
+    "author": $ref(user.pk)
   },
 
   items.user.{

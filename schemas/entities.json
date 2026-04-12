@@ -1,0 +1,871 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Xetera/spatula/main/schemas/entities.json",
+  "type": "array",
+  "items": {
+    "oneOf": [
+      {
+        "$ref": "#/$defs/instagram__user"
+      },
+      {
+        "$ref": "#/$defs/instagram__post"
+      },
+      {
+        "$ref": "#/$defs/instagram__comment"
+      },
+      {
+        "$ref": "#/$defs/roblox__game"
+      },
+      {
+        "$ref": "#/$defs/sahibinden__city_listing"
+      }
+    ]
+  },
+  "$defs": {
+    "EntityRef": {
+      "type": "object",
+      "properties": {
+        "_id": {}
+      },
+      "required": [
+        "_id"
+      ]
+    },
+    "ImageRef": {
+      "type": "object",
+      "required": [
+        "_type",
+        "url"
+      ],
+      "properties": {
+        "_type": {
+          "type": "string",
+          "const": "image"
+        },
+        "_id": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        }
+      }
+    },
+    "VideoRef": {
+      "type": "object",
+      "required": [
+        "_type",
+        "url"
+      ],
+      "properties": {
+        "_type": {
+          "type": "string",
+          "const": "video"
+        },
+        "_id": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        }
+      }
+    },
+    "instagram__user": {
+      "type": "object",
+      "required": [
+        "_entity",
+        "_id"
+      ],
+      "properties": {
+        "username": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "nickname": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profilePic": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "_type",
+                "url"
+              ],
+              "properties": {
+                "_type": {
+                  "type": "string",
+                  "const": "image"
+                },
+                "_id": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "width": {
+                  "type": "number"
+                },
+                "height": {
+                  "type": "number"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "followerCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "followingCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "postCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isPrivate": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isVerified": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "_entity": {
+          "type": "string",
+          "const": "@instagram/user"
+        },
+        "_id": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "_createdAt": {
+          "type": "object",
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
+          "properties": {
+            "_type": {
+              "type": "string",
+              "const": "timestamp"
+            },
+            "value": {
+              "type": "string",
+              "description": "ISO 8601 string timestamp"
+            },
+            "precision": {
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
+              "default": "full"
+            }
+          }
+        }
+      },
+      "$defs": {
+        "EntityRef": {
+          "type": "object",
+          "properties": {
+            "_id": {}
+          },
+          "required": [
+            "_id"
+          ]
+        }
+      },
+      "$id": "@instagram/user",
+      "x-canonical-url": "https://instagram.com/{username}"
+    },
+    "instagram__post": {
+      "type": "object",
+      "required": [
+        "_entity",
+        "_id"
+      ],
+      "properties": {
+        "code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "media": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "video"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "video"
+                    },
+                    "video": {
+                      "type": "object",
+                      "required": [
+                        "_type",
+                        "url"
+                      ],
+                      "properties": {
+                        "_type": {
+                          "type": "string",
+                          "const": "video"
+                        },
+                        "_id": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "width": {
+                          "type": "number"
+                        },
+                        "height": {
+                          "type": "number"
+                        }
+                      },
+                      "x-offload": true,
+                      "x-ephemeral": {}
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "images"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "carousel"
+                    },
+                    "images": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "_type",
+                          "url",
+                          "width",
+                          "height"
+                        ],
+                        "properties": {
+                          "_type": {
+                            "type": "string",
+                            "const": "image"
+                          },
+                          "_id": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "width": {
+                            "type": "number"
+                          },
+                          "height": {
+                            "type": "number"
+                          }
+                        },
+                        "x-offload": true,
+                        "x-ephemeral": {}
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "image"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "image"
+                    },
+                    "image": {
+                      "type": "object",
+                      "required": [
+                        "_type",
+                        "url",
+                        "width",
+                        "height"
+                      ],
+                      "properties": {
+                        "_type": {
+                          "type": "string",
+                          "const": "image"
+                        },
+                        "_id": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "width": {
+                          "type": "number"
+                        },
+                        "height": {
+                          "type": "number"
+                        }
+                      },
+                      "x-offload": true,
+                      "x-ephemeral": {}
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "commentsDisabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "likeCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "author": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "one",
+              "x-entity": "@instagram/user"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "_entity": {
+          "type": "string",
+          "const": "@instagram/post"
+        },
+        "_id": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "_createdAt": {
+          "type": "object",
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
+          "properties": {
+            "_type": {
+              "type": "string",
+              "const": "timestamp"
+            },
+            "value": {
+              "type": "string",
+              "description": "ISO 8601 string timestamp"
+            },
+            "precision": {
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
+              "default": "full"
+            }
+          }
+        }
+      },
+      "$defs": {
+        "EntityRef": {
+          "type": "object",
+          "properties": {
+            "_id": {}
+          },
+          "required": [
+            "_id"
+          ]
+        }
+      },
+      "$id": "@instagram/post",
+      "x-canonical-url": "https://instagram.com/p/{code}",
+      "x-unique-fields": [
+        "code"
+      ]
+    },
+    "instagram__comment": {
+      "type": "object",
+      "required": [
+        "_entity",
+        "_id"
+      ],
+      "properties": {
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "likeCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "author": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "one",
+              "x-entity": "@instagram/user"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "post": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "one",
+              "x-entity": "@instagram/post"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "_entity": {
+          "type": "string",
+          "const": "@instagram/comment"
+        },
+        "_id": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "_createdAt": {
+          "type": "object",
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
+          "properties": {
+            "_type": {
+              "type": "string",
+              "const": "timestamp"
+            },
+            "value": {
+              "type": "string",
+              "description": "ISO 8601 string timestamp"
+            },
+            "precision": {
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
+              "default": "full"
+            }
+          }
+        }
+      },
+      "$defs": {
+        "EntityRef": {
+          "type": "object",
+          "properties": {
+            "_id": {}
+          },
+          "required": [
+            "_id"
+          ]
+        }
+      },
+      "$id": "@instagram/comment"
+    },
+    "roblox__game": {
+      "type": "object",
+      "required": [
+        "_entity",
+        "_id"
+      ],
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "image": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uri"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "likePercentage": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "playingCount": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "_entity": {
+          "type": "string",
+          "const": "@roblox/game"
+        },
+        "_id": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "_createdAt": {
+          "type": "object",
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
+          "properties": {
+            "_type": {
+              "type": "string",
+              "const": "timestamp"
+            },
+            "value": {
+              "type": "string",
+              "description": "ISO 8601 string timestamp"
+            },
+            "precision": {
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
+              "default": "full"
+            }
+          }
+        }
+      },
+      "$defs": {
+        "EntityRef": {
+          "type": "object",
+          "properties": {
+            "_id": {}
+          },
+          "required": [
+            "_id"
+          ]
+        }
+      },
+      "$id": "@roblox/game"
+    },
+    "sahibinden__city_listing": {
+      "type": "object",
+      "required": [
+        "_entity",
+        "_id"
+      ],
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "price": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agency": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "name",
+                "link"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "link": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "_entity": {
+          "type": "string",
+          "const": "@sahibinden/city_listing"
+        },
+        "_id": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "_createdAt": {
+          "type": "object",
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
+          "properties": {
+            "_type": {
+              "type": "string",
+              "const": "timestamp"
+            },
+            "value": {
+              "type": "string",
+              "description": "ISO 8601 string timestamp"
+            },
+            "precision": {
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
+              "default": "full"
+            }
+          }
+        }
+      },
+      "$defs": {
+        "EntityRef": {
+          "type": "object",
+          "properties": {
+            "_id": {}
+          },
+          "required": [
+            "_id"
+          ]
+        }
+      },
+      "$id": "@sahibinden/city_listing"
+    }
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "name": "JSONata",
+  "scopeName": "source.jsonata",
+  "fileTypes": ["jsonata"],
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#string" },
+    { "include": "#number" },
+    { "include": "#builtin" },
+    { "include": "#variable" },
+    { "include": "#keyword" },
+    { "include": "#operator" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comment": {
+      "patterns": [
+        {
+          "name": "comment.block.jsonata",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "string": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.jsonata",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "name": "constant.character.escape.jsonata", "match": "\\\\." }
+          ]
+        },
+        {
+          "name": "string.quoted.single.jsonata",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            { "name": "constant.character.escape.jsonata", "match": "\\\\." }
+          ]
+        },
+        {
+          "name": "string.quoted.backtick.jsonata",
+          "begin": "`",
+          "end": "`"
+        }
+      ]
+    },
+    "number": {
+      "name": "constant.numeric.jsonata",
+      "match": "-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?"
+    },
+    "builtin": {
+      "name": "support.function.jsonata",
+      "match": "\\$[a-z][a-zA-Z0-9_]*(?=\\s*\\()"
+    },
+    "variable": {
+      "name": "variable.other.jsonata",
+      "match": "\\$[a-zA-Z_][a-zA-Z0-9_]*"
+    },
+    "keyword": {
+      "patterns": [
+        {
+          "name": "constant.language.jsonata",
+          "match": "\\b(true|false|null)\\b"
+        },
+        {
+          "name": "keyword.control.jsonata",
+          "match": "\\b(and|or|in|return|function|if|then|else)\\b"
+        }
+      ]
+    },
+    "operator": {
+      "name": "keyword.operator.jsonata",
+      "match": "~>|:=|!=|<=|>=|\\.\\.|\\.\\*|[=<>!+\\-*/%&|?:@#^~]"
+    },
+    "punctuation": {
+      "patterns": [
+        { "name": "punctuation.definition.bracket.jsonata", "match": "[\\[\\]{}()]" },
+        { "name": "punctuation.separator.jsonata", "match": "[,;]" },
+        { "name": "punctuation.accessor.jsonata", "match": "\\." }
+      ]
+    }
+  }
+}

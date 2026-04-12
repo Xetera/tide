@@ -244,7 +244,7 @@ function Page() {
             value='generate'
             class='flex-1 h-full rounded-none border-b-2 border-transparent data-[selected]:(border-foreground bg-transparent) text-muted-foreground data-[selected]:text-foreground'
           >
-            Generate
+            Requests
           </TabsTrigger>
           <TabsTrigger
             value='settings'

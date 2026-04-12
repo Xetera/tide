@@ -1,4 +1,5 @@
 import { JsonataExpression } from '~/extraction/jsonata-bindings'
+import { matchesGlob } from '~/extraction/glob'
 
 interface LoaderExpression {
   file: string
@@ -40,13 +41,6 @@ window.addEventListener('message', (evt) => {
   }
 })
 
-function matchesGlob(pattern: string, pathname: string): boolean {
-  const escaped = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*/g, '[^/]*')
-    .replace(/\*\*/g, '.*')
-  return new RegExp(`^${escaped}$`).test(pathname)
-}
 
 async function evaluateLoaders(
   url: string,
@@ -91,7 +85,7 @@ async function evaluateLoaders(
           continue
         }
         window.postMessage(
-          { __spatula: true, kind: 'loader-result', name, file, result, url },
+          { __spatula: true, kind: 'loader-result', name, file, result, url, body: json },
           '*',
         )
       } catch (err) {

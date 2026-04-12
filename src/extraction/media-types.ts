@@ -18,16 +18,18 @@ function mediaBuilder(schema: TObject): MediaBuilder {
       return mediaBuilder(Object.assign({}, this, { 'x-offload': true }))
     },
     sized(): MediaBuilder {
-      return mediaBuilder(Object.assign({}, this, {
-        properties: {
-          ...this.properties,
-          width: Type.Number(),
-          height: Type.Number(),
-        },
-        required: [...(this.required ?? []), 'width', 'height'].filter(
-          (v, i, a) => a.indexOf(v) === i,
-        ),
-      }))
+      return mediaBuilder(
+        Object.assign({}, this, {
+          properties: {
+            ...this.properties,
+            width: Type.Number(),
+            height: Type.Number(),
+          },
+          required: [...(this.required ?? []), 'width', 'height'].filter(
+            (v, i, a) => a.indexOf(v) === i,
+          ),
+        }),
+      )
     },
   }
   return builder
@@ -40,7 +42,6 @@ export const ImageType = Type.Object({
   // is going to have a known id
   _id: Type.Optional(Type.String()),
   url: Type.String({ format: 'uri' }),
-  hash: Type.String(),
   width: Type.Optional(Type.Number()),
   height: Type.Optional(Type.Number()),
 })
@@ -49,7 +50,6 @@ export const VideoType = Type.Object({
   _type: Type.Literal('video'),
   _id: Type.Optional(Type.String()),
   url: Type.String({ format: 'uri' }),
-  hash: Type.String(),
   width: Type.Optional(Type.Number()),
   height: Type.Optional(Type.Number()),
 })

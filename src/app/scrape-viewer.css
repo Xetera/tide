@@ -32,11 +32,36 @@
 .shiki-pre,
 .shiki {
   margin: 0;
-  padding: 1rem;
+  padding: 0.5rem 0.5rem;
   border-radius: var(--radius);
   font-size: 0.75rem;
   line-height: 1.6;
-  overflow-x: auto;
+  overflow: visible;
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
   background-color: var(--background) !important;
 }
+
+.shiki-editor .shiki,
+.shiki-editor .shiki code {
+  background: transparent !important;
+  padding: 0;
+}
+
+.cm-cursor, .cm-dropCursor {
+  border-left-color: var(--foreground) !important;
+  border-left-width: 2px !important;
+}
+
+.tok-keyword { color: var(--shiki-token-keyword); }
+.tok-string { color: var(--shiki-token-string); }
+.tok-number { color: var(--shiki-token-constant); }
+.tok-bool { color: var(--shiki-token-constant); }
+.tok-null { color: var(--shiki-token-constant); }
+.tok-variableName { color: #a0522d; }
+
+@media (prefers-color-scheme: dark) {
+  .tok-variableName { color: #cd853f; }
+}
+.tok-standard { color: var(--shiki-token-function); }
+.tok-comment { color: var(--shiki-token-comment); font-style: italic; }
+.tok-operator { color: var(--shiki-token-keyword); }

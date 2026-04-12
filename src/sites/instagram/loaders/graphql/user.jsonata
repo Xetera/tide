@@ -1,0 +1,15 @@
+data.user and data.viewer ?
+[
+  data.user.{
+    "_entity": "@instagram/user",
+	"_id": pk,
+	"username": username,
+	"followingCount": following_count,
+	"bio": biography,
+	"followerCount": follower_count,
+	"isPrivate": is_private,
+	"isVerified": is_verified,
+	"profilePic": $image(profile_pic_url),
+	"bioLinks": bio_links[].({ "title": title, "linkType": link_type, "url": url })
+  }
+]

@@ -1,10 +1,11 @@
 $exists(data.xdt_api__v1__feed__timeline__connection) ?
 [
-  data.xdt_api__v1__feed__timeline__connection.edges.node.media.{
+  data.xdt_api__v1__feed__timeline__connection.edges.node.media[$!=null].{
     "_entity": "@instagram/post",
     "_id": pk,
     "_createdAt": $timestamp(taken_at),
     "title": caption.text,
+    "code": code,
     "media": carousel_media ? {
       "kind": "carousel",
       "images": carousel_media[]@$M.(

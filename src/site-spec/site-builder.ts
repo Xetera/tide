@@ -10,6 +10,7 @@ import {
   TUnsafe,
 } from 'typebox'
 import type { Entity, PageSpec, SiteDefinition } from '~/site-spec/types'
+import { buildSiteLoaders } from '~/loaders'
 
 // just a type to correlate unsafe references
 type TReference = symbol
@@ -41,9 +42,21 @@ type FieldInput = Record<
 export class EntityBuilder {
   readonly #entityName: string
   #fields!: Entity['fields']
+  #canonicalUrl?: string
+  #uniqueFields?: string[]
 
   constructor(entityName: string) {
     this.#entityName = entityName
+  }
+
+  canonicalUrl(template: string): this {
+    this.#canonicalUrl = template
+    return this
+  }
+
+  unique(fields: string[]): this {
+    this.#uniqueFields = fields
+    return this
   }
 
   fields(input: FieldInput): this {
@@ -67,8 +80,15 @@ export class EntityBuilder {
   build(): Entity {
     if (!this.#fields)
       throw new Error(`Entity "${this.#entityName}" has no fields defined`)
-    return { entity: this.#entityName, fields: this.#fields }
+    return { entity: this.#entityName, fields: this.#fields, canonicalUrl: this.#canonicalUrl, uniqueFields: this.#uniqueFields }
   }
+}
+
+export function resolveCanonicalUrl(template: string, patch: import('./types').RawEntityPatch): string {
+  return template.replace(/\{(\w+)\}/g, (_, key) => {
+    const value = key === 'id' ? patch._id : (patch as Record<string, unknown>)[key]
+    return value != null ? String(Array.isArray(value) ? value[0] : value) : ''
+  })
 }
 
 export function entityKey(entityName: string): string {
@@ -110,31 +130,10 @@ type SiteInput = Omit<SiteDefinition, 'loaders' | 'pages' | 'entities'> & {
 }
 
 export function defineSite(input: SiteInput): SiteDefinition {
-  const allLoaderModules = import.meta.glob('../sites/*/loaders/*/*.jsonata', {
-    query: '?raw',
-    import: 'default',
-    eager: true,
-  }) as Record<string, string>
-
   const allPageModules = import.meta.glob('../sites/*/pages/*/index.ts', {
     import: 'default',
     eager: true,
   }) as Record<string, PageSpec>
-
-  const loaders: SiteDefinition['loaders'] = {}
-  for (const [path, expression] of Object.entries(allLoaderModules)) {
-    const match = path.match(/\/sites\/([^/]+)\/loaders\/([^/]+)\/.*\.jsonata$/)
-    if (!match) {
-      continue
-    }
-    const [, site, name] = match
-    if (site !== input.dir || !name) {
-      continue
-    }
-    const file = path.split('/').pop()!
-    loaders[name] ??= []
-    loaders[name].push({ file, expression })
-  }
 
   const pages: PageSpec[] = []
   for (const [path, page] of Object.entries(allPageModules)) {
@@ -143,7 +142,9 @@ export function defineSite(input: SiteInput): SiteDefinition {
       continue
     }
     const [, site] = match
-    if (site !== input.dir) continue
+    if (site !== input.dir) {
+      continue
+    }
     pages.push(page)
   }
 
@@ -151,7 +152,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
     hostname: input.hostname,
     entities: input.entities.map((e) => e.build()),
     requests: input.requests,
-    loaders,
+    loaders: buildSiteLoaders(input.dir),
     pages,
   }
 }

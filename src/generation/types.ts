@@ -39,6 +39,36 @@ export interface GenerationProgress {
   timestamp: number
 }
 
+export interface LoaderFixture {
+  path: string
+  name: string
+  data: unknown
+}
+
+export interface LoaderInfo {
+  loader: string
+  file: string
+  path: string
+  expression: string
+  fixtures: LoaderFixture[]
+  request?: { method: string; url: string }
+}
+
+export type LoaderMatchResult =
+  | {
+      matched: true
+      loader: string
+      file: string
+      patches: unknown[]
+      validationErrors: string[]
+    }
+  | {
+      matched: false
+      loader: string
+      file: string
+      error?: string
+    }
+
 export interface GenerationAttempt {
   attempt: number
   jsonataExpression: string

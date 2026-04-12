@@ -2,6 +2,7 @@ import { onMessage } from 'webext-bridge/background'
 import { Client } from '~/server/client'
 import { ServerAutonomy, type PageSpec } from '~/site-spec/types'
 import { instagramSite } from '~/sites/instagram'
+import { allSites } from '~/sites'
 import { generateUID } from '~/shared'
 import { type BrowserStorageSchema, Storage } from '~/shared/storage'
 import { log } from './backend-logger'
@@ -14,16 +15,28 @@ import {
 import { StorageListener } from './storage-listener'
 import { EntityValidator } from '~/extraction/entity-validator'
 import { JsonataExpression } from '~/extraction/jsonata-bindings'
-import { buildPrompt, type PromptExample } from '~/generation/prompt-builder'
+import { buildPrompt } from '~/generation/prompt-builder'
 import type {
   CaptureEntry,
   GenerationAttempt,
   GenerationResult,
+  LoaderMatchResult,
 } from '~/generation/types'
+import {
+  loaderEntries,
+  matchesGlob,
+  captureMatchesKnownLoader,
+  buildLoaderInfos,
+  buildBuiltinExamples,
+} from '~/loaders'
 
 const storage = new Storage<BrowserStorageSchema>()
 
 const CAPTURE_RING_MAX = 10
+
+console.log('[spatula] loaderEntries:', loaderEntries.map((e) => `${e.site}/${e.loader}/${e.file}`))
+console.log('[spatula] allSites requests:', allSites.map((s) => `${s.hostname}: ${Object.keys(s.requests).join(', ')}`))
+
 
 function hostnameFromUrl(url: string): string {
   try {
@@ -32,6 +45,7 @@ function hostnameFromUrl(url: string): string {
     return url
   }
 }
+
 
 async function getCaptureIndex(hostname: string): Promise<string[]> {
   const result = await chrome.storage.session.get({
@@ -67,44 +81,6 @@ async function storeCaptureEntry(entry: CaptureEntry) {
   if (evicted.length > 0) {
     await chrome.storage.session.remove(evicted.map((id) => `capture:${id}`))
   }
-}
-
-const allLoaderModules = import.meta.glob('../sites/*/loaders/*/*.jsonata', {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-}) as Record<string, string>
-
-const allFixtureModules = import.meta.glob('../sites/*/loaders/*/*.json', {
-  import: 'default',
-  eager: true,
-}) as Record<string, unknown>
-
-function buildBuiltinExamples(): PromptExample[] {
-  const examples: PromptExample[] = []
-  for (const [path, expression] of Object.entries(allLoaderModules)) {
-    const match = path.match(
-      /\/sites\/([^/]+)\/loaders\/([^/]+)\/(.+\.jsonata)$/,
-    )
-    if (!match) {
-      continue
-    }
-    const [, , loaderName] = match
-    const dir = path.slice(0, path.lastIndexOf('/') + 1)
-    const fixturePath = Object.keys(allFixtureModules).find((p) => {
-      const fixtureDir = p.slice(0, p.lastIndexOf('/') + 1)
-      return fixtureDir === dir
-    })
-    const fixture = fixturePath ? allFixtureModules[fixturePath] : undefined
-    const fixtureSnippet = fixture
-      ? JSON.stringify(fixture, null, 2).slice(0, 3_000)
-      : ''
-    examples.push({ loaderName: loaderName!, expression, fixtureSnippet })
-    if (examples.length >= 3) {
-      break
-    }
-  }
-  return examples
 }
 
 const BUILTIN_EXAMPLES = buildBuiltinExamples()
@@ -481,6 +457,12 @@ function emitUrlUpdate(
     })
     onMessage('raw-capture', async ({ data }) => {
       const hostname = hostnameFromUrl(data.url)
+      console.log('[spatula] raw-capture received', data.method, data.url, `body=${data.responseBody.length}b`)
+      if (!captureMatchesKnownLoader(allSites, data.url, data.method)) {
+        console.log('[spatula] raw-capture discarded (no matching loader)', data.method, data.url)
+        return
+      }
+      try {
       await storeCaptureEntry({
         id: crypto.randomUUID(),
         hostname,
@@ -493,10 +475,140 @@ function emitUrlUpdate(
         responseHeaders: data.responseHeaders,
         capturedAt: data.capturedAt,
       })
+      console.log('[spatula] raw-capture stored', data.url)
+      } catch (err) {
+        console.error('[spatula] raw-capture store failed', data.url, err)
+      }
     })
     onMessage('get-captures', async ({ data }) => {
-      return getCapturesForHostname(data.hostname)
+      const captures = await getCapturesForHostname(data.hostname)
+      if (!data.request) {
+        return captures
+      }
+      const { method, url } = data.request
+      return captures.filter(
+        (c) =>
+          c.method.toUpperCase() === method.toUpperCase() &&
+          matchesGlob(url, new URL(c.url).pathname),
+      )
     })
+    onMessage('match-capture', async ({ data }) => {
+      const capture = await getCaptureById(data.captureId)
+      if (!capture) {
+        return []
+      }
+      let json: unknown
+      try {
+        json = JSON.parse(capture.responseBody)
+      } catch {
+        return []
+      }
+      const results: LoaderMatchResult[] = []
+      for (const entry of loaderEntries) {
+        const expr = new JsonataExpression(entry.expression, {
+          request: { url: capture.url, method: capture.method, headers: capture.requestHeaders },
+          response: { url: capture.url, status: capture.status, headers: capture.responseHeaders, body: json },
+        })
+        let result: unknown
+        try {
+          result = await expr.evaluate(json)
+        } catch (err) {
+          results.push({
+            matched: false,
+            loader: entry.loader,
+            file: entry.file,
+            error: err instanceof Error ? err.message : String(err),
+          })
+          continue
+        }
+        if (result === undefined) {
+          results.push({ matched: false, loader: entry.loader, file: entry.file })
+          continue
+        }
+        const raw = Array.isArray(result) ? result : [result]
+        const patches = raw.filter((item) => {
+          return item !== null && typeof item === 'object' && '_entity' in item
+        })
+        if (patches.length === 0) {
+          results.push({ matched: false, loader: entry.loader, file: entry.file })
+          continue
+        }
+        const validationErrors: string[] = []
+        if (validator) {
+          for (const patch of patches) {
+            const name = (patch as Record<string, unknown>)._entity as string
+            const errs = validator.validate(name, patch)
+            for (const e of errs) {
+              validationErrors.push(`${name}${e.path}: ${e.message}`)
+            }
+          }
+        }
+        console.log('[spatula] match-capture result', entry.loader, entry.file, 'patches:', patches.length, 'validationErrors:', validationErrors)
+        results.push({
+          matched: true,
+          loader: entry.loader,
+          file: entry.file,
+          patches,
+          validationErrors,
+        })
+      }
+      return results
+    })
+
+    onMessage('get-loaders', () => {
+      return buildLoaderInfos(allSites)
+    })
+
+    onMessage('write-loader', async ({ data }) => {
+      if (import.meta.env.PROD) {
+        return { ok: false, error: 'write-loader is only available in development' }
+      }
+      try {
+        const response = await fetch(`http://localhost:3000/__spatula_write`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ path: data.path, content: data.content }),
+        })
+        if (!response.ok) {
+          return { ok: false, error: `Server returned ${response.status}` }
+        }
+        return { ok: true }
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      }
+    })
+
+    onMessage('generate-jsonata', async ({ data }) => {
+      const capture = await getCaptureById(data.captureId)
+      if (!capture) {
+        return { ok: false, error: 'Capture not found' }
+      }
+      const geminiKey = await storage.get('gemini:api-key', '')
+      const zaiKey = await storage.get('zai:api-key', '')
+      if (!geminiKey && !zaiKey) {
+        return { ok: false, error: 'No API key configured in settings (Gemini or z.ai)' }
+      }
+      const currentExprNote = data.currentExpression.trim()
+        ? `\n\n## Current expression (modify or replace as needed)\n\`\`\`jsonata\n${data.currentExpression}\n\`\`\`` : ''
+      const prompt = buildPrompt({
+        captures: [capture],
+        previousErrors: [],
+        examples: BUILTIN_EXAMPLES,
+        entities: instagramSite.entities,
+      }) + currentExprNote
+      try {
+        const raw = await callLLM(prompt, geminiKey ?? '', zaiKey ?? '')
+        const parsed = parseGeminiOutput(raw)
+        if (!parsed.ok) {
+          return { ok: false, error: parsed.error }
+        }
+        const afterBlock = raw.slice(raw.indexOf('```', raw.indexOf('```') + 3) + 3).trim()
+        return { ok: true, expression: parsed.jsonataExpression, explanation: afterBlock }
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      }
+    })
+
     onMessage('generate-spec', async ({ data }) => {
       const captures = (
         await Promise.all(data.selectedCaptureIds.map(getCaptureById))

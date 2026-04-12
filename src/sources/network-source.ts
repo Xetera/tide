@@ -33,11 +33,12 @@ window.addEventListener('message', (evt) => {
   if (!evt.data?.__spatula) return
 
   if (evt.data.kind === 'loader-result') {
-    const { name, file, result, url } = evt.data as {
+    const { name, file, result, url, body } = evt.data as {
       name: string
       file: string
       result: unknown
       url: string
+      body: unknown
     }
     if (!validator) {
       console.error(`loader-result was called before validator was assigned`)
@@ -54,6 +55,8 @@ window.addEventListener('message', (evt) => {
       console.warn(
         `[spatula] entity validation errors from ${name}/${file}`,
         errors,
+        result,
+        body,
       )
     }
     if (patches.length > 0) {
@@ -67,6 +70,7 @@ window.addEventListener('message', (evt) => {
   }
 
   if (evt.data.kind === 'raw-capture') {
+    console.log('[spatula] relaying raw-capture', evt.data.method, evt.data.url)
     const {
       url,
       method,

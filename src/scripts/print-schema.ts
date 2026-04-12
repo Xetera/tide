@@ -29,6 +29,8 @@ for (const entity of allEntities) {
   defs[entityKey(entity.entity)] = {
     ...entity.fields,
     $id: entity.entity,
+    ...(entity.canonicalUrl ? { 'x-canonical-url': entity.canonicalUrl } : {}),
+    ...(entity.uniqueFields ? { 'x-unique-fields': entity.uniqueFields } : {}),
   }
 }
 

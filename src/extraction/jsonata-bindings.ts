@@ -27,26 +27,37 @@ export class JsonataExpression {
   #expr: ReturnType<typeof jsonata>
 
   constructor(expression: string, context: JsonataContext = {}) {
-    this.#expr = jsonata(expression)
+    this.#expr = JsonataExpression.evaluator(expression)
+    if (context.request) {
+      this.#expr.assign('request', context.request)
+    }
+    if (context.response) {
+      this.#expr.assign('response', context.response)
+    }
+  }
 
-    if (context.request) this.#expr.assign('request', context.request)
-    if (context.response) this.#expr.assign('response', context.response)
+  static default(expression: string) {
+    return new this(expression)
+  }
 
-    this.#expr.assign('image', (url: unknown): MediaRef | null => {
+  static evaluator(expression: string) {
+    const evaluator = jsonata(expression)
+
+    evaluator.assign('image', (url: unknown): MediaRef | null => {
       if (typeof url !== 'string') {
         return null
       }
       return { _type: 'image', url }
     })
 
-    this.#expr.assign('video', (url: unknown): MediaRef | null => {
+    evaluator.assign('video', (url: unknown): MediaRef | null => {
       if (typeof url !== 'string') {
         return null
       }
       return { _type: 'video', url }
     })
 
-    this.#expr.assign('unique_id', (obj: unknown, id: unknown) => {
+    evaluator.assign('unique_id', (obj: unknown, id: unknown) => {
       // it's ok if id is undefined or null here
       if (id == null) {
         return null
@@ -58,7 +69,7 @@ export class JsonataExpression {
       return { _id: id, ...obj }
     })
 
-    this.#expr.assign(
+    evaluator.assign(
       'with_dimensions',
       (media: unknown, width: unknown, height: unknown) => {
         if (media === null || typeof media !== 'object') {
@@ -68,14 +79,17 @@ export class JsonataExpression {
       },
     )
 
-    this.#expr.assign('ref', (id: unknown): EntityRef | EntityRef[] | null => {
+    evaluator.assign('ref', (id: unknown): EntityRef | EntityRef[] | null => {
+      if (id == null) {
+        return null
+      }
       if (Array.isArray(id)) {
         return id.map((id) => ({ _type: 'ref', _id: String(id) }))
       }
       return { _type: 'ref', _id: String(id) }
     })
 
-    this.#expr.assign('entity', (fields: unknown, entityName: unknown) => {
+    evaluator.assign('entity', (fields: unknown, entityName: unknown) => {
       if (typeof entityName !== 'string') {
         return null
       }
@@ -87,7 +101,7 @@ export class JsonataExpression {
       throw new Error('Invalid type of fields for: ' + entityName)
     })
 
-    this.#expr.assign('timestamp', (value: unknown) => {
+    evaluator.assign('timestamp', (value: unknown) => {
       let timestamp: Date
       if (typeof value === 'number') {
         timestamp = new Date(value)
@@ -108,6 +122,7 @@ export class JsonataExpression {
         precision: 'full',
       }
     })
+    return evaluator
   }
 
   async evaluate(input: unknown): Promise<unknown> {

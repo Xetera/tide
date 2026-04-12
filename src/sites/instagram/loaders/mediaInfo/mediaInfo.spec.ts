@@ -10,10 +10,8 @@ const validator = new EntityValidator([instagramSite])
 
 describe('instagram mediaInfo loader', () => {
   it('parses valid response entities against schema', async () => {
-    const entities = await new JsonataExpression(expression, {
-      request: validRequest.request,
-      response: validRequest.response as any,
-    }).entities(validRequest.response.body)
+    const entities =
+      await JsonataExpression.default(expression).entities(validRequest)
 
     const post = entities.find((e) => e._entity === '@instagram/post')
     const user = entities.find((e) => e._entity === '@instagram/user')

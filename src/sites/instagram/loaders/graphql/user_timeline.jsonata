@@ -1,4 +1,4 @@
-data.xdt_api__v1__feed__user_timeline_graphql_connection
+data.xdt_api__v1__feed__user_timeline_graphql_connection.edges.node[pk]
   /* some false positives without this
   and $request.headers.`x-root-field-name` = "xdt_api__v1__feed__user_timeline_graphql_connection" */ ?
 [

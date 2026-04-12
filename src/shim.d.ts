@@ -13,6 +13,8 @@ import type {
   CaptureEntry,
   GenerationRequest,
   GenerationResult,
+  LoaderMatchResult,
+  LoaderInfo,
 } from './generation/types'
 declare module 'webext-bridge' {
   export interface ProtocolMap {
@@ -40,7 +42,11 @@ declare module 'webext-bridge' {
       responseHeaders: Record<string, string>
       capturedAt: number
     }
-    'get-captures': ProtocolWithReturn<{ hostname: string }, CaptureEntry[]>
+    'get-captures': ProtocolWithReturn<{ hostname: string; request?: { method: string; url: string } }, CaptureEntry[]>
     'generate-spec': ProtocolWithReturn<GenerationRequest, GenerationResult>
+    'match-capture': ProtocolWithReturn<{ captureId: string }, LoaderMatchResult[]>
+    'get-loaders': ProtocolWithReturn<void, LoaderInfo[]>
+    'write-loader': ProtocolWithReturn<{ path: string; content: string }, { ok: boolean; error?: string }>
+    'generate-jsonata': ProtocolWithReturn<{ captureId: string; currentExpression: string }, { ok: true; expression: string; explanation: string } | { ok: false; error: string }>
   }
 }

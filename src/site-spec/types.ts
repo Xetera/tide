@@ -17,6 +17,8 @@ export interface SiteDefinition {
 export interface Entity {
   entity: string
   fields: import('typebox').TObject
+  canonicalUrl?: string
+  uniqueFields?: string[]
 }
 
 export interface PageSpec {
