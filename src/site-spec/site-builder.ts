@@ -10,7 +10,6 @@ import {
   TUnsafe,
 } from 'typebox'
 import type { Entity, PageSpec, SiteDefinition } from '~/site-spec/types'
-import { buildSiteLoaders } from '~/loaders'
 
 // just a type to correlate unsafe references
 type TReference = symbol
@@ -127,6 +126,7 @@ export function Many(entityName: string) {
 type SiteInput = Omit<SiteDefinition, 'loaders' | 'pages' | 'entities'> & {
   dir: string
   entities: EntityBuilder[]
+  loaderEntries: import('~/loaders').LoaderEntry[]
 }
 
 export function defineSite(input: SiteInput): SiteDefinition {
@@ -148,11 +148,20 @@ export function defineSite(input: SiteInput): SiteDefinition {
     pages.push(page)
   }
 
+  const loaders: SiteDefinition['loaders'] = {}
+  for (const entry of input.loaderEntries) {
+    if (entry.site !== input.dir) {
+      continue
+    }
+    loaders[entry.loader] ??= []
+    loaders[entry.loader]!.push({ file: entry.file, expression: entry.expression })
+  }
+
   return {
     hostname: input.hostname,
     entities: input.entities.map((e) => e.build()),
     requests: input.requests,
-    loaders: buildSiteLoaders(input.dir),
+    loaders,
     pages,
   }
 }
