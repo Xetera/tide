@@ -203,6 +203,48 @@
             }
           ]
         },
+        "posts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "many",
+              "x-entity": "@instagram/post"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bioLinks": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "linkType",
+                  "url"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "linkType": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "url"
+                  }
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "_entity": {
           "type": "string",
           "const": "@instagram/user"
