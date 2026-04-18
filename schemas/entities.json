@@ -18,6 +18,12 @@
       },
       {
         "$ref": "#/$defs/sahibinden__city_listing"
+      },
+      {
+        "$ref": "#/$defs/twitter__user"
+      },
+      {
+        "$ref": "#/$defs/twitter__tweet"
       }
     ]
   },
@@ -911,6 +917,353 @@
         }
       },
       "$id": "@sahibinden/city_listing"
+    },
+    "twitter__user": {
+      "type": "object",
+      "required": [
+        "_entity",
+        "_id"
+      ],
+      "properties": {
+        "username": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "nickname": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profilePic": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "_type",
+                "url"
+              ],
+              "properties": {
+                "_type": {
+                  "type": "string",
+                  "const": "image"
+                },
+                "_id": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "width": {
+                  "type": "number"
+                },
+                "height": {
+                  "type": "number"
+                }
+              },
+              "x-offload": true,
+              "x-ephemeral": {}
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "followerCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "followingCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tweetCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isVerified": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isProtected": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bio": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "_entity": {
+          "type": "string",
+          "const": "@twitter/user"
+        },
+        "_id": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "_createdAt": {
+          "type": "object",
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
+          "properties": {
+            "_type": {
+              "type": "string",
+              "const": "timestamp"
+            },
+            "value": {
+              "type": "string",
+              "description": "ISO 8601 string timestamp"
+            },
+            "precision": {
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
+              "default": "full"
+            }
+          }
+        }
+      },
+      "$defs": {
+        "EntityRef": {
+          "type": "object",
+          "properties": {
+            "_id": {}
+          },
+          "required": [
+            "_id"
+          ]
+        }
+      },
+      "$id": "@twitter/user",
+      "x-canonical-url": "https://x.com/{username}",
+      "x-display-field": "username"
+    },
+    "twitter__tweet": {
+      "type": "object",
+      "required": [
+        "_entity",
+        "_id"
+      ],
+      "properties": {
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "likeCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retweetCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "replyCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "viewCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "author": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "one",
+              "x-entity": "@twitter/user"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "quotedTweet": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "one",
+              "x-entity": "@twitter/tweet"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inReplyTo": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "one",
+              "x-entity": "@twitter/tweet"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "replies": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "many",
+              "x-entity": "@twitter/tweet"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "_entity": {
+          "type": "string",
+          "const": "@twitter/tweet"
+        },
+        "_id": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "_createdAt": {
+          "type": "object",
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
+          "properties": {
+            "_type": {
+              "type": "string",
+              "const": "timestamp"
+            },
+            "value": {
+              "type": "string",
+              "description": "ISO 8601 string timestamp"
+            },
+            "precision": {
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
+              "default": "full"
+            }
+          }
+        }
+      },
+      "$defs": {
+        "EntityRef": {
+          "type": "object",
+          "properties": {
+            "_id": {}
+          },
+          "required": [
+            "_id"
+          ]
+        }
+      },
+      "$id": "@twitter/tweet",
+      "x-canonical-url": "https://x.com/{authorUsername}/status/{id}",
+      "x-display-field": "text"
     }
   }
 }
