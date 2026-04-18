@@ -1,0 +1,33 @@
+/* Extract all timeline entries, flattening both standard tweets and nested modules */
+$$.data.user.result.timeline.timeline.instructions.entries.content.( 
+  $tweet := itemContent.tweet_results.result ? itemContent.tweet_results.result : items.item.itemContent.tweet_results.result;
+  $user := itemContent.tweet_results.result ? itemContent.tweet_results.result.core.user_results.result : items.item.core.user_results.result;
+
+  [
+    $tweet.{
+      "_entity": "@twitter/tweet",
+      "_id": rest_id,
+      "text": legacy.full_text,
+      "likeCount": $number(legacy.favorite_count != null ? legacy.favorite_count : 0),
+      "retweetCount": $number(legacy.retweet_count != null ? legacy.retweet_count : 0),
+      "replyCount": $number(legacy.reply_count != null ? legacy.reply_count : 0),
+      "viewCount": $number(views.count != null ? views.count : 0),
+      "author": $ref(core.user_results.result.rest_id),
+      "_createdAt": $timestamp(legacy.created_at)
+    },
+    $user.{
+      "_entity": "@twitter/user",
+      "_id": rest_id,
+      "username": core.screen_name,
+      "nickname": core.name,
+      "profilePic": $image(avatar.image_url),
+      "followerCount": $number(legacy.followers_count != null ? legacy.followers_count : 0),
+      "followingCount": $number(legacy.friends_count != null ? legacy.friends_count : 0),
+      "tweetCount": $number(legacy.statuses_count != null ? legacy.statuses_count : 0),
+      "isVerified": is_blue_verified,
+      "isProtected": privacy.protected,
+      "bio": profile_bio.description,
+      "_createdAt": $timestamp(core.created_at)
+    }
+  ]
+)

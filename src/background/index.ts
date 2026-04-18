@@ -636,12 +636,14 @@ function emitUrlUpdate(
       if (enabled) {
         log({
           severity: 'info',
+          scope: 'pool',
           text: 'Server enabled, starting...',
         })
         client!.start(client!.getServer())
       } else {
         log({
           severity: 'info',
+          scope: 'pool',
           text: 'Server disabled, stopping...',
         })
         client!.stop(client!.getServer())

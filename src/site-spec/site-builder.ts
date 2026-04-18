@@ -131,6 +131,7 @@ export function Many(entityName: string) {
 
 type SiteInput = Omit<SiteDefinition, 'loaders' | 'pages' | 'entities'> & {
   dir: string
+  icon?: string
   entities: EntityBuilder[]
   loaderEntries: import('~/loaders').LoaderEntry[]
 }
@@ -166,6 +167,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
   return {
     hostname: input.hostname,
     dir: input.dir,
+    icon: input.icon,
     entities: input.entities.map((e) => e.build()),
     requests: input.requests,
     loaders,

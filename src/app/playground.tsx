@@ -881,7 +881,14 @@ function Playground() {
         if (!prev) {
           return null
         }
-        return fresh.find((l) => l.path === prev.path) ?? prev
+        const next = fresh.find((l) => l.path === prev.path)
+        if (!next) {
+          return prev
+        }
+        if (next.expression === prev.expression) {
+          return prev
+        }
+        return next
       })
     } catch {}
   }
@@ -938,9 +945,15 @@ function Playground() {
     onCleanup(() => clearInterval(interval))
   })
 
+  createEffect(() => {
+    const loader = selectedLoader()
+    if (loader) {
+      setExpression(loader.expression)
+    }
+  })
+
   function selectLoader(loader: LoaderInfo) {
     setSelectedLoader(loader)
-    setExpression(loader.expression)
     setEvalResult(null)
     setWriteStatus('idle')
     setSelectedFixture(loader.fixtures[0] ?? null)

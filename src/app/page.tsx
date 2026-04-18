@@ -8,7 +8,7 @@ import { toOrigin } from '~/site-spec/resource'
 import type { PageSpec } from '~/site-spec/types'
 import { type BrowserStorageSchema, Storage } from '~/shared/storage'
 import { useBrowserStorage } from '~/shared/hooks'
-import type { Log, ScrapeLog } from '~/shared'
+import type { Log, PlainLog, ScrapeLog } from '~/shared'
 import { AddServer } from './add-server'
 import { useLogs } from './hooks'
 import { SchemaEditor } from './schema-editor'
@@ -173,10 +173,26 @@ function LogEntry({ log }: { log: Log }) {
   return <PlainLogEntry log={log} />
 }
 
+function PoolLogs({ logs }: { logs: PlainLog[] }) {
+  return (
+    <details class='border-t border-border'>
+      <summary class='cursor-pointer px-3 py-2 text-xs font-medium text-muted-foreground select-none hover:bg-accent flex items-center justify-between'>
+        <span>Pool logs</span>
+        <span class='tabular-nums'>{logs.length}</span>
+      </summary>
+      <div>
+        <For each={logs}>{(log) => <PlainLogEntry log={log} />}</For>
+      </div>
+    </details>
+  )
+}
+
 function Page() {
   const storage = new Storage<BrowserStorageSchema>()
   const [state, setState] = createSignal<StatefulResource[]>([])
   const { logs } = useLogs()
+  const scrapeLogs = () => logs().filter((l): l is ScrapeLog => l.type === 'scrape')
+  const poolLogs = () => logs().filter((l): l is PlainLog => l.type === 'plain' && l.scope === 'pool')
   const { value: lastScrape } = useBrowserStorage<'scrape:last'>(
     'scrape:last',
     undefined,
@@ -292,12 +308,15 @@ function Page() {
             </Show>
 
             <div>
-              {logs().length === 0 && (
+              {scrapeLogs().length === 0 && poolLogs().length === 0 && (
                 <p class='px-3 py-6 text-sm text-muted-foreground text-center'>
                   No activity yet
                 </p>
               )}
-              <For each={logs()}>{(log) => <LogEntry log={log} />}</For>
+              <For each={scrapeLogs()}>{(log) => <ScrapeLogEntry log={log} />}</For>
+              <Show when={poolLogs().length > 0}>
+                <PoolLogs logs={poolLogs()} />
+              </Show>
             </div>
           </div>
         </TabsContent>

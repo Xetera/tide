@@ -19,37 +19,59 @@ export interface FixtureEntry {
   data: unknown
 }
 
-const rawLoaderModules = import.meta.glob('./sites/*/loaders/*/*.jsonata', {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-}) as Record<string, string>
+const rawLoaderModules = {
+  ...import.meta.glob('./sites/*/loaders/*/*.jsonata', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }),
+  ...import.meta.glob('./sites/*/loaders/*.jsonata', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }),
+} as Record<string, string>
 
 const rawFixtureModules = import.meta.glob('./sites/*/loaders/*/*.json', {
   import: 'default',
   eager: true,
 }) as Record<string, unknown>
 
-const LOADER_RE = /\/sites\/([^/]+)\/loaders\/([^/]+)\/(.+\.jsonata)$/
+const LOADER_DIR_RE = /\/sites\/([^/]+)\/loaders\/([^/]+)\/(.+\.jsonata)$/
+const LOADER_FLAT_RE = /\/sites\/([^/]+)\/loaders\/([^/]+\.jsonata)$/
 const FIXTURE_RE = /\/sites\/([^/]+)\/loaders\/([^/]+)\/([^/]+\.json)$/
 
 export const loaderEntries: LoaderEntry[] = Object.entries(
   rawLoaderModules,
 ).flatMap(([path, expression]) => {
-  const match = path.match(LOADER_RE)
-  if (!match) {
-    return []
+  const dirMatch = path.match(LOADER_DIR_RE)
+  if (dirMatch) {
+    const [, site, loader, file] = dirMatch
+    return [
+      {
+        site: site!,
+        loader: loader!,
+        file: file!,
+        path: `src/sites${path.split('/sites')[1]}`,
+        expression,
+      },
+    ]
   }
-  const [, site, loader, file] = match
-  return [
-    {
-      site: site!,
-      loader: loader!,
-      file: file!,
-      path: `src/sites${path.split('/sites')[1]}`,
-      expression,
-    },
-  ]
+  const flatMatch = path.match(LOADER_FLAT_RE)
+  if (flatMatch) {
+    const [, site, filename] = flatMatch
+    const loader = filename!.replace(/\.jsonata$/, '')
+    return [
+      {
+        site: site!,
+        loader: loader!,
+        file: filename!,
+        path: `src/sites${path.split('/sites')[1]}`,
+        expression,
+      },
+    ]
+  }
+  return []
 })
 
 export const fixtureEntries: FixtureEntry[] = Object.entries(

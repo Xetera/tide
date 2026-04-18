@@ -1,6 +1,7 @@
 import dayjs from 'dayjs'
 import { onMessage, sendMessage } from 'webext-bridge/background'
-import { log, updateScrapeLogStatus } from '~/background/backend-logger'
+import { log, withScrapeLog } from '~/background/backend-logger'
+import { flashError, flashSuccess } from '~/background/badge'
 import type { ContentScriptTracker } from '~/background/content-script-tracker'
 import { Job } from './job'
 import { JobQueue } from './job-queue'
@@ -88,7 +89,7 @@ export class Client {
       run: (job) => this.#tryRequestActiveJob(job, this.servers[0]!),
     })
 
-    onMessage('entity-patches', ({ data }) => {
+    onMessage('entity-patches', ({ data, sender }) => {
       onPatches?.(data)
       this.#submitJob(
         data.patches,
@@ -97,6 +98,7 @@ export class Client {
         0,
         undefined,
         data.loader,
+        sender.tabId,
       )
     })
     this.enabledResources = enabledResources
@@ -164,6 +166,7 @@ export class Client {
     if (!server) {
       log({
         severity: 'error',
+        scope: 'pool',
         text: 'Tried to update server URL but no server is defined',
         data: 'url' in newServer ? { url: newServer.url } : {},
       })
@@ -192,6 +195,7 @@ export class Client {
       log({
         text: `Running job: ${resource.$entity}`,
         severity: 'debug',
+        scope: 'pool',
         data: { url: job.url.toString(), resourceId: resource.$entity, tabId },
       })
       try {
@@ -203,6 +207,7 @@ export class Client {
         if (err instanceof Error) {
           log({
             severity: 'error',
+            scope: 'pool',
             text: 'Something went wrong while trying to run job',
             data: { message: err.message, tabId },
           })
@@ -223,6 +228,7 @@ export class Client {
     retryCount = 0,
     existingScrapeLogId?: string,
     loader?: { name: string; file: string },
+    tabId?: number,
   ) {
     const server = this.servers[0]
     if (!server) {
@@ -232,15 +238,6 @@ export class Client {
       `[spatula] scraped${loader ? ` ${loader.name}/${loader.file}` : ''}`,
       patches,
     )
-    const scrapeLogId =
-      existingScrapeLogId ??
-      log({
-        type: 'scrape',
-        severity: 'info',
-        patches,
-        warnings,
-        source: loader ? { kind: 'network', loader: loader.name, file: loader.file } : { kind: 'html' },
-      })
     const body: JobResult = {
       success: true,
       patches,
@@ -256,101 +253,118 @@ export class Client {
       if (withinWindow) {
         log({
           severity: 'info',
+          scope: 'pool',
           text: 'Skipping duplicate submission',
         })
         return
       }
     }
 
-    const jobPostReq = this.#requestJobPost(server.url, server.poolId, '', body)
-    const request = await this.#requestBase(jobPostReq, server)
-    let response: Response
-    try {
-      response = await fetch(request)
-    } catch (err) {
-      await updateScrapeLogStatus(scrapeLogId, 'failed')
-      log({
-        severity: 'error',
-        text: 'Failed to reach server',
-        data: { error: err instanceof Error ? err.message : String(err) },
-      })
-      return
-    }
-    if (response.status === PRECONDITION_FAILED) {
-      if (retryCount < 3) {
-        log({
-          severity: 'warning',
-          text: 'Failed job precondition while submitting. Trying to refresh and re-submit...',
-        })
-      } else {
-        await updateScrapeLogStatus(scrapeLogId, 'failed')
-        log({
-          severity: 'error',
-          text: 'Failed job precondition more than 3 times while submitting! Giving up and pausing temporarily',
-          data: { retries: retryCount },
-        })
-        this.#stopPollingAndReschedule(server)
-        return
-      }
-
-      this.stop(server)
-      try {
-        await this.#updateResource(server)
-        await this.#submitJob(
-          patches,
-          source,
-          warnings,
-          retryCount + 1,
-          scrapeLogId,
-          loader,
-        )
-      } catch (err) {
-        if (err instanceof Error) {
+    await withScrapeLog(
+      {
+        type: 'scrape',
+        severity: 'info',
+        patches,
+        warnings,
+        source: loader ? { kind: 'network', loader: loader.name, file: loader.file } : { kind: 'html' },
+      },
+      async (scrapeLogId) => {
+        const jobPostReq = this.#requestJobPost(server.url, server.poolId, '', body)
+        let response: Response
+        try {
+          const request = await this.#requestBase(jobPostReq, server)
+          response = await fetch(request)
+        } catch (err) {
           log({
             severity: 'error',
-            text: 'Got an error while trying to reschedule a failed precondition',
-            data: { error: err.message },
+            scope: 'pool',
+            text: 'Failed to reach server',
+            data: { error: err instanceof Error ? err.message : String(err) },
           })
-        } else {
+          flashError(tabId)
+          throw err
+        }
+        if (response.status === PRECONDITION_FAILED) {
+          if (retryCount < 3) {
+            log({
+              severity: 'warning',
+              scope: 'pool',
+              text: 'Failed job precondition while submitting. Trying to refresh and re-submit...',
+            })
+          } else {
+            log({
+              severity: 'error',
+              scope: 'pool',
+              text: 'Failed job precondition more than 3 times while submitting! Giving up and pausing temporarily',
+              data: { retries: retryCount },
+            })
+            this.#stopPollingAndReschedule(server)
+            throw new Error('precondition failed too many times')
+          }
+
+          this.stop(server)
+          try {
+            await this.#updateResource(server)
+            await this.#submitJob(
+              patches,
+              source,
+              warnings,
+              retryCount + 1,
+              scrapeLogId,
+              loader,
+              tabId,
+            )
+          } catch (err) {
+            if (err instanceof Error) {
+              log({
+                severity: 'error',
+                scope: 'pool',
+                text: 'Got an error while trying to reschedule a failed precondition',
+                data: { error: err.message },
+              })
+            } else {
+              log({
+                severity: 'error',
+                scope: 'pool',
+                text: "Got a super weird error while trying to reschedule a failed precondition but it's not an instance of an Error object?",
+                data: { error: err },
+              })
+            }
+            throw err
+          } finally {
+            this.start(server)
+          }
+          return
+        }
+        const responseText = await response.text()
+        if (response.status < 200 || response.status >= 300) {
+          // To prevent overwhelming the log storage
+          const truncated = responseText.length > 1000
+            ? responseText.slice(0, 1000).replace(/.{3}$/, '...')
+            : responseText
           log({
             severity: 'error',
-            text: "Got a super weird error while trying to reschedule a failed precondition but it's not an instance of an Error object?",
-            data: { error: err },
+            scope: 'pool',
+            text: 'Failed to submit job',
+            data: { response: truncated },
+          })
+          flashError(tabId)
+          throw Object.assign(new Error('job submission failed'), {
+            httpStatus: response.status,
+            serverResponse: truncated,
           })
         }
-      } finally {
-        this.start(server)
-      }
-      return
-    }
-    if (response.status < 200 || response.status >= 300) {
-      let responseText = await response.text()
-      // To prevent overwhelming the log storage
-      if (responseText.length > 1000) {
-        responseText = responseText.slice(0, 1000).replace(/.{3}$/, '...')
-      }
-      await updateScrapeLogStatus(scrapeLogId, 'failed', {
-        httpStatus: response.status,
-        serverResponse: responseText,
-      })
-      log({
-        severity: 'error',
-        text: 'Failed to submit job',
-        data: { response: responseText },
-      })
-      return
-    }
 
-    const responseText = await response.text()
-    this.#recentSubmissions.set(dedupKey, {
-      hash: payloadHash,
-      sentAt: Date.now(),
-      serialized,
-    })
-    await updateScrapeLogStatus(scrapeLogId, 'submitted', {
-      httpStatus: response.status,
-      serverResponse: responseText,
-    })
+        this.#recentSubmissions.set(dedupKey, {
+          hash: payloadHash,
+          sentAt: Date.now(),
+          serialized,
+        })
+        flashSuccess(tabId)
+        return { httpStatus: response.status, serverResponse: responseText }
+      },
+      existingScrapeLogId,
+    )
   }
 
   async #updateResource(server: ServerDefinition): Promise<void> {
@@ -403,6 +417,7 @@ export class Client {
       if (body.refetch?.includes('resources')) {
         log({
           severity: 'info',
+          scope: 'pool',
           text: 'The server requested a refetch because the resources have changed',
         })
         await this.#updateResource(server)
@@ -412,6 +427,7 @@ export class Client {
     } catch (error) {
       log({
         severity: 'error',
+        scope: 'pool',
         text: `Error polling for new jobs: ${server.name} ${error}`,
         data: {
           server,
@@ -531,6 +547,7 @@ export class Client {
     }
     log({
       severity: 'error',
+      scope: 'pool',
       text: `Could not find resource ${id}`,
     })
     throw new Error(`Invalid resource ${id}`)

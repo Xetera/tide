@@ -54,7 +54,38 @@ export function log(payload: Omit<PlainLog, 'date' | 'id' | 'type'> | Omit<Scrap
   return id
 }
 
-export function updateScrapeLogStatus(
+export async function withScrapeLog(
+  payload: Omit<ScrapeLog, 'date' | 'id' | 'status'>,
+  fn: (id: string) => Promise<{ httpStatus?: number; serverResponse?: string } | void>,
+  existingId?: string,
+): Promise<void> {
+  let id: string
+  if (existingId) {
+    id = existingId
+  } else {
+    id = generateUID()
+    const entry: Log = {
+      id,
+      date: Date.now(),
+      status: 'pending',
+      ...payload,
+    } as Log
+    await push(EVENTS_KEY, entry, { trim: MAX_LOG_RETENTION })
+  }
+  try {
+    const meta = await fn(id)
+    await updateScrapeLogStatus(id, 'submitted', meta ?? undefined)
+  } catch (err) {
+    const meta =
+      err !== null && typeof err === 'object' && 'httpStatus' in err
+        ? (err as { httpStatus?: number; serverResponse?: string })
+        : undefined
+    await updateScrapeLogStatus(id, 'failed', meta)
+    throw err
+  }
+}
+
+export async function updateScrapeLogStatus(
   id: string,
   status: ScrapeLogStatus,
   meta?: { httpStatus?: number; serverResponse?: string },

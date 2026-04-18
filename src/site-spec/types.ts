@@ -6,6 +6,7 @@ export interface RequestMatcher {
 export interface SiteDefinition {
   hostname: string
   dir: string
+  icon?: string
   entities: Entity[]
   /** Named request matchers — what network requests to capture, keyed by name */
   requests: Record<string, RequestMatcher>
