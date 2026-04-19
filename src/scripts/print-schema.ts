@@ -14,12 +14,36 @@ const outDir = resolve(__dirname, '../../schemas')
 
 mkdirSync(outDir, { recursive: true })
 
+function collectEntityRefs(schema: unknown, found: Set<string> = new Set()): Set<string> {
+  if (!schema || typeof schema !== 'object') return found
+  if (Array.isArray(schema)) {
+    for (const item of schema) collectEntityRefs(item, found)
+    return found
+  }
+  const obj = schema as Record<string, unknown>
+  if (typeof obj['x-entity'] === 'string') found.add(obj['x-entity'])
+  for (const value of Object.values(obj)) collectEntityRefs(value, found)
+  return found
+}
+
 const allEntities: Entity[] = [
   ...instagramEntities,
   ...robloxEntities,
   ...sahibindenEntities,
   ...twitterEntities,
 ].map((e) => e.build())
+
+const knownNames = new Set(allEntities.map((e) => e.entity))
+
+for (const entity of allEntities) {
+  const refs = collectEntityRefs(entity.fields)
+  for (const ref of refs) {
+    if (!knownNames.has(ref)) {
+      process.stderr.write(`error: entity "${entity.entity}" references unknown entity "${ref}"\n`)
+      process.exit(1)
+    }
+  }
+}
 
 const defs: Record<string, unknown> = {
   ...buildEntityRefs(),
@@ -31,6 +55,7 @@ for (const entity of allEntities) {
   defs[entityKey(entity.entity)] = {
     ...entity.fields,
     $id: entity.entity,
+    'x-version': entity.version,
     ...(entity.canonicalUrl ? { 'x-canonical-url': entity.canonicalUrl } : {}),
     ...(entity.uniqueFields ? { 'x-unique-fields': entity.uniqueFields } : {}),
     ...(entity.displayField ? { 'x-display-field': entity.displayField } : {}),

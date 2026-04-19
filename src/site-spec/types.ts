@@ -18,6 +18,7 @@ export interface SiteDefinition {
 
 export interface Entity {
   entity: string
+  version: number
   fields: import('typebox').TObject
   canonicalUrl?: string
   uniqueFields?: string[]

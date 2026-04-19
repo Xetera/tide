@@ -86,6 +86,9 @@
         },
         "height": {
           "type": "number"
+        },
+        "duration": {
+          "type": "number"
         }
       }
     },
@@ -308,6 +311,7 @@
         }
       },
       "$id": "@instagram/user",
+      "x-version": 0,
       "x-canonical-url": "https://instagram.com/{username}",
       "x-display-field": "username"
     },
@@ -375,6 +379,9 @@
                           "type": "number"
                         },
                         "height": {
+                          "type": "number"
+                        },
+                        "duration": {
                           "type": "number"
                         }
                       },
@@ -568,6 +575,7 @@
         }
       },
       "$id": "@instagram/post",
+      "x-version": 0,
       "x-canonical-url": "https://instagram.com/p/{code}",
       "x-unique-fields": [
         "code"
@@ -682,6 +690,7 @@
         }
       },
       "$id": "@instagram/comment",
+      "x-version": 0,
       "x-display-field": "text"
     },
     "roblox__game": {
@@ -788,7 +797,8 @@
           ]
         }
       },
-      "$id": "@roblox/game"
+      "$id": "@roblox/game",
+      "x-version": 0
     },
     "sahibinden__city_listing": {
       "type": "object",
@@ -916,7 +926,8 @@
           ]
         }
       },
-      "$id": "@sahibinden/city_listing"
+      "$id": "@sahibinden/city_listing",
+      "x-version": 0
     },
     "twitter__user": {
       "type": "object",
@@ -1097,6 +1108,7 @@
         }
       },
       "$id": "@twitter/user",
+      "x-version": 0,
       "x-canonical-url": "https://x.com/{username}",
       "x-display-field": "username"
     },
@@ -1262,6 +1274,7 @@
         }
       },
       "$id": "@twitter/tweet",
+      "x-version": 0,
       "x-canonical-url": "https://x.com/{authorUsername}/status/{id}",
       "x-display-field": "text"
     }

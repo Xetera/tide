@@ -27,7 +27,8 @@ export const instagramEntities = [
         }),
       ),
     })
-    .display('username'),
+    .display('username')
+    .version(0),
   new EntityBuilder('@instagram/post')
     .canonicalUrl('https://instagram.com/p/{code}')
     .fields({

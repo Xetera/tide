@@ -52,6 +52,7 @@ export const VideoType = Type.Object({
   url: Type.String({ format: 'uri' }),
   width: Type.Optional(Type.Number()),
   height: Type.Optional(Type.Number()),
+  duration: Type.Optional(Type.Number())
 })
 
 export const Image = mediaBuilder(ImageType)

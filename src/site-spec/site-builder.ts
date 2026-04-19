@@ -40,6 +40,7 @@ type FieldInput = Record<
 
 export class EntityBuilder {
   readonly #entityName: string
+  #version: number = 0
   #fields!: Entity['fields']
   #canonicalUrl?: string
   #uniqueFields?: string[]
@@ -47,6 +48,11 @@ export class EntityBuilder {
 
   constructor(entityName: string) {
     this.#entityName = entityName
+  }
+
+  version(v: number): this {
+    this.#version = v
+    return this
   }
 
   canonicalUrl(template: string): this {
@@ -85,7 +91,7 @@ export class EntityBuilder {
   build(): Entity {
     if (!this.#fields)
       throw new Error(`Entity "${this.#entityName}" has no fields defined`)
-    return { entity: this.#entityName, fields: this.#fields, canonicalUrl: this.#canonicalUrl, uniqueFields: this.#uniqueFields, displayField: this.#displayField }
+    return { entity: this.#entityName, version: this.#version, fields: this.#fields, canonicalUrl: this.#canonicalUrl, uniqueFields: this.#uniqueFields, displayField: this.#displayField }
   }
 }
 

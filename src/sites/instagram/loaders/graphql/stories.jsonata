@@ -1,0 +1,20 @@
+[
+  /* Map items to @instagram/post entities */
+  data.xdt_api__v1__feed__reels_media__connection.edges.node.items.{
+    "_entity": "@instagram/post",
+    "_id": $string(pk),
+    "code": code,
+    "_createdAt": $timestamp(taken_at),
+    "media": {
+      "kind": "video",
+      "video": $video(image_versions2.candidates[0].url) ~> $with_dimensions(original_width, original_height)
+    },
+    "author": $ref($string(user.pk))
+  },
+
+  /* Map unique users found in the feed */
+  data.xdt_api__v1__feed__reels_media__connection.edges.node.items.user.{
+    "_entity": "@instagram/user",
+    "_id": $string(pk)
+  }
+]
