@@ -18,9 +18,18 @@ export function downloadCachedMedia(
       }
       window.removeEventListener('message', handler)
       const map: Record<string, DownloadedMedia> = {}
-      for (const { hash, buffer, mimeType, sha256hash } of evt.data
-        .results as ({ hash: string; buffer: ArrayBuffer; mimeType: string; sha256hash: string })[]) {
-        map[hash] = { bytes: buffer?.byteLength ?? 0, mimeType, sha256hash, buffer }
+      for (const { hash, buffer, mimeType, sha256hash } of evt.data.results as {
+        hash: string
+        buffer: ArrayBuffer
+        mimeType: string
+        sha256hash: string
+      }[]) {
+        map[hash] = {
+          bytes: buffer?.byteLength ?? 0,
+          mimeType,
+          sha256hash,
+          buffer,
+        }
       }
       resolve(map)
     }

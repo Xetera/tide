@@ -42,11 +42,24 @@ declare module 'webext-bridge' {
       responseHeaders: Record<string, string>
       capturedAt: number
     }
-    'get-captures': ProtocolWithReturn<{ hostname: string; request?: { method: string; url: string } }, CaptureEntry[]>
+    'get-captures': ProtocolWithReturn<
+      { hostname: string; request?: { method: string; url: string } },
+      CaptureEntry[]
+    >
     'generate-spec': ProtocolWithReturn<GenerationRequest, GenerationResult>
-    'match-capture': ProtocolWithReturn<{ captureId: string }, LoaderMatchResult[]>
+    'match-capture': ProtocolWithReturn<
+      { captureId: string },
+      LoaderMatchResult[]
+    >
     'get-loaders': ProtocolWithReturn<void, LoaderInfo[]>
-    'write-loader': ProtocolWithReturn<{ path: string; content: string }, { ok: boolean; error?: string }>
-    'generate-jsonata': ProtocolWithReturn<{ captureId: string; currentExpression: string; userNote?: string }, { ok: true; expression: string; explanation: string } | { ok: false; error: string }>
+    'write-loader': ProtocolWithReturn<
+      { path: string; content: string },
+      { ok: boolean; error?: string }
+    >
+    'generate-jsonata': ProtocolWithReturn<
+      { captureId: string; currentExpression: string; userNote?: string },
+      | { ok: true; expression: string; explanation: string }
+      | { ok: false; error: string }
+    >
   }
 }

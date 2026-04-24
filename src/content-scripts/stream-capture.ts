@@ -12,30 +12,33 @@ async function fetchMedia(
 }
 
 window.addEventListener('message', (evt) => {
-  if (!evt.data?.__spatula) return
+  if (!evt.data?.__spatula) {return}
 
   if (evt.data.kind === 'download-cached-media') {
     const { refs, id } = evt.data as {
       refs: { url: string; hash: string }[]
       id: string
     }
-    ;(
-      Promise.all(
-        refs.map(async ({ url, hash }) => {
-          try {
-            const { buffer, mimeType, sha256hash } = await fetchMedia(url)
-            return { hash, buffer, mimeType, sha256hash }
-          } catch (err) {
-            console.warn(`[spatula] failed to capture media ${url}`, err)
-            return null
-          }
-        }),
-      )
+    Promise.all(
+      refs.map(async ({ url, hash }) => {
+        try {
+          const { buffer, mimeType, sha256hash } = await fetchMedia(url)
+          return { hash, buffer, mimeType, sha256hash }
+        } catch (err) {
+          console.warn(`[spatula] failed to capture media ${url}`, err)
+          return null
+        }
+      }),
     ).then((all) => {
       const filtered = all.filter((r) => r !== null)
       const buffers = filtered.map((r) => r.buffer)
       window.postMessage(
-        { __spatula: true, kind: 'download-cached-media:response', id, results: filtered },
+        {
+          __spatula: true,
+          kind: 'download-cached-media:response',
+          id,
+          results: filtered,
+        },
         '*',
         buffers,
       )

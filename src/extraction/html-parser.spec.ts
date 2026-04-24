@@ -27,7 +27,9 @@ function generateFixture(name: string) {
 }
 
 const sahibinden = sahibindenSite.pages[0]!
-const instagram = instagramSite.pages.find((p) => p.$entity === 'instagram:profile')!
+const instagram = instagramSite.pages.find(
+  (p) => p.$entity === 'instagram:profile',
+)!
 
 describe.concurrent('html-parser', () => {
   it('should parse sahibinden fixture', async () => {
@@ -269,9 +271,11 @@ describe.concurrent('html-parser', () => {
         },
       },
     })
-    expect(parser.parse('<html><body></body></html>', {
-      loaderResults: { myQuery: [42] },
-    })).toStrictEqual({
+    expect(
+      parser.parse('<html><body></body></html>', {
+        loaderResults: { myQuery: [42] },
+      }),
+    ).toStrictEqual({
       count: 42,
     })
   })
@@ -286,9 +290,11 @@ describe.concurrent('html-parser', () => {
         },
       },
     })
-    expect(parser.parse('<html><body></body></html>', {
-      loaderResults: { myQuery: [['a', 'b']] },
-    })).toStrictEqual({
+    expect(
+      parser.parse('<html><body></body></html>', {
+        loaderResults: { myQuery: [['a', 'b']] },
+      }),
+    ).toStrictEqual({
       items: ['a', 'b'],
     })
   })

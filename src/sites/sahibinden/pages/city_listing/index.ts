@@ -32,16 +32,10 @@ export default {
       $sourceEach: { $cssEach: '#searchResultsTable thead td' },
       $fields: {
         name: {
-          $transform: [
-            { $text: true },
-            { $trim: ['outside', 'inside'] },
-          ],
+          $transform: [{ $text: true }, { $trim: ['outside', 'inside'] }],
         },
         class: {
-          $transform: [
-            { $attr: 'class' },
-            { $fallback: '' },
-          ],
+          $transform: [{ $attr: 'class' }, { $fallback: '' }],
         },
       },
     },
@@ -61,7 +55,8 @@ export default {
     },
     rows: {
       $sourceEach: {
-        $cssEach: '.searchResultsItem:not(.nativeAd):not(.searchResultsPromoSuper)',
+        $cssEach:
+          '.searchResultsItem:not(.nativeAd):not(.searchResultsPromoSuper)',
       },
       $fields: {
         id: {
@@ -75,19 +70,13 @@ export default {
         'agency.link': {
           $source: { $css: 'a.titleIcon' },
           $ifMissing: { $strategy: 'omit' },
-          $transform: [
-            { $attr: 'href' },
-            { $cast: 'url' },
-          ],
+          $transform: [{ $attr: 'href' }, { $cast: 'url' }],
         },
         car_brands: {
           $sourceEach: { $cssEach: '.car-brands-wrapper span' },
           $fields: {
             brand: {
-              $transform: [
-                { $attr: 'class' },
-                { $trim: ['outside'] },
-              ],
+              $transform: [{ $attr: 'class' }, { $trim: ['outside'] }],
             },
           },
         },
@@ -95,10 +84,7 @@ export default {
           $sourceEach: { $cssEach: 'td' },
           $fields: {
             content: {
-              $transform: [
-                { $text: true },
-                { $trim: ['outside', 'inside'] },
-              ],
+              $transform: [{ $text: true }, { $trim: ['outside', 'inside'] }],
             },
           },
         },

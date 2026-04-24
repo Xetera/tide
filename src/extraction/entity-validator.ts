@@ -5,6 +5,109 @@ import type {
   RawEntityPatch,
   SiteDefinition,
 } from '~/site-spec/types'
+import type { IdentityFn } from '~/extraction/media-types'
+import {
+  instagram_image_identity,
+  instagram_video_identity,
+} from '~gleam/media/identity.mjs'
+import { MediaRecord$MediaRecord } from '~gleam/media/fingerprint/types.mjs'
+
+const identityFunctions: Record<string, IdentityFn> = {
+  instagram_image_identity,
+  instagram_video_identity,
+}
+
+function isIdentityTarget(
+  value: unknown,
+): value is Record<string, unknown> & { url: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'url' in value &&
+    typeof (value as { url: unknown }).url === 'string'
+  )
+}
+
+function applyIdentity(
+  value: unknown,
+  identity: { fn: string },
+  patchIndex: number,
+  warnings: IdentityWarning[],
+): unknown {
+  if (!isIdentityTarget(value)) {
+    return value
+  }
+  if (value._id != null) {
+    return value
+  }
+  const fn = identityFunctions[identity.fn]
+  if (!fn) {
+    warnings.push({ message: `unknown identity function: ${identity.fn}`, patchIndex })
+    return value
+  }
+  const result = fn(MediaRecord$MediaRecord(value.url))
+  if (!result.isOk()) {
+    const err = result[0] as { message?: string }
+    warnings.push({ message: err?.message ?? 'unknown error', patchIndex })
+    return value
+  }
+  return { ...value, _id: result[0] }
+}
+
+type WalkableSchema = {
+  type?: string
+  anyOf?: WalkableSchema[]
+  items?: WalkableSchema
+  properties?: Record<string, WalkableSchema>
+  'x-identity'?: { fn: string }
+}
+
+function walkSchema(
+  value: unknown,
+  schema: WalkableSchema,
+  patchIndex: number,
+  warnings: IdentityWarning[],
+): unknown {
+  const identity = schema['x-identity']
+  if (identity) {
+    return applyIdentity(value, identity, patchIndex, warnings)
+  }
+
+  if (
+    schema.type === 'object' &&
+    schema.properties &&
+    typeof value === 'object' &&
+    value !== null
+  ) {
+    const result: Record<string, unknown> = {
+      ...(value as Record<string, unknown>),
+    }
+    for (const [key, childSchema] of Object.entries(schema.properties)) {
+      const childValue = (value as Record<string, unknown>)[key]
+      result[key] = walkSchema(childValue, childSchema, patchIndex, warnings)
+    }
+    return result
+  }
+
+  if (schema.type === 'array' && schema.items && Array.isArray(value)) {
+    return value.map((item) => walkSchema(item, schema.items!, patchIndex, warnings))
+  }
+
+  if (schema.anyOf) {
+    let result = value
+    for (const variant of schema.anyOf) {
+      result = walkSchema(result, variant, patchIndex, warnings)
+    }
+    return result
+  }
+
+  return value
+}
+
+export interface IdentityWarning {
+  message: string
+  patchIndex: number
+}
 
 export interface EntityValidationError {
   entity: string
@@ -47,7 +150,10 @@ export class EntityValidator {
 
   parse(name: string, data: RawEntityPatch): EntityPatch {
     const entity = this.#entities.get(name)
-    if (!entity) throw new Error(`Unknown entity "${name}"`)
+    if (!entity) {
+      throw new Error(`Unknown entity "${name}"`)
+    }
+
     return Value.Parse(entity.fields, data) as EntityPatch
   }
 
@@ -100,6 +206,26 @@ export class EntityValidator {
   static patchKey(patch: RawEntityPatch): string {
     const id = Array.isArray(patch._id) ? patch._id.join(',') : patch._id
     return `${patch._entity}:${id}`
+  }
+
+  applyIdentityExprs(patches: EntityPatch[]): {
+    patches: EntityPatch[]
+    warnings: IdentityWarning[]
+  } {
+    const warnings: IdentityWarning[] = []
+    const result = patches.map((patch, patchIndex) => {
+      const entity = this.#entities.get(patch._entity)
+      if (!entity) {
+        return patch
+      }
+      return walkSchema(
+        patch,
+        entity.fields as unknown as WalkableSchema,
+        patchIndex,
+        warnings,
+      ) as EntityPatch
+    })
+    return { patches: result, warnings }
   }
 
   static isEntityPatch(item: unknown): item is RawEntityPatch {

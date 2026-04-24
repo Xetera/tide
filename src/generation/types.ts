@@ -32,7 +32,13 @@ export type GenerationResult =
     }
 
 export interface GenerationProgress {
-  stage: 'assembling' | 'calling-api' | 'validating' | 'retrying' | 'done' | 'error'
+  stage:
+    | 'assembling'
+    | 'calling-api'
+    | 'validating'
+    | 'retrying'
+    | 'done'
+    | 'error'
   attempt?: number
   message?: string
   validationErrors?: string[]

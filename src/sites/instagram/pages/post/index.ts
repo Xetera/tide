@@ -115,8 +115,7 @@ export default {
       $fields: {
         list: {
           $sourceEach: {
-            $cssEach:
-              'ul > div > div > div > div:has(> ul > div[role=button])',
+            $cssEach: 'ul > div > div > div > div:has(> ul > div[role=button])',
           },
           $fields: {
             username: {

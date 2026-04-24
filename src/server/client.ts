@@ -20,7 +20,7 @@ import { ServerAutonomy } from '~/site-spec/types'
 const PRECONDITION_FAILED = 412
 
 function isResolvedMediaField(value: unknown): value is { hash: string } {
-  if (value === null || typeof value !== 'object') return false
+  if (value === null || typeof value !== 'object') {return false}
   const v = value as Record<string, unknown>
   return typeof v.hash === 'string' && 'source_url' in v && 'content_type' in v
 }
@@ -266,10 +266,17 @@ export class Client {
         severity: 'info',
         patches,
         warnings,
-        source: loader ? { kind: 'network', loader: loader.name, file: loader.file } : { kind: 'html' },
+        source: loader
+          ? { kind: 'network', loader: loader.name, file: loader.file }
+          : { kind: 'html' },
       },
       async (scrapeLogId) => {
-        const jobPostReq = this.#requestJobPost(server.url, server.poolId, '', body)
+        const jobPostReq = this.#requestJobPost(
+          server.url,
+          server.poolId,
+          '',
+          body,
+        )
         let response: Response
         try {
           const request = await this.#requestBase(jobPostReq, server)
@@ -339,9 +346,10 @@ export class Client {
         const responseText = await response.text()
         if (response.status < 200 || response.status >= 300) {
           // To prevent overwhelming the log storage
-          const truncated = responseText.length > 1000
-            ? responseText.slice(0, 1000).replace(/.{3}$/, '...')
-            : responseText
+          const truncated =
+            responseText.length > 1000
+              ? responseText.slice(0, 1000).replace(/.{3}$/, '...')
+              : responseText
           log({
             severity: 'error',
             scope: 'pool',
@@ -369,7 +377,7 @@ export class Client {
 
   async #updateResource(server: ServerDefinition): Promise<void> {
     try {
-      if (!server.url.trim()) return
+      if (!server.url.trim()) {return}
 
       const lastRequest = this.#lastResourceRequest.get(server)
       if (

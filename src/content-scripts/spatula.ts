@@ -47,8 +47,14 @@ import './stream-capture'
     console.group('[spatula] running')
     console.log('[spatula] injecting page source')
     const defaultPages = allSites.flatMap((s) => s.pages)
-    console.log('[spatula] loaded sites', allSites.map((s) => s.hostname))
-    console.log('[spatula] loaded pages', defaultPages.map((p) => p.$entity))
+    console.log(
+      '[spatula] loaded sites',
+      allSites.map((s) => s.hostname),
+    )
+    console.log(
+      '[spatula] loaded pages',
+      defaultPages.map((p) => p.$entity),
+    )
     registerLoaders(allSites)
     const source = new HtmlPageSource(defaultPages, onEmit)
     source.onHighlightsChanged = (highlights) => {

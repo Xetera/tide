@@ -11,7 +11,7 @@ function rectsOverlap(a: DOMRect, b: DOMRect): boolean {
 
 function hueFor(label: string, hues: Map<string, number>): number {
   const root = label.split('.')[0]
-  if (!root) return 0
+  if (!root) {return 0}
   if (!hues.has(root)) {
     hues.set(root, (hues.size * HUE_STEP) % 360)
   }
@@ -95,7 +95,7 @@ export class HighlightManager {
     this.#canvas = null
     this.#observer?.disconnect()
     this.#observer = null
-    for (const off of this.#listeners) off()
+    for (const off of this.#listeners) {off()}
     this.#listeners = []
   }
 
@@ -104,7 +104,7 @@ export class HighlightManager {
   }
 
   #ensureCanvas() {
-    if (this.#canvas) return
+    if (this.#canvas) {return}
     const canvas = document.createElement('canvas')
     canvas.id = CANVAS_ID
     canvas.style.cssText = `
@@ -150,7 +150,7 @@ export class HighlightManager {
 
   #draw() {
     const canvas = this.#canvas
-    if (!canvas) return
+    if (!canvas) {return}
 
     const dpr = window.devicePixelRatio || 1
     const w = window.innerWidth
@@ -162,7 +162,7 @@ export class HighlightManager {
     }
 
     const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    if (!ctx) {return}
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
@@ -180,9 +180,9 @@ export class HighlightManager {
 
     for (const { element, label, isArrayItem } of this.#entries) {
       const rect = element.getBoundingClientRect()
-      if (rect.width === 0 && rect.height === 0) continue
+      if (rect.width === 0 && rect.height === 0) {continue}
       if (rect.bottom < 0 || rect.top > h || rect.right < 0 || rect.left > w)
-        continue
+        {continue}
 
       const hue = this.#hues.get(label.split('.')[0] || '') ?? 0
 

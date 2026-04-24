@@ -4,14 +4,11 @@ import {
   For,
   Show,
   createEffect,
-  createResource,
   createSignal,
   onCleanup,
   onMount,
 } from 'solid-js'
 import { sendMessage } from 'webext-bridge/popup'
-import { JsonataExpression } from '~/extraction/jsonata-bindings'
-import { EntityValidator } from '~/extraction/entity-validator'
 import { allSites } from '~/sites'
 import type {
   LoaderInfo,
@@ -20,48 +17,9 @@ import type {
   GenerationAttempt,
 } from '~/generation/types'
 import Resizable from '@corvu/resizable'
-import {
-  createHighlighterCore,
-  createCssVariablesTheme,
-} from 'shiki/dist/core.mjs'
-import { createJavaScriptRegexEngine } from 'shiki/dist/engine-javascript.mjs'
-import jsonataGrammar from './jsonata.tmLanguage.json'
-import {
-  EditorView,
-  Decoration,
-  type DecorationSet,
-  ViewPlugin,
-  type ViewUpdate,
-  WidgetType,
-} from '@codemirror/view'
-import {
-  EditorState,
-  RangeSetBuilder,
-  StateEffect,
-  StateField,
-} from '@codemirror/state'
-import {
-  syntaxHighlighting,
-  foldGutter,
-  foldKeymap,
-  foldedRanges,
-  unfoldEffect,
-  foldEffect,
-  syntaxTree,
-  foldInside,
-  codeFolding,
-  unfoldAll,
-} from '@codemirror/language'
-import { classHighlighter } from '@lezer/highlight'
-import {
-  autocompletion,
-  type CompletionContext,
-  acceptCompletion,
-  completionStatus,
-} from '@codemirror/autocomplete'
-import { keymap } from '@codemirror/view'
-import { json } from '@codemirror/lang-json'
-import { jsonataLanguage } from './jsonata-language'
+import { HighlightedCode, JsonViewer } from './json-viewer'
+import { JsonataEditor } from './jsonata-editor'
+import { evaluate, relativeTime, type EvalResult } from './evaluate'
 import '@unocss/reset/tailwind-compat.css'
 import 'virtual:uno.css'
 import './app.css'
@@ -69,735 +27,17 @@ import './scrape-viewer.css'
 
 const IS_DEV = import.meta.env.DEV
 
-const [highlighter] = createResource(async () => {
-  const jsonLang = await import('shiki/dist/langs/json.mjs')
-  return createHighlighterCore({
-    langs: [
-      jsonLang.default,
-      {
-        ...jsonataGrammar,
-      } as NonNullable<
-        Parameters<typeof createHighlighterCore>[0]['langs']
-      >[number],
-    ],
-    themes: [
-      createCssVariablesTheme({
-        name: 'css-vars',
-        variablePrefix: '--shiki-',
-        variableDefaults: {},
-      }),
-    ],
-    engine: createJavaScriptRegexEngine(),
-  })
-})
-
-function HighlightedCode({
-  code,
-  lang,
-}: {
-  code: () => string
-  lang: 'json' | 'jsonata'
-}) {
-  let ref: HTMLDivElement | undefined
-
+function WarningsPanelResizer({ warningCount }: { warningCount: () => number }) {
+  const context = Resizable.useContext()
   createEffect(() => {
-    const h = highlighter()
-    const src = code()
-    if (!ref) {
-      return
-    }
-    if (!h) {
-      ref.textContent = src
-      return
-    }
-    const id = requestIdleCallback(() => {
-      try {
-        ref!.innerHTML = h.codeToHtml(src, { lang, theme: 'css-vars' })
-      } catch {
-        ref!.textContent = src
-      }
-    })
-    onCleanup(() => cancelIdleCallback(id))
-  })
-
-  return <div ref={ref} class='text-xs' />
-}
-
-class EntityPreviewWidget extends WidgetType {
-  constructor(
-    readonly entity: string,
-    readonly id: string | null,
-    readonly canonicalUrl: string | null,
-    readonly bracePos: number,
-    readonly view: EditorView,
-  ) {
-    super()
-  }
-  eq(other: EntityPreviewWidget) {
-    return (
-      other.entity === this.entity &&
-      other.id === this.id &&
-      other.canonicalUrl === this.canonicalUrl &&
-      other.bracePos === this.bracePos
-    )
-  }
-  toDOM() {
-    const wrap = document.createElement('span')
-    wrap.className = 'cm-entity-preview'
-    const label = document.createElement('span')
-    label.textContent =
-      this.id != null ? `${this.entity} · ${this.id}` : this.entity
-    label.addEventListener('click', () => {
-      const folded = foldedRanges(this.view.state)
-      folded.between(this.bracePos, this.bracePos + 1, (from, to) => {
-        this.view.dispatch({ effects: unfoldEffect.of({ from, to }) })
-      })
-    })
-    wrap.appendChild(label)
-    if (this.canonicalUrl) {
-      const link = document.createElement('a')
-      link.href = this.canonicalUrl
-      link.target = '_blank'
-      link.rel = 'noopener noreferrer'
-      link.className = 'cm-entity-link'
-      link.textContent = '↗'
-      wrap.appendChild(link)
-    }
-    return wrap
-  }
-  ignoreEvent() {
-    return false
-  }
-}
-
-interface PatchMeta {
-  entity: string
-  id: string | null
-  canonicalUrl: string | null
-}
-
-const setPatchMetas = StateEffect.define<{
-  metas: PatchMeta[]
-  raw: unknown[]
-}>()
-
-const idToUrlField = StateField.define<PatchMeta[]>({
-  create: () => [],
-  update: (val, tr) => {
-    for (const e of tr.effects) {
-      if (e.is(setPatchMetas)) {
-        return e.value.metas
-      }
-    }
-    return val
-  },
-})
-
-const rawPatchesField = StateField.define<unknown[]>({
-  create: () => [],
-  update: (val, tr) => {
-    for (const e of tr.effects) {
-      if (e.is(setPatchMetas)) {
-        return e.value.raw
-      }
-    }
-    return val
-  },
-})
-
-function buildObjectTypeMap(
-  state: EditorState,
-  patches: unknown[],
-): Map<number, string> {
-  const map = new Map<number, string>()
-  const tree = syntaxTree(state)
-  function walk(
-    node: ReturnType<typeof syntaxTree>['topNode'],
-    value: unknown,
-  ) {
-    if (node.name === 'Object' && value !== null && typeof value === 'object') {
-      const t = (value as Record<string, unknown>)._type
-      if (typeof t === 'string') {
-        map.set(node.from, t)
-      }
-      let prop = node.firstChild
-      while (prop) {
-        if (prop.name === 'Property') {
-          const keyNode = prop.firstChild
-          if (keyNode) {
-            const key = state.doc.sliceString(keyNode.from + 1, keyNode.to - 1)
-            const valNode = keyNode.nextSibling?.nextSibling
-            if (valNode) {
-              walk(valNode, (value as Record<string, unknown>)[key])
-            }
-          }
-        }
-        prop = prop.nextSibling
-      }
-    } else if (node.name === 'Array' && Array.isArray(value)) {
-      let child = node.firstChild
-      let i = 0
-      while (child) {
-        if (child.name !== '[' && child.name !== ']' && child.name !== ',') {
-          walk(child, value[i++])
-        }
-        child = child.nextSibling
-      }
-    }
-  }
-  const root = tree.topNode.firstChild
-  if (root?.name === 'Array') {
-    let child = root.firstChild
-    let i = 0
-    while (child) {
-      if (child.name === 'Object') {
-        walk(child, patches[i++])
-      }
-      child = child.nextSibling
-    }
-  }
-  return map
-}
-
-const objectTypeMapField = StateField.define<Map<number, string>>({
-  create: () => new Map(),
-  update: (val, tr) => {
-    for (const e of tr.effects) {
-      if (e.is(setPatchMetas)) {
-        return buildObjectTypeMap(tr.state, e.value.raw)
-      }
-    }
-    if (tr.docChanged) {
-      const patches = tr.state.field(rawPatchesField)
-      return buildObjectTypeMap(tr.state, patches)
-    }
-    return val
-  },
-})
-
-const entityPreviewPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet
-    constructor(v: EditorView) {
-      this.decorations = this.compute(v)
-    }
-    update(u: ViewUpdate) {
-      if (
-        u.docChanged ||
-        u.viewportChanged ||
-        u.transactions.some(
-          (t) => t.reconfigured || t.effects.some((e) => e.is(setPatchMetas)),
-        )
-      ) {
-        this.decorations = this.compute(u.view)
-      } else {
-        const oldFolded = foldedRanges(u.startState)
-        const newFolded = foldedRanges(u.state)
-        if (oldFolded !== newFolded) {
-          this.decorations = this.compute(u.view)
-        }
-      }
-    }
-    compute(view: EditorView): DecorationSet {
-      const patches = view.state.field(idToUrlField)
-      const folded = foldedRanges(view.state)
-      const builder = new RangeSetBuilder<Decoration>()
-      const tree = syntaxTree(view.state)
-      const root = tree.topNode
-      const arrayNode = root.firstChild
-      if (!arrayNode || arrayNode.name !== 'Array') {
-        return builder.finish()
-      }
-      let patchIndex = 0
-      let child = arrayNode.firstChild
-      while (child) {
-        if (child.name === 'Object') {
-          const patch = patches[patchIndex++]
-          if (patch) {
-            const bracePos = child.from
-            let isFolded = false
-            folded.between(bracePos + 1, bracePos + 2, () => {
-              isFolded = true
-            })
-            if (isFolded) {
-              builder.add(
-                bracePos + 1,
-                bracePos + 1,
-                Decoration.widget({
-                  widget: new EntityPreviewWidget(
-                    patch.entity,
-                    patch.id,
-                    patch.canonicalUrl,
-                    bracePos,
-                    view,
-                  ),
-                  side: 1,
-                }),
-              )
-            }
-          }
-        }
-        child = child.nextSibling
-      }
-      return builder.finish()
-    }
-  },
-  { decorations: (v) => v.decorations },
-)
-
-function foldAllObjects(view: EditorView) {
-  const tree = syntaxTree(view.state)
-  const effects: ReturnType<typeof foldEffect.of>[] = []
-  const root = tree.topNode.firstChild
-  if (!root || root.name !== 'Array') {
-    return
-  }
-  let child = root.firstChild
-  while (child) {
-    if (child.name === 'Object') {
-      const range = foldInside(child)
-      if (range) {
-        effects.push(foldEffect.of(range))
-      }
-    }
-    child = child.nextSibling
-  }
-  if (effects.length > 0) {
-    view.dispatch({ effects })
-  }
-}
-
-function JsonViewer({
-  code,
-  validationErrors = () => [],
-  idToUrl,
-  rawPatches,
-  foldByDefault = false,
-  unfoldSignal,
-  foldKey,
-}: {
-  code: () => string | null
-  validationErrors?: () => string[]
-  idToUrl?: () => PatchMeta[]
-  rawPatches?: () => unknown[]
-  foldByDefault?: boolean
-  unfoldSignal?: () => unknown
-  foldKey?: () => unknown
-}) {
-  let container: HTMLDivElement | undefined
-  let view: EditorView | undefined
-
-  const jsonTheme = EditorView.theme(
-    {
-      '&': {
-        height: '100%',
-        background: 'transparent',
-        fontSize: '0.75rem',
-        color: 'var(--foreground)',
-      },
-      '.cm-scroller': {
-        fontFamily:
-          'source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace',
-        lineHeight: '1.6',
-        overflow: 'auto',
-      },
-      '.cm-content': { padding: '0.5rem' },
-      '.cm-focused': { outline: 'none' },
-      '.cm-gutters': {
-        background: 'transparent',
-        border: 'none',
-        color: 'var(--muted-foreground)',
-      },
-      '.cm-foldGutter span': { cursor: 'pointer' },
-      '.cm-entity-preview': {
-        marginLeft: '0.5em',
-        marginRight: '0.5em',
-        color: 'var(--muted-foreground)',
-        fontStyle: 'italic',
-        fontSize: '0.7rem',
-        cursor: 'pointer',
-      },
-      '.cm-entity-link': {
-        marginLeft: '0.4em',
-        padding: '0.1em 0.4em',
-        color: 'var(--muted-foreground)',
-        textDecoration: 'none',
-        fontStyle: 'normal',
-        fontSize: '0.7rem',
-        border: '1px solid var(--border)',
-        borderRadius: '3px',
-        verticalAlign: 'middle',
-      },
-      '.cm-entity-link:hover': {
-        color: 'var(--foreground)',
-        borderColor: 'var(--ring)',
-      },
-    },
-    { dark: window.matchMedia('(prefers-color-scheme: dark)').matches },
-  )
-
-  onMount(() => {
-    view = new EditorView({
-      state: EditorState.create({
-        doc: code() ?? '',
-        extensions: [
-          json(),
-          syntaxHighlighting(classHighlighter),
-          foldGutter(),
-          keymap.of(foldKeymap),
-          codeFolding({
-            preparePlaceholder: (state, range) => {
-              const tree = syntaxTree(state)
-              const node = tree.resolveInner(range.from, 1)
-              const isTopLevel =
-                node.parent?.name === 'Array' &&
-                node.parent?.parent?.name === 'JsonText'
-              const objectFrom =
-                node.name === 'Object' ? node.from : node.from - 1
-              const typeMap = state.field(objectTypeMapField, false)
-              const type = typeMap?.get(objectFrom) ?? null
-              return { isTopLevel, type }
-            },
-            placeholderDOM: (_view, onclick, prepared) => {
-              const span = document.createElement('span')
-              span.onclick = onclick
-              span.style.cursor = 'pointer'
-              if (!prepared?.isTopLevel) {
-                const typeIcons: Record<string, string> = {
-                  image: '🖼',
-                  video: '▶',
-                  date: '📅',
-                  timestamp: '📅',
-                  ref: '→',
-                }
-                const t = prepared?.type
-                span.textContent = t
-                  ? typeIcons[t]
-                    ? `${typeIcons[t]} ${t}`
-                    : t
-                  : '…'
-                span.style.color = 'var(--muted-foreground)'
-                span.style.padding = '0 0.4em'
-              }
-              return span
-            },
-          }),
-          ...(idToUrl
-            ? [
-                idToUrlField,
-                rawPatchesField,
-                objectTypeMapField,
-                entityPreviewPlugin,
-              ]
-            : [rawPatchesField, objectTypeMapField]),
-          EditorState.readOnly.of(true),
-          jsonTheme,
-        ],
-      }),
-      parent: container!,
-    })
-    onCleanup(() => view!.destroy())
-  })
-
-  createEffect(() => {
-    const metas = idToUrl?.()
-    const raw = rawPatches?.() ?? []
-    if (!view || !metas) {
-      return
-    }
-    view.dispatch({ effects: setPatchMetas.of({ metas, raw }) })
-  })
-
-  let hasFoldedOnce = false
-  createEffect(() => {
-    foldKey?.()
-    hasFoldedOnce = false
-  })
-
-  createEffect(() => {
-    const src = code() ?? ''
-    const hasErrors = validationErrors().length > 0
-    if (!view || view.state.doc.toString() === src) {
-      return
-    }
-    view.dispatch({
-      changes: { from: 0, to: view.state.doc.length, insert: src },
-    })
-    if (foldByDefault && !hasErrors && src && !hasFoldedOnce) {
-      hasFoldedOnce = true
-      requestAnimationFrame(() => {
-        if (view) foldAllObjects(view)
-      })
+    const count = warningCount()
+    if (count === 0) {
+      context.resize(1, 0)
+    } else {
+      context.resize(1, count >= 5 ? 0.5 : 0.3)
     }
   })
-
-  let unfoldInitialized = false
-  createEffect(() => {
-    unfoldSignal?.()
-    if (!unfoldInitialized) {
-      unfoldInitialized = true
-      return
-    }
-    if (!view) {
-      return
-    }
-    unfoldAll(view)
-  })
-
-  return <div ref={container} class='h-full' />
-}
-
-function JsonataEditor({
-  value,
-  onInput,
-  entityNames,
-}: {
-  value: () => string
-  onInput: (v: string) => void
-  entityNames: string[]
-}) {
-  let container: HTMLDivElement | undefined
-  let view: EditorView | undefined
-
-  const unknownEntityMark = Decoration.mark({ class: 'cm-unknown-entity' })
-
-  function buildEntityDecorations(doc: EditorState['doc']): DecorationSet {
-    const builder = new RangeSetBuilder<Decoration>()
-    const text = doc.toString()
-    const re = /"_entity"\s*:\s*"([^"]*)"/g
-    let m: RegExpExecArray | null
-    while ((m = re.exec(text)) !== null) {
-      const name = m[1]
-      if (name && !entityNames.includes(name)) {
-        const valueStart =
-          m.index + m[0].indexOf('"', m[0].indexOf(':') + 1) + 1
-        builder.add(valueStart, valueStart + name.length, unknownEntityMark)
-      }
-    }
-    return builder.finish()
-  }
-
-  const entityValidationPlugin = ViewPlugin.fromClass(
-    class {
-      decorations: DecorationSet
-      constructor(view: EditorView) {
-        this.decorations = buildEntityDecorations(view.state.doc)
-      }
-      update(update: ViewUpdate) {
-        if (update.docChanged) {
-          this.decorations = buildEntityDecorations(update.state.doc)
-        }
-      }
-    },
-    { decorations: (v) => v.decorations },
-  )
-
-  const entityFieldMap = Object.fromEntries(
-    allSites.flatMap((s) =>
-      s.entities.map((e) => [e.entity, Object.keys(e.fields.properties ?? {})]),
-    ),
-  )
-
-  function entityCompletion(context: CompletionContext) {
-    const before = context.state.doc.sliceString(0, context.pos)
-    const entityNameMatch = before.match(/"_entity"\s*:\s*"([^"]*)$/)
-    if (entityNameMatch && entityNameMatch[1]) {
-      const from = context.pos - entityNameMatch[1].length
-      return {
-        from,
-        options: entityNames.map((name) => ({ label: name, type: 'constant' })),
-      }
-    }
-    const keyMatch = before.match(/(?:^|[{,]\s*)"([^"]*)$/)
-    if (!keyMatch || !keyMatch[1]) {
-      return null
-    }
-    const from = context.pos - keyMatch[1].length
-    let depth = 0
-    let objectStart = -1
-    for (let i = before.length - 1; i >= 0; i--) {
-      const ch = before[i]
-      if (ch === '}') depth++
-      else if (ch === '{') {
-        if (depth === 0) {
-          objectStart = i
-          break
-        }
-        depth--
-      }
-    }
-    const objectText = objectStart >= 0 ? before.slice(objectStart) : before
-    const existingKeys = new Set<string>()
-    const existingRe = /"([^"]+)"\s*:/g
-    let em: RegExpExecArray | null
-    while ((em = existingRe.exec(objectText)) !== null) {
-      existingKeys.add(em[1]!)
-    }
-    const entityMatch = objectText.match(/"_entity"\s*:\s*"([^"]+)"/)
-    if (!entityMatch || !entityMatch[1]) {
-      return existingKeys.has('_entity')
-        ? null
-        : {
-            from,
-            options: [{ label: '_entity', type: 'property' }],
-          }
-    }
-    const fields = entityFieldMap[entityMatch[1]]
-    if (!fields) {
-      return null
-    }
-    return {
-      from,
-      options: fields
-        .filter((f) => !existingKeys.has(f))
-        .map((f) => ({ label: f, type: 'property' })),
-    }
-  }
-
-  onMount(() => {
-    view = new EditorView({
-      state: EditorState.create({
-        doc: value(),
-        extensions: [
-          jsonataLanguage,
-          syntaxHighlighting(classHighlighter),
-          entityValidationPlugin,
-          autocompletion({ override: [entityCompletion] }),
-          keymap.of([
-            {
-              key: 'Tab',
-              run: (view) => {
-                if (completionStatus(view.state) === 'active') {
-                  return acceptCompletion(view)
-                }
-                view.dispatch(view.state.replaceSelection('\t'))
-                return true
-              },
-            },
-          ]),
-          EditorView.updateListener.of((update) => {
-            if (update.docChanged) {
-              onInput(update.state.doc.toString())
-            }
-          }),
-          EditorView.theme(
-            {
-              '&': {
-                height: '100%',
-                background: 'transparent',
-                fontSize: '0.75rem',
-                color: 'var(--foreground)',
-              },
-              '.cm-cursor, .cm-dropCursor': {
-                borderLeftColor: 'var(--foreground)',
-                borderLeftWidth: '2px',
-              },
-              '.cm-scroller': {
-                fontFamily:
-                  'source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace',
-                lineHeight: '1.6',
-                overflow: 'auto',
-              },
-              '.cm-content': { padding: '1rem' },
-              '.cm-focused': { outline: 'none' },
-              '.cm-unknown-entity': {
-                textDecoration: 'underline wavy var(--destructive)',
-                textDecorationSkipInk: 'none',
-              },
-              '.cm-tooltip': {
-                background: 'var(--background)',
-                border: '1px solid var(--border)',
-                borderRadius: '4px',
-              },
-              '.cm-tooltip.cm-tooltip-autocomplete > ul': {
-                fontFamily:
-                  'source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace',
-                fontSize: '0.75rem',
-              },
-              '.cm-tooltip.cm-tooltip-autocomplete > ul > li': {
-                color: 'var(--foreground)',
-                padding: '2px 8px',
-              },
-              '.cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]': {
-                background: 'var(--accent)',
-                color: 'var(--foreground)',
-              },
-            },
-            { dark: window.matchMedia('(prefers-color-scheme: dark)').matches },
-          ),
-        ],
-      }),
-      parent: container!,
-    })
-    onCleanup(() => view!.destroy())
-  })
-
-  createEffect(() => {
-    const newVal = value()
-    if (!view || view.state.doc.toString() === newVal) {
-      return
-    }
-    view.dispatch({
-      changes: { from: 0, to: view.state.doc.length, insert: newVal },
-    })
-  })
-
-  return <div ref={container} class='flex-1 overflow-hidden' />
-}
-
-function relativeTime(ts: number): string {
-  const diff = Date.now() - ts
-  if (diff < 60_000) {
-    return `${Math.floor(diff / 1000)}s ago`
-  }
-  if (diff < 3_600_000) {
-    return `${Math.floor(diff / 60_000)}m ago`
-  }
-  return `${Math.floor(diff / 3_600_000)}h ago`
-}
-
-const validator = new EntityValidator(allSites)
-
-interface EvalResult {
-  patches: unknown[]
-  validationErrors: string[]
-  raw: unknown
-  error?: string
-}
-
-async function evaluate(
-  expression: string,
-  input: unknown,
-  url: string,
-  method: string,
-  headers: Record<string, string>,
-): Promise<EvalResult> {
-  try {
-    const expr = new JsonataExpression(expression, {
-      request: { url, method, headers },
-      response: { url, status: null, headers: {}, body: input },
-    })
-    const raw = await expr.evaluate(input)
-    const items = raw === undefined ? [] : Array.isArray(raw) ? raw : [raw]
-    const patches = items.filter(
-      (item) => item !== null && typeof item === 'object' && '_entity' in item,
-    )
-    const validationErrors: string[] = []
-    for (const patch of patches) {
-      const name = (patch as Record<string, unknown>)._entity as string
-      const errs = validator.validate(name, patch)
-      for (const e of errs) {
-        validationErrors.push(`${name}${e.path}: ${e.message}`)
-      }
-    }
-    return { patches, validationErrors, raw }
-  } catch (err) {
-    const msg =
-      err instanceof Error
-        ? err.message
-        : ((err as { message?: string })?.message ?? String(err))
-    return { patches: [], validationErrors: [], raw: undefined, error: msg }
-  }
+  return null
 }
 
 function Playground() {
@@ -816,6 +56,9 @@ function Playground() {
   const [captureStatuses, setCaptureStatuses] = createSignal<
     Record<string, 'empty' | 'has-entities' | 'error'>
   >({})
+  const [captureMatchedFiles, setCaptureMatchedFiles] = createSignal<
+    Record<string, string[]>
+  >({})
   const [captureHostname, setCaptureHostname] = createSignal<string | null>(
     null,
   )
@@ -826,10 +69,10 @@ function Playground() {
   const [llmStatus, setLlmStatus] = createSignal<
     'idle' | 'loading' | 'done' | 'error'
   >('idle')
-  const [llmExplanation, setLlmExplanation] = createSignal<string | null>(null)
-  const [llmError, setLlmError] = createSignal<string | null>(null)
   const [llmNote, setLlmNote] = createSignal('')
-  const [generationAttempts, setGenerationAttempts] = createSignal<GenerationAttempt[]>([])
+  const [generationAttempts, setGenerationAttempts] = createSignal<
+    GenerationAttempt[]
+  >([])
   const [writeError, setWriteError] = createSignal<string | null>(null)
   const [inputTab, setInputTab] = createSignal<'fixture' | 'capture'>('capture')
   const [newCaptureIds, setNewCaptureIds] = createSignal<Set<string>>(new Set())
@@ -898,13 +141,17 @@ function Playground() {
     const interval = setInterval(refreshLoaders, 2000)
     onCleanup(() => clearInterval(interval))
 
-    const onStorageChanged = (changes: Record<string, chrome.storage.StorageChange>) => {
+    const onStorageChanged = (
+      changes: Record<string, chrome.storage.StorageChange>,
+    ) => {
       if (changes['generation:attempts']) {
         setGenerationAttempts(changes['generation:attempts'].newValue ?? [])
       }
     }
     chrome.storage.local.onChanged.addListener(onStorageChanged)
-    onCleanup(() => chrome.storage.local.onChanged.removeListener(onStorageChanged))
+    onCleanup(() =>
+      chrome.storage.local.onChanged.removeListener(onStorageChanged),
+    )
 
     const tabs = await chrome.tabs.query({ windowType: 'normal' })
     const extensionOrigin = new URL(chrome.runtime.getURL('')).origin
@@ -941,7 +188,10 @@ function Playground() {
       return
     }
     refreshCaptures(hostname, request, false)
-    const interval = setInterval(() => refreshCaptures(hostname, selectedLoader()?.request), 2000)
+    const interval = setInterval(
+      () => refreshCaptures(hostname, selectedLoader()?.request),
+      2000,
+    )
     onCleanup(() => clearInterval(interval))
   })
 
@@ -1025,11 +275,13 @@ function Playground() {
   createEffect(() => {
     const expr = expression()
     const currentCaptures = captures()
+    const siblings = siblingLoaders()
     if (!expr || currentCaptures.length === 0) {
       return
     }
     const timer = setTimeout(async () => {
       const statuses: Record<string, 'empty' | 'has-entities' | 'error'> = {}
+      const matchedFiles: Record<string, string[]> = {}
       await Promise.all(
         currentCaptures.map(async (cap) => {
           let body: unknown
@@ -1051,9 +303,28 @@ function Playground() {
           } else {
             statuses[cap.id] = res.patches.length > 0 ? 'has-entities' : 'empty'
           }
+          if (siblings.length > 1) {
+            const matched: string[] = []
+            await Promise.all(
+              siblings.map(async (sibling) => {
+                const sibRes = await evaluate(
+                  sibling.expression,
+                  body,
+                  cap.url,
+                  cap.method,
+                  cap.requestHeaders,
+                )
+                if (!sibRes.error && sibRes.patches.length > 0) {
+                  matched.push(sibling.file)
+                }
+              }),
+            )
+            matchedFiles[cap.id] = matched
+          }
         }),
       )
       setCaptureStatuses(statuses)
+      setCaptureMatchedFiles(matchedFiles)
     }, 30)
     return () => clearTimeout(timer)
   })
@@ -1085,20 +356,20 @@ function Playground() {
       return
     }
     setLlmStatus('loading')
-    setLlmExplanation(null)
-    setLlmError(null)
     setGenerationAttempts([])
     const res = await sendMessage(
       'generate-jsonata',
-      { captureId: cap.id, currentExpression: expression(), userNote: llmNote() || undefined },
+      {
+        captureId: cap.id,
+        currentExpression: expression(),
+        userNote: llmNote() || undefined,
+      },
       { context: 'background', tabId: 0 },
     )
     if (res.ok) {
       setExpression(res.expression)
-      setLlmExplanation(res.explanation)
       setLlmStatus('done')
     } else {
-      setLlmError(res.error)
       setLlmStatus('error')
     }
   }
@@ -1115,6 +386,16 @@ function Playground() {
       site,
       groups: Object.entries(groups),
     }))
+  }
+
+  const siblingLoaders = () => {
+    const loader = selectedLoader()
+    if (!loader) {
+      return []
+    }
+    return loaders().filter(
+      (l) => l.site === loader.site && l.loader === loader.loader,
+    )
   }
 
   const fixtureJson = () => {
@@ -1278,8 +559,15 @@ function Playground() {
                       s.entities.map((e) => e.entity),
                     )}
                   />
-                  <Show when={llmStatus() !== 'idle' || generationAttempts().length > 0}>
-                    <div class='border-t border-border flex flex-col overflow-hidden shrink-0' style='max-height: 40%'>
+                  <Show
+                    when={
+                      llmStatus() !== 'idle' || generationAttempts().length > 0
+                    }
+                  >
+                    <div
+                      class='border-t border-border flex flex-col overflow-hidden shrink-0'
+                      style='max-height: 40%'
+                    >
                       <div class='px-3 py-1.5 flex items-center justify-between border-b border-border shrink-0'>
                         <span class='text-xs text-muted-foreground'>
                           {llmStatus() === 'loading'
@@ -1292,7 +580,6 @@ function Playground() {
                           type='button'
                           onClick={() => {
                             setLlmStatus('idle')
-                            setLlmExplanation(null)
                             setGenerationAttempts([])
                           }}
                           class='text-xs text-muted-foreground hover:text-foreground transition-colors'
@@ -1308,21 +595,36 @@ function Playground() {
                                 <span class='text-xs font-medium text-muted-foreground'>
                                   Attempt {attempt.attempt}
                                 </span>
-                                <Show when={attempt.validationErrors.length === 0}>
-                                  <span class='text-xs text-green-600 dark:text-green-400'>passed</span>
+                                <Show
+                                  when={attempt.validationErrors.length === 0}
+                                >
+                                  <span class='text-xs text-green-600 dark:text-green-400'>
+                                    passed
+                                  </span>
                                 </Show>
-                                <Show when={attempt.validationErrors.length > 0}>
-                                  <span class='text-xs text-destructive'>{attempt.validationErrors.length} error{attempt.validationErrors.length === 1 ? '' : 's'}</span>
+                                <Show
+                                  when={attempt.validationErrors.length > 0}
+                                >
+                                  <span class='text-xs text-destructive'>
+                                    {attempt.validationErrors.length} error
+                                    {attempt.validationErrors.length === 1
+                                      ? ''
+                                      : 's'}
+                                  </span>
                                 </Show>
                               </div>
                               <Show when={attempt.jsonataExpression}>
-                                <pre class='px-3 py-2 text-xs font-mono text-muted-foreground overflow-x-auto border-b border-border whitespace-pre-wrap break-all bg-background/50'>{attempt.jsonataExpression}</pre>
+                                <pre class='px-3 py-2 text-xs font-mono text-muted-foreground overflow-x-auto border-b border-border whitespace-pre-wrap break-all bg-background/50'>
+                                  {attempt.jsonataExpression}
+                                </pre>
                               </Show>
                               <Show when={attempt.validationErrors.length > 0}>
                                 <div class='px-3 py-1.5 flex flex-col gap-0.5'>
                                   <For each={attempt.validationErrors}>
                                     {(err) => (
-                                      <p class='text-xs font-mono text-destructive'>{err}</p>
+                                      <p class='text-xs font-mono text-destructive'>
+                                        {err}
+                                      </p>
                                     )}
                                   </For>
                                 </div>
@@ -1332,7 +634,9 @@ function Playground() {
                         </For>
                         <Show when={llmStatus() === 'loading'}>
                           <div class='px-3 py-2'>
-                            <p class='text-xs text-muted-foreground'>Calling model...</p>
+                            <p class='text-xs text-muted-foreground'>
+                              Calling model...
+                            </p>
                           </div>
                         </Show>
                       </div>
@@ -1433,7 +737,7 @@ function Playground() {
                       </div>
                       <div class='flex-1 overflow-auto [scrollbar-gutter:stable]'>
                         {fixtureJson() && (
-                          <HighlightedCode code={fixtureJson} lang='json' />
+                          <HighlightedCode code={() => fixtureJson()!} lang='json' />
                         )}
                       </div>
                     </div>
@@ -1457,6 +761,8 @@ function Playground() {
                             const isEmpty = () => status() === 'empty'
                             const hasError = () => status() === 'error'
                             const isNew = () => newCaptureIds().has(capture.id)
+                            const matchedFiles = () =>
+                              captureMatchedFiles()[capture.id]
                             return (
                               <button
                                 type='button'
@@ -1464,7 +770,7 @@ function Playground() {
                                   setSelectedCapture(capture)
                                   setSelectedFixture(null)
                                 }}
-                                class={`text-left px-2 py-1 rounded text-xs font-mono transition-all duration-700 truncate flex items-center gap-1.5 ${isSelected() ? 'bg-accent text-foreground' : isNew() ? 'text-blue-400 hover:bg-accent/50' : isEmpty() ? 'text-muted-foreground/40 hover:bg-accent/50 hover:text-muted-foreground' : 'text-muted-foreground hover:bg-accent/50'}`}
+                                class={`text-left px-2 py-1 rounded text-xs font-mono transition-all duration-700 flex items-center gap-1.5 min-w-0 ${isSelected() ? 'bg-accent text-foreground' : isNew() ? 'text-blue-400 hover:bg-accent/50' : isEmpty() ? 'text-muted-foreground/40 hover:bg-accent/50 hover:text-muted-foreground' : 'text-muted-foreground hover:bg-accent/50'}`}
                               >
                                 <span class='uppercase shrink-0'>
                                   {capture.method}
@@ -1472,12 +778,46 @@ function Playground() {
                                 <span class='truncate flex-1'>
                                   {new URL(capture.url).pathname}
                                 </span>
-                                <span class='shrink-0 text-muted-foreground/60'>
+                                <Show
+                                  when={
+                                    matchedFiles() !== undefined &&
+                                    matchedFiles()!.length > 0
+                                  }
+                                >
+                                  <span
+                                    class='shrink-0 flex items-center gap-1'
+                                    style='font-size: 0.65rem'
+                                  >
+                                    <For each={matchedFiles()}>
+                                      {(file) => {
+                                        const target = siblingLoaders().find(
+                                          (l) => l.file === file,
+                                        )
+                                        return (
+                                          <span
+                                            class='text-muted-foreground/60 hover:text-foreground transition-colors cursor-pointer underline underline-offset-2 decoration-dotted'
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              if (target) {
+                                                selectLoader(target)
+                                              }
+                                              setSelectedCapture(capture)
+                                              setSelectedFixture(null)
+                                            }}
+                                          >
+                                            {file}
+                                          </span>
+                                        )
+                                      }}
+                                    </For>
+                                  </span>
+                                </Show>
+                                <span class='shrink-0 text-muted-foreground/60 tabular-nums w-[6ch] text-right whitespace-nowrap'>
                                   {relativeTime(capture.capturedAt)}
                                 </span>
                                 <Show when={status() !== undefined}>
                                   <span
-                                    class={`h-1.5 w-1.5 rounded-full shrink-0 ${hasError() ? 'bg-destructive' : isEmpty() ? 'bg-muted-foreground/30' : 'bg-green-500'}`}
+                                    class={`ml-2 h-1.5 w-1.5 rounded-full shrink-0 ${hasError() ? 'bg-destructive' : isEmpty() ? 'bg-muted-foreground/30' : 'bg-green-500'}`}
                                     title={
                                       hasError()
                                         ? 'Validation errors'
@@ -1536,7 +876,7 @@ function Playground() {
                     </div>
                   </Show>
                   <Show when={(evalResult()?.validationErrors.length ?? 0) > 0}>
-                    <div class='border-b border-border px-3 py-2 flex flex-col gap-0.5 shrink-0'>
+                    <div class='border-b border-border px-3 py-2 flex flex-col gap-0.5 shrink-0 overflow-y-auto' style='max-height: 6rem'>
                       <For each={evalResult()!.validationErrors}>
                         {(err) => (
                           <span class='text-xs font-mono text-destructive'>
@@ -1546,51 +886,77 @@ function Playground() {
                       </For>
                     </div>
                   </Show>
-                  <div class='flex-1 overflow-hidden'>
-                    <JsonViewer
-                      code={resultJson}
-                      validationErrors={() =>
-                        evalResult()?.validationErrors ?? []
-                      }
-                      rawPatches={() => evalResult()?.patches ?? []}
-                      unfoldSignal={expression}
-                      foldKey={() =>
-                        `${selectedFixture()?.name ?? ''}:${selectedCapture()?.id ?? ''}`
-                      }
-                      idToUrl={() => {
-                        const patches = evalResult()?.patches ?? []
-                        const entityCanonicalUrls = Object.fromEntries(
-                          allSites.flatMap((s) =>
-                            s.entities
-                              .filter((e) => e.canonicalUrl)
-                              .map((e) => [e.entity, e.canonicalUrl!]),
-                          ),
-                        )
-                        return patches.map((patch) => {
-                          const p = patch as Record<string, unknown>
-                          const entity = p._entity as string
-                          const id = p._id != null ? String(p._id) : null
-                          const template = entityCanonicalUrls[entity]
-                          const canonicalUrl = template
-                            ? template.replace(/\{(\w+)\}/g, (_, key) =>
-                                String(p[key] ?? ''),
-                              )
-                            : null
-                          return { entity, id, canonicalUrl }
-                        })
-                      }}
-                      foldByDefault
+                  <Resizable orientation='vertical' class='flex-1 flex flex-col overflow-hidden min-h-0'>
+                    <WarningsPanelResizer warningCount={() => evalResult()?.identityWarnings.length ?? 0} />
+                    <Resizable.Panel class='flex flex-col overflow-hidden min-h-0'>
+                      <div class='flex-1 overflow-hidden'>
+                        <JsonViewer
+                          code={resultJson}
+                          validationErrors={() =>
+                            evalResult()?.validationErrors ?? []
+                          }
+                          rawPatches={() => evalResult()?.patches ?? []}
+                          unfoldSignal={expression}
+                          foldKey={() =>
+                            `${selectedFixture()?.name ?? ''}:${selectedCapture()?.id ?? ''}`
+                          }
+                          idToUrl={() => {
+                            const patches = evalResult()?.patches ?? []
+                            const entityCanonicalUrls = Object.fromEntries(
+                              allSites.flatMap((s) =>
+                                s.entities
+                                  .filter((e) => e.canonicalUrl)
+                                  .map((e) => [e.entity, e.canonicalUrl!]),
+                              ),
+                            )
+                            return patches.map((patch) => {
+                              const p = patch as Record<string, unknown>
+                              const entity = p._entity as string
+                              const id = p._id != null ? String(p._id) : null
+                              const template = entityCanonicalUrls[entity]
+                              const canonicalUrl = template
+                                ? template.replace(/\{(\w+)\}/g, (_, key) =>
+                                    String(p[key] ?? ''),
+                                  )
+                                : null
+                              return { entity, id, canonicalUrl }
+                            })
+                          }}
+                          foldByDefault
+                        />
+                      </div>
+                      <Show
+                        when={
+                          !evalResult() && !selectedFixture() && !selectedCapture()
+                        }
+                      >
+                        <p class='text-xs text-muted-foreground p-3'>
+                          Select a fixture or capture
+                        </p>
+                      </Show>
+                    </Resizable.Panel>
+                    <Resizable.Handle
+                      class='h-1 bg-border hover:bg-foreground/30 transition-colors cursor-row-resize'
+                      classList={{ hidden: (evalResult()?.identityWarnings.length ?? 0) === 0 }}
                     />
-                  </div>
-                  <Show
-                    when={
-                      !evalResult() && !selectedFixture() && !selectedCapture()
-                    }
-                  >
-                    <p class='text-xs text-muted-foreground p-3'>
-                      Select a fixture or capture
-                    </p>
-                  </Show>
+                    <Resizable.Panel
+                      class='flex flex-col overflow-hidden min-h-0'
+                      classList={{ hidden: (evalResult()?.identityWarnings.length ?? 0) === 0 }}
+                    >
+                      <div class='border-t border-border px-3 py-1.5 shrink-0'>
+                        <span class='text-xs text-muted-foreground'>Warnings</span>
+                      </div>
+                      <div class='flex-1 overflow-y-auto px-3 py-1.5 flex flex-col gap-0.5'>
+                        <For each={evalResult()?.identityWarnings ?? []}>
+                          {(warn) => (
+                            <span class='text-xs font-mono text-yellow-500'>
+                              {warn.message}
+                            </span>
+                          )}
+                        </For>
+                      </div>
+                    </Resizable.Panel>
+                  </Resizable>
                 </Resizable.Panel>
               </Resizable>
             )}

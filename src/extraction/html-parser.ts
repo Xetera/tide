@@ -181,7 +181,7 @@ export class HTMLParser {
       let value: unknown
       if (source && '$css' in source) {
         const node = document.querySelector(source.$css) as HTMLElement | null
-        if (!node) continue
+        if (!node) {continue}
         value = this.#runTransform(node, descriptor.$transform ?? [])
       } else if (!source) {
         value = this.#runTransform(
@@ -196,7 +196,7 @@ export class HTMLParser {
 
   #resolveLoaderResult(name: string): unknown | null {
     const results = this.#loaderResults[name]
-    if (!results || results.length === 0) return null
+    if (!results || results.length === 0) {return null}
     return results[results.length - 1] ?? null
   }
 
@@ -210,7 +210,7 @@ export class HTMLParser {
       ).querySelector(source.$css) as HTMLElement | null
     }
     const result = this.#resolveLoaderResult(source.$query)
-    if (result === null) return null
+    if (result === null) {return null}
     return { loaderResult: result }
   }
 
@@ -401,7 +401,7 @@ export class HTMLParser {
 
     if (!node) {
       const hasExists = descriptor.$transform?.some((s) => '$exists' in s)
-      if (hasExists) return false
+      if (hasExists) {return false}
       if (descriptor.$ifMissing) {
         return this.#handleIfMissing(descriptor.$ifMissing, key, label)
       }
@@ -451,7 +451,7 @@ export class HTMLParser {
         return undefined
       case 'fallback': {
         const v = ifMissing.$value
-        if (isLiteral(v)) return v.$literal
+        if (isLiteral(v)) {return v.$literal}
         if (isNodeField(v)) {
           return this.#parseNodeField(this.#currentDocument.body, key, v, label)
         }
@@ -493,7 +493,7 @@ export class HTMLParser {
       } else {
         node = element
       }
-      if (!node) continue
+      if (!node) {continue}
       if (node instanceof Element) {
         this.#highlight(node, label)
       }
@@ -599,8 +599,8 @@ export class HTMLParser {
       this.#mediaReady.set(hash, ready)
     }
     const ref: MediaRef = { url, hash }
-    if (options.$offload !== undefined) ref.offload = options.$offload
-    if (options.$urlExpires !== undefined) ref.urlExpires = options.$urlExpires
+    if (options.$offload !== undefined) {ref.offload = options.$offload}
+    if (options.$urlExpires !== undefined) {ref.urlExpires = options.$urlExpires}
     return ref
   }
 
@@ -619,11 +619,11 @@ export class HTMLParser {
     value: unknown,
     step: Extract<S.TransformStep, { $cast: string }>,
   ): unknown {
-    if (value === null || value === undefined) return null
+    if (value === null || value === undefined) {return null}
     if (step.$cast === 'url') {
       return this.#castUrl(value)
     } else if (step.$cast === 'number') {
-      if (typeof value === 'number') return value
+      if (typeof value === 'number') {return value}
       if (typeof value === 'string') {
         if (!this.numberParser) {
           throw new Error(
@@ -665,7 +665,7 @@ export class HTMLParser {
   }
 
   private static createDocument(html: string | Document): Document {
-    if (typeof html !== 'string') return html
+    if (typeof html !== 'string') {return html}
     return new DOMParser().parseFromString(html, 'text/html')
   }
 

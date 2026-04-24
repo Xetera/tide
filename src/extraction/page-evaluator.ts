@@ -77,9 +77,10 @@ export class PageEvaluator {
     { maxWait = 10_000 }: { maxWait?: number } = {},
   ): Promise<void> {
     const selectors = resource.$waitFor ?? []
-    const isLoaded = selectors.length > 0
-      ? () => selectors.some((s) => document.querySelector(s) !== null)
-      : () => false
+    const isLoaded =
+      selectors.length > 0
+        ? () => selectors.some((s) => document.querySelector(s) !== null)
+        : () => false
 
     const isGone = resource.$gone
       ? () => PageEvaluator.#matchExpression(document, resource.$gone!)
@@ -113,12 +114,21 @@ export class PageEvaluator {
     })
   }
 
-  static #matchExpression(node: Node, expr: { $css: string } | { $xpath: string }): boolean {
+  static #matchExpression(
+    node: Node,
+    expr: { $css: string } | { $xpath: string },
+  ): boolean {
     if ('$css' in expr) {
       return (node as ParentNode).querySelector(expr.$css) !== null
     }
     const doc = node.ownerDocument ?? (node as Document)
-    const result = doc.evaluate(expr.$xpath, node, null, XPathResult.BOOLEAN_TYPE, null)
+    const result = doc.evaluate(
+      expr.$xpath,
+      node,
+      null,
+      XPathResult.BOOLEAN_TYPE,
+      null,
+    )
     return result.booleanValue
   }
 }

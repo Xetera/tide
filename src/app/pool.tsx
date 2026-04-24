@@ -7,14 +7,16 @@ import {
 } from '~/components/ui/textfield'
 import { useBrowserStorage } from '~/shared/hooks'
 
-function parseInviteUrl(raw: string): { serverUrl: string; poolId: string; token: string } | null {
+function parseInviteUrl(
+  raw: string,
+): { serverUrl: string; poolId: string; token: string } | null {
   try {
     const url = new URL(raw)
     const match = url.pathname.match(/^\/api\/pool\/([^/]+)\/join$/)
-    if (!match) return null
+    if (!match) {return null}
     const poolId = match[1]!
     const token = url.searchParams.get('token')
-    if (!token) return null
+    if (!token) {return null}
     const serverUrl = url.origin
     return { serverUrl, poolId, token }
   } catch {
@@ -23,9 +25,18 @@ function parseInviteUrl(raw: string): { serverUrl: string; poolId: string; token
 }
 
 export function Pool() {
-  const { value: serverUrl, set: setServerUrl } = useBrowserStorage('server:url', '')
-  const { value: poolId, set: setPoolId } = useBrowserStorage('server:pool-id', '')
-  const { value: workerSecret, set: setWorkerSecret } = useBrowserStorage('server:worker-secret', '')
+  const { value: serverUrl, set: setServerUrl } = useBrowserStorage(
+    'server:url',
+    '',
+  )
+  const { value: poolId, set: setPoolId } = useBrowserStorage(
+    'server:pool-id',
+    '',
+  )
+  const { value: workerSecret, set: setWorkerSecret } = useBrowserStorage(
+    'server:worker-secret',
+    '',
+  )
   const { value: workerId } = useBrowserStorage('server:worker-id', '')
 
   const [inviteUrl, setInviteUrl] = createSignal('')
@@ -35,21 +46,27 @@ export function Pool() {
 
   async function join() {
     const result = parsed()
-    if (!result) return
+    if (!result) {return}
     setJoining(true)
     setJoinError(null)
     try {
-      const res = await fetch(`${result.serverUrl}/api/pool/${result.poolId}/join`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invite_token: result.token, worker_id: workerId() }),
-      })
+      const res = await fetch(
+        `${result.serverUrl}/api/pool/${result.poolId}/join`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            invite_token: result.token,
+            worker_id: workerId(),
+          }),
+        },
+      )
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         setJoinError((body as any).error ?? `Server returned ${res.status}`)
         return
       }
-      const body = await res.json() as { worker_secret: string }
+      const body = (await res.json()) as { worker_secret: string }
       await setServerUrl(result.serverUrl)
       await setPoolId(result.poolId)
       await setWorkerSecret(body.worker_secret)
@@ -61,13 +78,17 @@ export function Pool() {
     }
   }
 
-  const isConnected = createMemo(() => !!(serverUrl() && poolId() && workerSecret()))
+  const isConnected = createMemo(
+    () => !!(serverUrl() && poolId() && workerSecret()),
+  )
 
   return (
     <div class='p-4 flex flex-col gap-4'>
       <div class='flex items-center justify-between'>
         <span class='text-sm font-medium'>Status</span>
-        <span class={`text-xs px-2 py-0.5 rounded-full font-medium ${isConnected() ? 'bg-green-500/15 text-green-600 dark:text-green-400' : 'bg-muted text-muted-foreground'}`}>
+        <span
+          class={`text-xs px-2 py-0.5 rounded-full font-medium ${isConnected() ? 'bg-green-500/15 text-green-600 dark:text-green-400' : 'bg-muted text-muted-foreground'}`}
+        >
           {isConnected() ? 'Connected' : 'Not connected'}
         </span>
       </div>
@@ -95,7 +116,8 @@ export function Pool() {
           <p class='text-xs text-destructive mt-1'>{joinError()}</p>
         )}
         <TextFieldDescription>
-          Paste an invite link from the pool owner. The link includes the server, pool, and a one-time token.
+          Paste an invite link from the pool owner. The link includes the
+          server, pool, and a one-time token.
         </TextFieldDescription>
       </TextFieldRoot>
 

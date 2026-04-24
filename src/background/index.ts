@@ -34,9 +34,14 @@ const storage = new Storage<BrowserStorageSchema>()
 
 const CAPTURE_RING_MAX = 10
 
-console.log('[spatula] loaderEntries:', loaderEntries.map((e) => `${e.site}/${e.loader}/${e.file}`))
-console.log('[spatula] allSites requests:', allSites.map((s) => `${s.hostname}: ${Object.keys(s.requests).join(', ')}`))
-
+console.log(
+  '[spatula] loaderEntries:',
+  loaderEntries.map((e) => `${e.site}/${e.loader}/${e.file}`),
+)
+console.log(
+  '[spatula] allSites requests:',
+  allSites.map((s) => `${s.hostname}: ${Object.keys(s.requests).join(', ')}`),
+)
 
 function hostnameFromUrl(url: string): string {
   try {
@@ -45,7 +50,6 @@ function hostnameFromUrl(url: string): string {
     return url
   }
 }
-
 
 async function getCaptureIndex(hostname: string): Promise<string[]> {
   const result = await chrome.storage.session.get({
@@ -104,7 +108,13 @@ const LLM_RESPONSE_SCHEMA = {
     suggestedRequestMethod: { type: 'string' },
     potentialEntities: { type: 'string' },
   },
-  required: ['jsonataExpression', 'suggestedLoaderName', 'suggestedRequestUrl', 'suggestedRequestMethod', 'potentialEntities'],
+  required: [
+    'jsonataExpression',
+    'suggestedLoaderName',
+    'suggestedRequestUrl',
+    'suggestedRequestMethod',
+    'potentialEntities',
+  ],
 }
 
 async function callGemini(apiKey: string, prompt: string): Promise<LLMOutput> {
@@ -135,8 +145,12 @@ async function callGemini(apiKey: string, prompt: string): Promise<LLMOutput> {
     const data = (await response.json()) as {
       candidates: { content: { parts: { text: string }[] } }[]
     }
-    const output = JSON.parse(data.candidates[0]!.content.parts[0]!.text) as LLMOutput
-    output.jsonataExpression = output.jsonataExpression.replace(/\\n/g, '\n').replace(/\\t/g, '\t')
+    const output = JSON.parse(
+      data.candidates[0]!.content.parts[0]!.text,
+    ) as LLMOutput
+    output.jsonataExpression = output.jsonataExpression
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '\t')
     return output
   } finally {
     clearTimeout(timeout)
@@ -147,39 +161,58 @@ async function callZai(apiKey: string, prompt: string): Promise<LLMOutput> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 25_000)
   try {
-    const response = await fetch('https://api.z.ai/api/paas/v4/chat/completions', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: 'glm-4.1v-flash',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.2,
-        response_format: {
-          type: 'json_schema',
-          json_schema: { name: 'LLMOutput', schema: LLM_RESPONSE_SCHEMA, strict: true },
+    const response = await fetch(
+      'https://api.z.ai/api/paas/v4/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${apiKey}`,
         },
-      }),
-      signal: controller.signal,
-    })
+        body: JSON.stringify({
+          model: 'glm-4.1v-flash',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.2,
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              name: 'LLMOutput',
+              schema: LLM_RESPONSE_SCHEMA,
+              strict: true,
+            },
+          },
+        }),
+        signal: controller.signal,
+      },
+    )
     if (!response.ok) {
-      throw new Error(`z.ai API returned ${response.status}: ${await response.text()}`)
+      throw new Error(
+        `z.ai API returned ${response.status}: ${await response.text()}`,
+      )
     }
-    const data = (await response.json()) as { choices: { message: { content: string } }[] }
+    const data = (await response.json()) as {
+      choices: { message: { content: string } }[]
+    }
     const output = JSON.parse(data.choices[0]!.message.content) as LLMOutput
-    output.jsonataExpression = output.jsonataExpression.replace(/\\n/g, '\n').replace(/\\t/g, '\t')
+    output.jsonataExpression = output.jsonataExpression
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '\t')
     return output
   } finally {
     clearTimeout(timeout)
   }
 }
 
-async function callLLM(prompt: string, geminiKey: string, zaiKey: string): Promise<LLMOutput> {
+async function callLLM(
+  prompt: string,
+  geminiKey: string,
+  zaiKey: string,
+): Promise<LLMOutput> {
   if (zaiKey) {
     return callZai(zaiKey, prompt)
   }
   return callGemini(geminiKey, prompt)
 }
-
 
 async function validateExpression(
   expression: string,
@@ -213,7 +246,9 @@ async function validateExpression(
     const raw =
       result === undefined ? [] : Array.isArray(result) ? result : [result]
     if (raw.length === 0) {
-      return ['Expression evaluated successfully but produced no patches — check field mappings and that the expression returns a non-empty array']
+      return [
+        'Expression evaluated successfully but produced no patches — check field mappings and that the expression returns a non-empty array',
+      ]
     }
     for (const item of raw) {
       if (item === null || typeof item !== 'object' || !('_entity' in item)) {
@@ -369,7 +404,6 @@ function emitUrlUpdate(
     .catch(() => {})
 }
 
-
 ;(async () => {
   const origins = ['webhook.site', 'instagram.com', 'www.sahibinden.com']
   let client: Client | undefined
@@ -455,25 +489,34 @@ function emitUrlUpdate(
     })
     onMessage('raw-capture', async ({ data }) => {
       const hostname = hostnameFromUrl(data.url)
-      console.log('[spatula] raw-capture received', data.method, data.url, `body=${data.responseBody.length}b`)
+      console.log(
+        '[spatula] raw-capture received',
+        data.method,
+        data.url,
+        `body=${data.responseBody.length}b`,
+      )
       if (!captureMatchesKnownLoader(allSites, data.url, data.method)) {
-        console.log('[spatula] raw-capture discarded (no matching loader)', data.method, data.url)
+        console.log(
+          '[spatula] raw-capture discarded (no matching loader)',
+          data.method,
+          data.url,
+        )
         return
       }
       try {
-      await storeCaptureEntry({
-        id: crypto.randomUUID(),
-        hostname,
-        url: data.url,
-        method: data.method,
-        status: data.status,
-        requestBody: data.requestBody,
-        responseBody: data.responseBody,
-        requestHeaders: data.requestHeaders,
-        responseHeaders: data.responseHeaders,
-        capturedAt: data.capturedAt,
-      })
-      console.log('[spatula] raw-capture stored', data.url)
+        await storeCaptureEntry({
+          id: crypto.randomUUID(),
+          hostname,
+          url: data.url,
+          method: data.method,
+          status: data.status,
+          requestBody: data.requestBody,
+          responseBody: data.responseBody,
+          requestHeaders: data.requestHeaders,
+          responseHeaders: data.responseHeaders,
+          capturedAt: data.capturedAt,
+        })
+        console.log('[spatula] raw-capture stored', data.url)
       } catch (err) {
         console.error('[spatula] raw-capture store failed', data.url, err)
       }
@@ -504,8 +547,17 @@ function emitUrlUpdate(
       const results: LoaderMatchResult[] = []
       for (const entry of loaderEntries) {
         const expr = new JsonataExpression(entry.expression, {
-          request: { url: capture.url, method: capture.method, headers: capture.requestHeaders },
-          response: { url: capture.url, status: capture.status, headers: capture.responseHeaders, body: json },
+          request: {
+            url: capture.url,
+            method: capture.method,
+            headers: capture.requestHeaders,
+          },
+          response: {
+            url: capture.url,
+            status: capture.status,
+            headers: capture.responseHeaders,
+            body: json,
+          },
         })
         let result: unknown
         try {
@@ -520,7 +572,11 @@ function emitUrlUpdate(
           continue
         }
         if (result === undefined) {
-          results.push({ matched: false, loader: entry.loader, file: entry.file })
+          results.push({
+            matched: false,
+            loader: entry.loader,
+            file: entry.file,
+          })
           continue
         }
         const raw = Array.isArray(result) ? result : [result]
@@ -528,7 +584,11 @@ function emitUrlUpdate(
           return item !== null && typeof item === 'object' && '_entity' in item
         })
         if (patches.length === 0) {
-          results.push({ matched: false, loader: entry.loader, file: entry.file })
+          results.push({
+            matched: false,
+            loader: entry.loader,
+            file: entry.file,
+          })
           continue
         }
         const validationErrors: string[] = []
@@ -541,7 +601,15 @@ function emitUrlUpdate(
             }
           }
         }
-        console.log('[spatula] match-capture result', entry.loader, entry.file, 'patches:', patches.length, 'validationErrors:', validationErrors)
+        console.log(
+          '[spatula] match-capture result',
+          entry.loader,
+          entry.file,
+          'patches:',
+          patches.length,
+          'validationErrors:',
+          validationErrors,
+        )
         results.push({
           matched: true,
           loader: entry.loader,
@@ -559,7 +627,10 @@ function emitUrlUpdate(
 
     onMessage('write-loader', async ({ data }) => {
       if (import.meta.env.PROD) {
-        return { ok: false, error: 'write-loader is only available in development' }
+        return {
+          ok: false,
+          error: 'write-loader is only available in development',
+        }
       }
       try {
         const response = await fetch(`http://localhost:3000/__spatula_write`, {
@@ -572,7 +643,10 @@ function emitUrlUpdate(
         }
         return { ok: true }
       } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+        }
       }
     })
 
@@ -584,15 +658,29 @@ function emitUrlUpdate(
       const geminiKey = await storage.get('gemini:api-key', '')
       const zaiKey = await storage.get('zai:api-key', '')
       if (!geminiKey && !zaiKey) {
-        return { ok: false, error: 'No API key configured in settings (Gemini or z.ai)' }
+        return {
+          ok: false,
+          error: 'No API key configured in settings (Gemini or z.ai)',
+        }
       }
       const site = allSites.find((s) => capture.hostname.endsWith(s.hostname))
       const entities = site?.entities ?? instagramSite.entities
-      const result = await runGenerationLoop([capture], geminiKey ?? '', zaiKey ?? '', entities, data.currentExpression || undefined, data.userNote || undefined)
+      const result = await runGenerationLoop(
+        [capture],
+        geminiKey ?? '',
+        zaiKey ?? '',
+        entities,
+        data.currentExpression || undefined,
+        data.userNote || undefined,
+      )
       if (!result.success) {
         return { ok: false, error: result.error }
       }
-      return { ok: true, expression: result.jsonataExpression, explanation: result.potentialEntities }
+      return {
+        ok: true,
+        expression: result.jsonataExpression,
+        explanation: result.potentialEntities,
+      }
     })
 
     onMessage('generate-spec', async ({ data }) => {
@@ -613,9 +701,16 @@ function emitUrlUpdate(
           error: 'No API key configured in settings (Gemini or z.ai)',
         } as const
       }
-      const site = allSites.find((s) => captures[0] && captures[0].hostname.endsWith(s.hostname))
+      const site = allSites.find(
+        (s) => captures[0] && captures[0].hostname.endsWith(s.hostname),
+      )
       const entities = site?.entities ?? instagramSite.entities
-      return runGenerationLoop(captures, geminiKey ?? '', zaiKey ?? '', entities)
+      return runGenerationLoop(
+        captures,
+        geminiKey ?? '',
+        zaiKey ?? '',
+        entities,
+      )
     })
 
     const storageListener = new StorageListener()

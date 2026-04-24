@@ -52,19 +52,19 @@ function ResourceRow({
   )
 }
 
-
 function ScrapeLogEntry({ log }: { log: ScrapeLog }) {
   const time = formatter.format(new Date(log.date))
-  const title = log.source?.kind === 'network'
-    ? `${log.source.loader} / ${log.source.file}`
-    : log.source?.kind === 'html'
-      ? 'html'
-      : [...new Set(log.patches.map((p) => p._entity))].join(', ')
+  const title =
+    log.source?.kind === 'network'
+      ? `${log.source.loader} / ${log.source.file}`
+      : log.source?.kind === 'html'
+        ? 'html'
+        : [...new Set(log.patches.map((p) => p._entity))].join(', ')
   const patchesByEntity = Object.entries(
     log.patches.reduce<Record<string, number>>((acc, p) => {
       acc[p._entity] = (acc[p._entity] ?? 0) + 1
       return acc
-    }, {})
+    }, {}),
   )
 
   function openViewer() {
@@ -92,10 +92,14 @@ function ScrapeLogEntry({ log }: { log: ScrapeLog }) {
     >
       <details>
         <summary class='cursor-pointer px-3 py-2 select-none flex items-center gap-2'>
-          <span class='tabular-nums font-mono text-muted-foreground shrink-0'>{time}</span>
+          <span class='tabular-nums font-mono text-muted-foreground shrink-0'>
+            {time}
+          </span>
           <span class='font-medium'>scrape</span>
           <span class='text-muted-foreground truncate'>{title}</span>
-          <span class={`ml-auto shrink-0 ${log.status === 'submitted' ? 'text-green-500' : log.status === 'failed' ? 'text-red-500' : 'text-muted-foreground'}`}>
+          <span
+            class={`ml-auto shrink-0 ${log.status === 'submitted' ? 'text-green-500' : log.status === 'failed' ? 'text-red-500' : 'text-muted-foreground'}`}
+          >
             {log.status ?? 'pending'}
           </span>
         </summary>
@@ -191,8 +195,12 @@ function Page() {
   const storage = new Storage<BrowserStorageSchema>()
   const [state, setState] = createSignal<StatefulResource[]>([])
   const { logs } = useLogs()
-  const scrapeLogs = () => logs().filter((l): l is ScrapeLog => l.type === 'scrape')
-  const poolLogs = () => logs().filter((l): l is PlainLog => l.type === 'plain' && l.scope === 'pool')
+  const scrapeLogs = () =>
+    logs().filter((l): l is ScrapeLog => l.type === 'scrape')
+  const poolLogs = () =>
+    logs().filter(
+      (l): l is PlainLog => l.type === 'plain' && l.scope === 'pool',
+    )
   const { value: lastScrape } = useBrowserStorage<'scrape:last'>(
     'scrape:last',
     undefined,
@@ -297,7 +305,9 @@ function Page() {
                   <details class='group'>
                     <summary class='cursor-pointer flex items-center justify-between px-3 py-2 text-sm font-medium select-none hover:bg-accent'>
                       <span>Last scrape</span>
-                      <Badge variant='outline'>{scrape().patches.length} patches</Badge>
+                      <Badge variant='outline'>
+                        {scrape().patches.length} patches
+                      </Badge>
                     </summary>
                     <code class='block px-3 pb-3 whitespace-pre text-wrap text-xs text-muted-foreground font-mono'>
                       {JSON.stringify(scrape().patches, null, 2)}
@@ -313,7 +323,9 @@ function Page() {
                   No activity yet
                 </p>
               )}
-              <For each={scrapeLogs()}>{(log) => <ScrapeLogEntry log={log} />}</For>
+              <For each={scrapeLogs()}>
+                {(log) => <ScrapeLogEntry log={log} />}
+              </For>
               <Show when={poolLogs().length > 0}>
                 <PoolLogs logs={poolLogs()} />
               </Show>

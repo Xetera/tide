@@ -77,7 +77,10 @@
     },
     "punctuation": {
       "patterns": [
-        { "name": "punctuation.definition.bracket.jsonata", "match": "[\\[\\]{}()]" },
+        {
+          "name": "punctuation.definition.bracket.jsonata",
+          "match": "[\\[\\]{}()]"
+        },
         { "name": "punctuation.separator.jsonata", "match": "[,;]" },
         { "name": "punctuation.accessor.jsonata", "match": "\\." }
       ]

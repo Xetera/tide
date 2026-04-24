@@ -15,7 +15,15 @@ export interface FieldVisitor {
 }
 
 function isNodeField(value: FieldDescriptor): value is NodeFieldDescriptor {
-  return !('$sourceEach' in value) && !('$literal' in value) && ('$transform' in value || '$fields' in value || '$source' in value || '$ifMissing' in value || '$json' in value)
+  return (
+    !('$sourceEach' in value) &&
+    !('$literal' in value) &&
+    ('$transform' in value ||
+      '$fields' in value ||
+      '$source' in value ||
+      '$ifMissing' in value ||
+      '$json' in value)
+  )
 }
 
 function isArrayField(value: FieldDescriptor): value is ArrayFieldDescriptor {

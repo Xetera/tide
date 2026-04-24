@@ -8,8 +8,9 @@
     "lib": ["DOM", "ESNext"],
     "baseUrl": ".",
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "paths": {
+      "~gleam/*": ["gleam/build/dev/javascript/spatula_shared/*"],
       "~/*": ["src/*"]
     },
     "noUncheckedIndexedAccess": true,

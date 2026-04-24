@@ -26,7 +26,5 @@ type BadgeProps = ComponentProps<'span'> &
 
 export function Badge(props: BadgeProps) {
   const { variant, class: className, ...rest } = props
-  return (
-    <span class={cn(badgeVariants({ variant }), className)} {...rest} />
-  )
+  return <span class={cn(badgeVariants({ variant }), className)} {...rest} />
 }

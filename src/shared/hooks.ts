@@ -13,7 +13,7 @@ export function useBrowserStorage<T extends keyof BrowserStorageSchema>(
 
   function listener(changes: Record<string, chrome.storage.StorageChange>) {
     const change = changes[eventsKey as string]
-    if (change === undefined) return
+    if (change === undefined) {return}
     setValue(() => change.newValue as BrowserStorageSchema[T])
   }
 

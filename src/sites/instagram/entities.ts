@@ -1,9 +1,18 @@
 import { Type } from 'typebox'
 import { EntityBuilder, Many, One } from '~/site-spec/site-builder'
 import { Image, ImageType, Video } from '~/extraction/media-types'
+import {
+  instagram_image_identity,
+  instagram_video_identity,
+} from '~gleam/media/identity.mjs'
 
-const InstagramImage = Image.offload().ephemeral()
-const InstagramVideo = Video.offload().ephemeral()
+const InstagramImage = Image.offload()
+  .ephemeral()
+  .identity({ fn: instagram_image_identity })
+
+const InstagramVideo = Video.offload()
+  .ephemeral()
+  .identity({ fn: instagram_video_identity })
 
 export const instagramEntities = [
   new EntityBuilder('@instagram/user')
@@ -11,7 +20,7 @@ export const instagramEntities = [
     .fields({
       username: Type.String(),
       nickname: Type.String(),
-      profilePic: ImageType,
+      profilePic: InstagramImage,
       followerCount: Type.Integer(),
       followingCount: Type.Integer(),
       postCount: Type.Integer(),

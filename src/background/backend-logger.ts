@@ -1,5 +1,12 @@
 import PQueue from 'p-queue'
-import { EVENTS_KEY, generateUID, type Log, type PlainLog, type ScrapeLog, type ScrapeLogStatus } from '~/shared'
+import {
+  EVENTS_KEY,
+  generateUID,
+  type Log,
+  type PlainLog,
+  type ScrapeLog,
+  type ScrapeLogStatus,
+} from '~/shared'
 
 const MAX_LOG_RETENTION = 200
 const q = new PQueue()
@@ -30,20 +37,27 @@ const push = async <T>(
   )
 }
 
-export function log(payload: Omit<PlainLog, 'date' | 'id' | 'type'> | Omit<ScrapeLog, 'date' | 'id' | 'status'>): string {
+export function log(
+  payload:
+    | Omit<PlainLog, 'date' | 'id' | 'type'>
+    | Omit<ScrapeLog, 'date' | 'id' | 'status'>,
+): string {
   const id = generateUID()
   const toPush: Log = {
     id,
     date: Date.now(),
     type: 'plain',
-    ...(payload.type === 'scrape' ? { status: 'pending' as ScrapeLogStatus } : {}),
+    ...(payload.type === 'scrape'
+      ? { status: 'pending' as ScrapeLogStatus }
+      : {}),
     ...payload,
   } as Log
   push(EVENTS_KEY, toPush, { trim: MAX_LOG_RETENTION })
 
-  const label = 'patches' in payload
-    ? `Scraped ${payload.patches.length} patches`
-    : payload.text
+  const label =
+    'patches' in payload
+      ? `Scraped ${payload.patches.length} patches`
+      : payload.text
   if (payload.severity === 'error') {
     console.error(label, payload)
   } else if (payload.severity === 'info') {
@@ -56,7 +70,9 @@ export function log(payload: Omit<PlainLog, 'date' | 'id' | 'type'> | Omit<Scrap
 
 export async function withScrapeLog(
   payload: Omit<ScrapeLog, 'date' | 'id' | 'status'>,
-  fn: (id: string) => Promise<{ httpStatus?: number; serverResponse?: string } | void>,
+  fn: (
+    id: string,
+  ) => Promise<{ httpStatus?: number; serverResponse?: string } | void>,
   existingId?: string,
 ): Promise<void> {
   let id: string
@@ -96,8 +112,9 @@ export async function updateScrapeLogStatus(
     if (idx !== -1 && logs[idx]!.type === 'scrape') {
       const entry = logs[idx] as ScrapeLog
       entry.status = status
-      if (meta?.httpStatus !== undefined) entry.httpStatus = meta.httpStatus
-      if (meta?.serverResponse !== undefined) entry.serverResponse = meta.serverResponse
+      if (meta?.httpStatus !== undefined) {entry.httpStatus = meta.httpStatus}
+      if (meta?.serverResponse !== undefined)
+        {entry.serverResponse = meta.serverResponse}
       await set(EVENTS_KEY, logs)
     }
   })

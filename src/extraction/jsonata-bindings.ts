@@ -100,6 +100,16 @@ export class JsonataExpression {
       }
       throw new Error('Invalid type of fields for: ' + entityName)
     })
+    evaluator.assign('query_param', (url: unknown, param: unknown) => {
+      if (typeof url !== 'string' || typeof param !== 'string') {
+        return null
+      }
+      try {
+        return new URL(url).searchParams.get(param)
+      } catch {
+        return null
+      }
+    })
 
     evaluator.assign('timestamp', (value: unknown) => {
       let timestamp: Date

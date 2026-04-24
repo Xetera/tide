@@ -90,14 +90,25 @@ export class EntityBuilder {
 
   build(): Entity {
     if (!this.#fields)
-      throw new Error(`Entity "${this.#entityName}" has no fields defined`)
-    return { entity: this.#entityName, version: this.#version, fields: this.#fields, canonicalUrl: this.#canonicalUrl, uniqueFields: this.#uniqueFields, displayField: this.#displayField }
+      {throw new Error(`Entity "${this.#entityName}" has no fields defined`)}
+    return {
+      entity: this.#entityName,
+      version: this.#version,
+      fields: this.#fields,
+      canonicalUrl: this.#canonicalUrl,
+      uniqueFields: this.#uniqueFields,
+      displayField: this.#displayField,
+    }
   }
 }
 
-export function resolveCanonicalUrl(template: string, patch: import('./types').RawEntityPatch): string {
+export function resolveCanonicalUrl(
+  template: string,
+  patch: import('./types').RawEntityPatch,
+): string {
   return template.replace(/\{(\w+)\}/g, (_, key) => {
-    const value = key === 'id' ? patch._id : (patch as Record<string, unknown>)[key]
+    const value =
+      key === 'id' ? patch._id : (patch as Record<string, unknown>)[key]
     return value != null ? String(Array.isArray(value) ? value[0] : value) : ''
   })
 }
@@ -167,7 +178,10 @@ export function defineSite(input: SiteInput): SiteDefinition {
       continue
     }
     loaders[entry.loader] ??= []
-    loaders[entry.loader]!.push({ file: entry.file, expression: entry.expression })
+    loaders[entry.loader]!.push({
+      file: entry.file,
+      expression: entry.expression,
+    })
   }
 
   return {

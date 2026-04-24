@@ -10,7 +10,7 @@ const TabsContext = createContext<TabsContextValue>()
 
 function useTabsContext() {
   const ctx = useContext(TabsContext)
-  if (!ctx) throw new Error('Tabs component must be used inside <Tabs>')
+  if (!ctx) {throw new Error('Tabs component must be used inside <Tabs>')}
   return ctx
 }
 
@@ -23,10 +23,10 @@ type TabsProps = {
 
 export function Tabs(props: TabsProps) {
   return (
-    <TabsContext.Provider value={{ value: () => props.value, onChange: props.onChange }}>
-      <div class={cn('w-full', props.class)}>
-        {props.children}
-      </div>
+    <TabsContext.Provider
+      value={{ value: () => props.value, onChange: props.onChange }}
+    >
+      <div class={cn('w-full', props.class)}>{props.children}</div>
     </TabsContext.Provider>
   )
 }

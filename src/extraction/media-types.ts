@@ -1,11 +1,25 @@
 import { Type, type TObject } from 'typebox'
+import type { MediaRecord, IdentityError } from '~gleam/media/identity.mjs'
+import type { Result } from '~gleam/gleam.mjs'
+
+export type HashSource =
+  | { from: 'header'; header: string; expr: string }
+  | { from: 'sibling'; expr: string }
+  | { from: 'none' }
+
+export type IdentityFn = (media: MediaRecord) => Result<string, IdentityError>
+export type IdentitySource = { fn: IdentityFn }
 
 type MediaBuilder = TObject & {
   'x-ephemeral'?: { ttl?: number }
   'x-offload'?: boolean
+  'x-identity'?: { fn: string }
+  'x-hash'?: HashSource
   ephemeral(ttl?: number): MediaBuilder
   offload(): MediaBuilder
   sized(): MediaBuilder
+  identity(source: IdentitySource): MediaBuilder
+  hash(source: HashSource): MediaBuilder
 }
 
 function mediaBuilder(schema: TObject): MediaBuilder {
@@ -31,6 +45,16 @@ function mediaBuilder(schema: TObject): MediaBuilder {
         }),
       )
     },
+    identity(source: IdentitySource): MediaBuilder {
+      return mediaBuilder(
+        Object.assign({}, this, {
+          'x-identity': { fn: source.fn.name },
+        }),
+      )
+    },
+    hash(source: HashSource): MediaBuilder {
+      return mediaBuilder(Object.assign({}, this, { 'x-hash': source }))
+    },
   }
   return builder
 }
@@ -52,7 +76,7 @@ export const VideoType = Type.Object({
   url: Type.String({ format: 'uri' }),
   width: Type.Optional(Type.Number()),
   height: Type.Optional(Type.Number()),
-  duration: Type.Optional(Type.Number())
+  duration: Type.Optional(Type.Number()),
 })
 
 export const Image = mediaBuilder(ImageType)

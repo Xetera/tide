@@ -101,11 +101,15 @@ ${body}
   }
 
   if (opts.userNote?.trim()) {
-    parts.push(`## Additional instructions from user\n\n${opts.userNote.trim()}`)
+    parts.push(
+      `## Additional instructions from user\n\n${opts.userNote.trim()}`,
+    )
   }
 
   if (opts.currentExpression?.trim()) {
-    parts.push(`## Current expression (modify or replace as needed)\n\`\`\`jsonata\n${opts.currentExpression}\n\`\`\``)
+    parts.push(
+      `## Current expression (modify or replace as needed)\n\`\`\`jsonata\n${opts.currentExpression}\n\`\`\``,
+    )
   }
 
   if (opts.previousErrors.length > 0) {

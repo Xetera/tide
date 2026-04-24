@@ -14,15 +14,18 @@ const outDir = resolve(__dirname, '../../schemas')
 
 mkdirSync(outDir, { recursive: true })
 
-function collectEntityRefs(schema: unknown, found: Set<string> = new Set()): Set<string> {
-  if (!schema || typeof schema !== 'object') return found
+function collectEntityRefs(
+  schema: unknown,
+  found: Set<string> = new Set(),
+): Set<string> {
+  if (!schema || typeof schema !== 'object') {return found}
   if (Array.isArray(schema)) {
-    for (const item of schema) collectEntityRefs(item, found)
+    for (const item of schema) {collectEntityRefs(item, found)}
     return found
   }
   const obj = schema as Record<string, unknown>
-  if (typeof obj['x-entity'] === 'string') found.add(obj['x-entity'])
-  for (const value of Object.values(obj)) collectEntityRefs(value, found)
+  if (typeof obj['x-entity'] === 'string') {found.add(obj['x-entity'])}
+  for (const value of Object.values(obj)) {collectEntityRefs(value, found)}
   return found
 }
 
@@ -39,7 +42,9 @@ for (const entity of allEntities) {
   const refs = collectEntityRefs(entity.fields)
   for (const ref of refs) {
     if (!knownNames.has(ref)) {
-      process.stderr.write(`error: entity "${entity.entity}" references unknown entity "${ref}"\n`)
+      process.stderr.write(
+        `error: entity "${entity.entity}" references unknown entity "${ref}"\n`,
+      )
       process.exit(1)
     }
   }

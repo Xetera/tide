@@ -10,10 +10,7 @@ export default {
       $fields: {
         name: {
           $source: { $css: '[title]' },
-          $transform: [
-            { $attr: 'title' },
-            { $trim: ['outside', 'inside'] },
-          ],
+          $transform: [{ $attr: 'title' }, { $trim: ['outside', 'inside'] }],
         },
         image: {
           $source: { $css: 'img' },
@@ -21,7 +18,9 @@ export default {
           $transform: [{ $media: { $offload: true } }],
         },
         likePercentage: {
-          $source: { $css: "[data-testid='game-tile-stats'] span:nth-child(2)" },
+          $source: {
+            $css: "[data-testid='game-tile-stats'] span:nth-child(2)",
+          },
           $transform: [
             { $text: true },
             { $regex: '(\\d+)' },
@@ -29,7 +28,9 @@ export default {
           ],
         },
         playingCount: {
-          $source: { $css: "[data-testid='game-tile-stats'] span:nth-child(4)" },
+          $source: {
+            $css: "[data-testid='game-tile-stats'] span:nth-child(4)",
+          },
           $transform: [
             { $text: true },
             { $regex: '([\\d\\.]+K?|M?)' },

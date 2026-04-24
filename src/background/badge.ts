@@ -1,6 +1,11 @@
 const clearTimers = new Map<number | undefined, ReturnType<typeof setTimeout>>()
 
-function setBadge(text: string, color: string, tabId: number | undefined, durationMs = 3000) {
+function setBadge(
+  text: string,
+  color: string,
+  tabId: number | undefined,
+  durationMs = 3000,
+) {
   const existing = clearTimers.get(tabId)
   if (existing !== undefined) {
     clearTimeout(existing)
@@ -12,7 +17,9 @@ function setBadge(text: string, color: string, tabId: number | undefined, durati
   clearTimers.set(
     tabId,
     setTimeout(() => {
-      chrome.action.setBadgeText(tabId !== undefined ? { text: '', tabId } : { text: '' })
+      chrome.action.setBadgeText(
+        tabId !== undefined ? { text: '', tabId } : { text: '' },
+      )
       clearTimers.delete(tabId)
     }, durationMs),
   )

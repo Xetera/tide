@@ -30,7 +30,7 @@ export function registerLoaders(sites: SiteDefinition[]) {
 }
 
 window.addEventListener('message', (evt) => {
-  if (!evt.data?.__spatula) return
+  if (!evt.data?.__spatula) {return}
 
   if (evt.data.kind === 'loader-result') {
     const { name, file, result, url, body } = evt.data as {
@@ -45,11 +45,12 @@ window.addEventListener('message', (evt) => {
       return
     }
 
-    const { patches, errors } = validator.parsePatches(result, {
+    const { patches: rawPatches, errors } = validator.parsePatches(result, {
       loader: name,
       file,
       url,
     })
+    const { patches, warnings } = validator.applyIdentityExprs(rawPatches)
 
     if (errors.length > 0) {
       console.warn(
@@ -57,6 +58,12 @@ window.addEventListener('message', (evt) => {
         errors,
         result,
         body,
+      )
+    }
+    if (warnings.length > 0) {
+      console.warn(
+        `[spatula] identity warnings from ${name}/${file}`,
+        warnings,
       )
     }
     if (patches.length > 0) {

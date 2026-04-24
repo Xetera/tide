@@ -58,7 +58,16 @@ window.addEventListener('message', (evt) => {
 })
 
 async function processCapture(capture: QueuedCapture) {
-  const { url, method, body, requestHeaders, responseHeaders, status, capturedAt, requestBody } = capture
+  const {
+    url,
+    method,
+    body,
+    requestHeaders,
+    responseHeaders,
+    status,
+    capturedAt,
+    requestBody,
+  } = capture
 
   let parsedUrl: URL
   try {
@@ -88,16 +97,30 @@ async function processCapture(capture: QueuedCapture) {
           request: { url, method, headers: requestHeaders },
           response: { url, status, headers: responseHeaders, body: json },
         })
-        const result = await expression.evaluate(json as Record<string, unknown>)
+        const result = await expression.evaluate(
+          json as Record<string, unknown>,
+        )
         if (result === undefined) {
           continue
         }
         window.postMessage(
-          { __spatula: true, kind: 'loader-result', name, file, result, url, body: json },
+          {
+            __spatula: true,
+            kind: 'loader-result',
+            name,
+            file,
+            result,
+            url,
+            body: json,
+          },
           '*',
         )
       } catch (err) {
-        console.warn(`[spatula] loader "${name}/${file}" failed for ${url}:`, err, json)
+        console.warn(
+          `[spatula] loader "${name}/${file}" failed for ${url}:`,
+          err,
+          json,
+        )
       }
     }
   }

@@ -49,9 +49,9 @@ function substituteValue(
   value: unknown,
   downloaded: Record<string, DownloadedMedia>,
 ): unknown {
-  if (isMediaRef(value)) return resolveMediaRef(value, downloaded)
+  if (isMediaRef(value)) {return resolveMediaRef(value, downloaded)}
   if (Array.isArray(value))
-    return value.map((item) => substituteValue(item, downloaded))
+    {return value.map((item) => substituteValue(item, downloaded))}
   if (typeof value === 'object' && value !== null) {
     return Object.fromEntries(
       Object.entries(value).map(([k, v]) => [
@@ -101,8 +101,8 @@ function collectMediaRefs(value: unknown, out: MediaRef[]): void {
   if (isMediaRef(value)) {
     out.push(value)
   } else if (Array.isArray(value)) {
-    for (const item of value) collectMediaRefs(item, out)
+    for (const item of value) {collectMediaRefs(item, out)}
   } else if (typeof value === 'object' && value !== null) {
-    for (const v of Object.values(value)) collectMediaRefs(v, out)
+    for (const v of Object.values(value)) {collectMediaRefs(v, out)}
   }
 }

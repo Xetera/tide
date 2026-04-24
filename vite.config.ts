@@ -8,9 +8,42 @@ import { r } from './src/scripts'
 import devtools from 'solid-devtools/vite'
 import { writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { execSync, spawn } from 'node:child_process'
+import type { Plugin } from 'vite'
+
+const GLEAM_DIR = resolve(__dirname, 'gleam')
+
+function gleamPlugin(): Plugin {
+  return {
+    name: 'gleam',
+    buildStart() {
+      if (!this.meta.watchMode) {return}
+      execSync('gleam build --target javascript --no-print-progress', {
+        cwd: GLEAM_DIR,
+        stdio: 'inherit',
+      })
+    },
+    configureServer(server) {
+      server.watcher.add(resolve(GLEAM_DIR, 'src/**/*.gleam'))
+      server.watcher.on('change', (file) => {
+        if (!file.endsWith('.gleam')) {
+          return
+        }
+        const proc = spawn('gleam', ['build', '--target', 'javascript'], {
+          cwd: GLEAM_DIR,
+          stdio: 'inherit',
+        })
+        proc.on('close', (code) => {
+          if (code === 0) {server.hot.send({ type: 'full-reload' })}
+        })
+      })
+    },
+  }
+}
 
 export default defineConfig({
   plugins: [
+    gleamPlugin(),
     {
       name: 'spatula-write',
       configureServer(server) {
@@ -20,15 +53,21 @@ export default defineConfig({
             return
           }
           const chunks: Buffer[] = []
-          for await (const chunk of req) chunks.push(chunk)
-          const { path: filePath, content } = JSON.parse(Buffer.concat(chunks).toString()) as { path: string; content: string }
+          for await (const chunk of req) {chunks.push(chunk)}
+          const { path: filePath, content } = JSON.parse(
+            Buffer.concat(chunks).toString(),
+          ) as { path: string; content: string }
           const abs = resolve(process.cwd(), filePath)
           if (!abs.startsWith(resolve(process.cwd(), 'src'))) {
-            res.writeHead(403).end(JSON.stringify({ error: 'path outside src' }))
+            res
+              .writeHead(403)
+              .end(JSON.stringify({ error: 'path outside src' }))
             return
           }
           await writeFile(abs, content, 'utf-8')
-          res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: true }))
+          res
+            .writeHead(200, { 'content-type': 'application/json' })
+            .end(JSON.stringify({ ok: true }))
         })
       },
     },
@@ -38,14 +77,16 @@ export default defineConfig({
         server.watcher.add('src/**/*.jsonata')
       },
       async handleHotUpdate({ file, server }) {
-        if (!file.endsWith('.jsonata')) return
+        if (!file.endsWith('.jsonata')) {
+          return
+        }
         const mods = server.moduleGraph.getModulesByFile(file)
-        if (!mods) return
-        const affected = new Set<(typeof mods extends Set<infer T> ? T : never)>()
+        if (!mods) {return}
+        const affected = new Set<typeof mods extends Set<infer T> ? T : never>()
         const collect = (mod: typeof mods extends Set<infer T> ? T : never) => {
-          if (affected.has(mod)) return
+          if (affected.has(mod)) {return}
           affected.add(mod)
-          for (const importer of mod.importers) collect(importer)
+          for (const importer of mod.importers) {collect(importer)}
         }
         for (const mod of mods) {
           await server.moduleGraph.invalidateModule(mod)
@@ -54,7 +95,10 @@ export default defineConfig({
         return [...affected]
       },
     },
-    crx({ manifest, browser: (process.env.BROWSER as 'chrome' | 'firefox') ?? 'chrome' }),
+    crx({
+      manifest,
+      browser: (process.env.BROWSER as 'chrome' | 'firefox') ?? 'chrome',
+    }),
     devtools(),
     solidPlugin(),
     uno(),
@@ -62,6 +106,10 @@ export default defineConfig({
   // root: r("src"),
   resolve: {
     alias: [
+      {
+        find: '~gleam/',
+        replacement: `${GLEAM_DIR}/build/dev/javascript/spatula_shared/`,
+      },
       { find: '~/', replacement: `${r('src')}/` },
       // alias: [
       {

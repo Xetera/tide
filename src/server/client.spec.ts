@@ -1,9 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import {
-  sahibindenSite,
-  sahibindenSmallJobs,
-} from '~/sites/sahibinden'
+import { sahibindenSite, sahibindenSmallJobs } from '~/sites/sahibinden'
 
 const sahibinden = sahibindenSite.pages[0]!
 import { server } from '~/msw'
@@ -49,7 +46,9 @@ describe('client', () => {
     const onResourcesUpdated = vi.fn()
     client = makeClient(onResourcesUpdated)
     await client.startAll()
-    expect(onResourcesUpdated).toHaveBeenCalledWith(serverDefinition, [sahibinden])
+    expect(onResourcesUpdated).toHaveBeenCalledWith(serverDefinition, [
+      sahibinden,
+    ])
   })
 
   it('invalidates resources when instructed', async () => {
