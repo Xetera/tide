@@ -96,6 +96,9 @@ importers:
       '@crxjs/vite-plugin':
         specifier: 2.4.0
         version: 2.4.0(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4))
+      '@ohm-js/cli':
+        specifier: ^2.0.1
+        version: 2.0.1(ohm-js@17.5.0)
       '@types/chrome':
         specifier: ^0.1.38
         version: 0.1.38
@@ -560,6 +563,12 @@ packages:
 
   '@nothing-but/utils@0.17.0':
     resolution: {integrity: sha512-TuCHcHLOqDL0SnaAxACfuRHBNRgNJcNn9X0GiH5H3YSDBVquCr3qEIG3FOQAuMyZCbu9w8nk2CHhOsn7IvhIwQ==}
+
+  '@ohm-js/cli@2.0.1':
+    resolution: {integrity: sha512-LKU5hGd/vmgsoZaWA9cEn7R84jRYg/2nUmHnozVGq0zIM++n9JPXvHBSJM8MHJIKm+RSDd19oKTbNs8nmio1nw==}
+    hasBin: true
+    peerDependencies:
+      ohm-js: ^17.0.0
 
   '@open-draft/deferred-promise@2.2.0':
     resolution: {integrity: sha512-CecwLWx3rhxVQF6V4bAgPS5t+So2sTbPgAzafKkVizyi7tlwpcFpdFqq+wqF2OwNBmqFuu6tOyouTuxgpMfzmA==}
@@ -1638,6 +1647,10 @@ packages:
   commander@2.9.0:
     resolution: {integrity: sha512-bmkUukX8wAOjHdN26xj5c4ctEV22TQ7dQYhSmuckKhToXrkUn0iIaolHdIxYYqD55nhpSPA9zPQ1yP57GdXP2A==}
     engines: {node: '>= 0.6.x'}
+
+  commander@8.3.0:
+    resolution: {integrity: sha512-OkTL9umf+He2DZkUq8f8J9of7yL6RJKI24dVITBmNfZBmri9zYZQrKkuXiKhyfPSu8tUhnVBB1iKXevvnlR4Ww==}
+    engines: {node: '>= 12'}
 
   commander@9.5.0:
     resolution: {integrity: sha512-KRs7WVDKg86PWiuAqhDrAQnTXZKraVcCc6vFdL14qrZ/DcWwuRo7VoiYXalXO7S5GKpqYiVEwCbgFDfxNHKJBQ==}
@@ -4005,6 +4018,12 @@ snapshots:
 
   '@nothing-but/utils@0.17.0': {}
 
+  '@ohm-js/cli@2.0.1(ohm-js@17.5.0)':
+    dependencies:
+      commander: 8.3.0
+      fast-glob: 3.3.3
+      ohm-js: 17.5.0
+
   '@open-draft/deferred-promise@2.2.0': {}
 
   '@open-draft/logger@0.3.0':
@@ -4971,6 +4990,8 @@ snapshots:
   commander@2.9.0:
     dependencies:
       graceful-readlink: 1.0.1
+
+  commander@8.3.0: {}
 
   commander@9.5.0: {}
 

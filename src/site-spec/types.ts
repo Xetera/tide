@@ -3,6 +3,13 @@ export interface RequestMatcher {
   url: string
 }
 
+export interface HtmlEvatePage {
+  $entity: string
+  $urlPattern: string | string[]
+  $hostname?: string
+  source: string
+}
+
 export interface SiteDefinition {
   hostname: string
   dir: string
@@ -14,6 +21,8 @@ export interface SiteDefinition {
   loaders: Record<string, { file: string; expression: string }[]>
   /** HTML page specs */
   pages: PageSpec[]
+  // HTMLevate page specs auto-discovered from pages/[page]/index.htmlevate
+  htmlevatePages: HtmlEvatePage[]
 }
 
 export interface Entity {

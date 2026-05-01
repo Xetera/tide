@@ -14,7 +14,10 @@ type Env = Map<string, Element>
 
 const OMIT = Symbol('omit')
 
-export type CompileOptions = { locale?: string }
+export type CompileOptions = {
+  locale?: string
+  onElement?: (element: Element, label: string, isArrayItem: boolean) => void
+}
 
 export type ReactiveExpr = {
   get(): unknown
@@ -45,15 +48,22 @@ export function compile(
 ): CompiledExpr {
   const ast = parse(src)
   const locale = options.locale ?? 'en'
+  const onElement = options.onElement
 
   const rootEnv = (root: Element): Env => new Map([['', root]])
 
   const fn: CompiledExpr = (root: Element) =>
-    evalExpr(ast, root, rootEnv(root), locale)
+    evalExpr(ast, root, rootEnv(root), locale, '', onElement)
 
   if (isReactive(ast)) {
     fn.reactive = (root: Element) =>
-      buildReactive(ast as Expr & { kind: 'pipeline' }, root, rootEnv(root), locale)
+      buildReactive(
+        ast as Expr & { kind: 'pipeline' },
+        root,
+        rootEnv(root),
+        locale,
+        onElement,
+      )
   }
 
   return fn
@@ -64,6 +74,7 @@ function buildReactive(
   root: Element,
   env: Env,
   locale: string,
+  onElement: CompileOptions['onElement'] = undefined,
 ): ReactiveExpr {
   const subscribers = new Set<(value: unknown) => void>()
   let currentValue: unknown
@@ -82,12 +93,14 @@ function buildReactive(
       return
     }
     started = true
-    dispose = setupReactiveSource(expr.source, root, env, locale, (ctx) => {
+    dispose = setupReactiveSource(expr.source, root, (ctx) => {
       const result = evalPipelineTail(
         { source: expr.source, tail: expr.tail },
         ctx,
         env,
         locale,
+        '',
+        onElement,
       )
       emit(result)
     })
@@ -119,8 +132,6 @@ function selectorToObserveTarget(selector: string, root: Element): Element {
 function setupReactiveSource(
   src: Source,
   root: Element,
-  env: Env,
-  locale: string,
   onValue: (ctx: Element) => void,
 ): () => void {
   if (src.kind === 'watch') {
@@ -148,13 +159,7 @@ function setupReactiveSource(
     const check = () => {
       if (!condition || root.querySelector(condition)) {
         observer.disconnect()
-        innerDispose = setupReactiveSource(
-          src.inner,
-          root,
-          env,
-          locale,
-          onValue,
-        )
+        innerDispose = setupReactiveSource(src.inner, root, onValue)
       }
     }
 
@@ -200,9 +205,11 @@ function evalPipelineTail(
   root: Element,
   env: Env,
   locale: string,
+  label: string,
+  onElement: CompileOptions['onElement'],
 ): unknown {
   const unwrapped = unwrapSource(expr.source)
-  return evalPipeline({ source: unwrapped, tail: expr.tail }, root, env, locale)
+  return evalPipeline({ source: unwrapped, tail: expr.tail }, root, env, locale, label, onElement)
 }
 
 function unwrapSource(src: Source): Source {
@@ -212,25 +219,35 @@ function unwrapSource(src: Source): Source {
   return src
 }
 
-function evalExpr(expr: Expr, ctx: Element, env: Env, locale: string): unknown {
+function evalExpr(
+  expr: Expr,
+  ctx: Element,
+  env: Env,
+  locale: string,
+  label: string,
+  onElement: CompileOptions['onElement'],
+): unknown {
   switch (expr.kind) {
     case 'literal':
       return expr.value
     case 'array': {
       const result: unknown[] = []
       for (const item of expr.items) {
-        const value = evalExpr(item, ctx, env, locale)
-        if (Array.isArray(value)) result.push(...value)
-        else result.push(value)
+        const value = evalExpr(item, ctx, env, locale, label, onElement)
+        if (Array.isArray(value)) {
+          result.push(...value)
+        } else {
+          result.push(value)
+        }
       }
       return result
     }
     case 'object':
-      return evalFields(expr.fields, ctx, env, locale)
+      return evalFields(expr.fields, ctx, env, locale, label, onElement)
     case 'match':
-      return evalMatch(expr.arms, ctx, env, locale)
+      return evalMatch(expr.arms, ctx, env, locale, label, onElement)
     case 'pipeline':
-      return evalPipeline(expr, ctx, env, locale)
+      return evalPipeline(expr, ctx, env, locale, label, onElement)
   }
 }
 
@@ -239,22 +256,25 @@ function evalFields(
   ctx: Element,
   env: Env,
   locale: string,
+  label: string,
+  onElement: CompileOptions['onElement'],
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {}
   for (const field of fields) {
     if ('expr' in field) {
-      const value = evalExpr(field.value, ctx, env, locale)
+      const value = evalExpr(field.value, ctx, env, locale, label, onElement)
       if (value !== null && value !== OMIT && typeof value === 'object') {
         Object.assign(result, value)
       }
     } else if (field.dynamic) {
-      const key = evalExpr(field.keyExpr, ctx, env, locale)
-      const value = evalExpr(field.value, ctx, env, locale)
+      const key = evalExpr(field.keyExpr, ctx, env, locale, label, onElement)
+      const value = evalExpr(field.value, ctx, env, locale, label, onElement)
       if (typeof key === 'string') {
         result[key] = value
       }
     } else {
-      const value = evalExpr(field.value, ctx, env, locale)
+      const fieldLabel = label ? `${label}.${field.key}` : field.key
+      const value = evalExpr(field.value, ctx, env, locale, fieldLabel, onElement)
       if (value !== OMIT) {
         result[field.key] = value
       }
@@ -268,14 +288,16 @@ function evalMatch(
   ctx: Element,
   env: Env,
   locale: string,
+  label: string,
+  onElement: CompileOptions['onElement'],
 ): unknown {
   for (const arm of arms) {
     if (arm.kind === 'fallback') {
-      return evalExpr(arm.body, ctx, env, locale)
+      return evalExpr(arm.body, ctx, env, locale, label, onElement)
     }
     const el = ctx.querySelector(arm.selector)
     if (el) {
-      return evalExpr(arm.body, el, env, locale)
+      return evalExpr(arm.body, el, env, locale, label, onElement)
     }
   }
   return undefined
@@ -286,6 +308,8 @@ function evalPipeline(
   ctx: Element,
   env: Env,
   locale: string,
+  label: string,
+  onElement: CompileOptions['onElement'],
 ): unknown {
   let current: unknown
   let omitOnNull = false
@@ -306,24 +330,44 @@ function evalPipeline(
     case 'alias_ref':
       current = currentEnv.get(src.name) ?? null
       break
-    case 'single':
-      current = ctx.querySelector(src.selector) ?? null
+    case 'single': {
+      const el = ctx.querySelector(src.selector) ?? null
+      if (el && onElement) {
+        onElement(el, label, false)
+      }
+      current = el
       omitOnNull = src.omit
       break
-    case 'each':
-      current = Array.from(ctx.querySelectorAll(src.selector))
+    }
+    case 'each': {
+      const els = Array.from(ctx.querySelectorAll(src.selector))
+      if (onElement) {
+        for (const el of els) onElement(el, label, true)
+      }
+      current = els
       break
-    case 'alias_each':
+    }
+    case 'alias_each': {
       currentEnv = new Map(env)
       currentEnv.set(src.name, ctx)
-      current = Array.from(ctx.querySelectorAll(src.selector))
+      const els = Array.from(ctx.querySelectorAll(src.selector))
+      if (onElement) {
+        for (const el of els) onElement(el, label, true)
+      }
+      current = els
       break
-    case 'alias_single':
+    }
+    case 'alias_single': {
       currentEnv = new Map(env)
       currentEnv.set(src.name, ctx)
-      current = ctx.querySelector(src.selector) ?? null
+      const el = ctx.querySelector(src.selector) ?? null
+      if (el && onElement) {
+        onElement(el, label, false)
+      }
+      current = el
       omitOnNull = src.omit
       break
+    }
   }
 
   for (const step of expr.tail) {
@@ -344,7 +388,11 @@ function evalPipeline(
 
       case 'fallback_selector':
         if (!current) {
-          current = ctx.querySelector(step.selector) ?? null
+          const el = ctx.querySelector(step.selector) ?? null
+          if (el && onElement) {
+            onElement(el, label, false)
+          }
+          current = el
         }
         break
 
@@ -356,7 +404,7 @@ function evalPipeline(
             const iterEnv = aliasName
               ? new Map([...currentEnv, [aliasName, el]])
               : currentEnv
-            return evalFields(step.fields, el, iterEnv, locale)
+            return evalFields(step.fields, el, iterEnv, locale, label, onElement)
           })
         } else {
           if (current == null) {
@@ -367,6 +415,8 @@ function evalPipeline(
             current as Element,
             currentEnv,
             locale,
+            label,
+            onElement,
           )
         }
         break
@@ -375,17 +425,19 @@ function evalPipeline(
       case 'conditional': {
         const truthy = current != null && current !== false && current !== ''
         if (truthy) {
-          return evalExpr(step.then, ctx, currentEnv, locale)
+          return evalExpr(step.then_, ctx, currentEnv, locale, label, onElement)
         }
         if (step.else_) {
-          return evalExpr(step.else_, ctx, currentEnv, locale)
+          return evalExpr(step.else_, ctx, currentEnv, locale, label, onElement)
         }
         return OMIT
       }
 
       case 'scoped_expr':
-        if (current == null) return omitOnNull ? OMIT : null
-        return evalExpr(step.expr, current as Element, currentEnv, locale)
+        if (current == null) {
+          return omitOnNull ? OMIT : null
+        }
+        return evalExpr(step.expr, current as Element, currentEnv, locale, label, onElement)
     }
   }
 
@@ -474,6 +526,9 @@ function applyPipeOp(
         .trim()
         .match(/^([\d.]+)\s*([KkMmBb])?/)
       if (!m) {
+        return value
+      }
+      if (!m[1]) {
         return value
       }
       const n = parseFloat(m[1])

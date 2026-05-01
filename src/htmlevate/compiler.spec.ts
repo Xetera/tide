@@ -438,3 +438,74 @@ describe('scoped expression .( )', () => {
     )).toEqual({ v: null })
   })
 })
+
+describe('onElement highlight callback', () => {
+  function runWithHighlights(expr: string, html: string) {
+    const doc = dom(html)
+    const highlights: { element: Element; label: string; isArrayItem: boolean }[] = []
+    compile(expr, {
+      onElement: (element, label, isArrayItem) => {
+        highlights.push({ element, label, isArrayItem })
+      },
+    })(doc.body)
+    return { doc, highlights }
+  }
+
+  it('fires for a single selector with the field label', () => {
+    const { doc, highlights } = runWithHighlights(
+      '{ "title": $(h1):text }',
+      '<h1>hello</h1>'
+    )
+    expect(highlights).toHaveLength(1)
+    expect(highlights[0]!.element).toBe(doc.body.querySelector('h1'))
+    expect(highlights[0]!.label).toBe('title')
+    expect(highlights[0]!.isArrayItem).toBe(false)
+  })
+
+  it('fires for each element in an each selector with isArrayItem true', () => {
+    const { doc, highlights } = runWithHighlights(
+      '{ "items": $$(li):text }',
+      '<ul><li>a</li><li>b</li></ul>'
+    )
+    const lis = Array.from(doc.body.querySelectorAll('li'))
+    expect(highlights).toHaveLength(2)
+    expect(highlights.map((h) => h.element)).toEqual(lis)
+    expect(highlights.every((h) => h.isArrayItem)).toBe(true)
+    expect(highlights.every((h) => h.label === 'items')).toBe(true)
+  })
+
+  it('uses dotted path label for nested fields', () => {
+    const { doc, highlights } = runWithHighlights(
+      '{ "author": $(div) { "name": $(span):text } }',
+      '<div><span>Alice</span></div>'
+    )
+    const div = doc.body.querySelector('div')!
+    const span = doc.body.querySelector('span')!
+    expect(highlights[0]!.element).toBe(div)
+    expect(highlights[0]!.label).toBe('author')
+    expect(highlights[1]!.element).toBe(span)
+    expect(highlights[1]!.label).toBe('author.name')
+  })
+
+  it('does not fire for a selector that matches nothing', () => {
+    const { highlights } = runWithHighlights(
+      '{ "v": $(#missing):text }',
+      '<div>x</div>'
+    )
+    expect(highlights).toHaveLength(0)
+  })
+
+  it('fires for the fallback selector when primary misses', () => {
+    const { doc, highlights } = runWithHighlights(
+      '{ "v": $(#missing) ?? $(h1) }',
+      '<h1>hello</h1>'
+    )
+    expect(highlights).toHaveLength(1)
+    expect(highlights[0]!.element).toBe(doc.body.querySelector('h1'))
+    expect(highlights[0]!.isArrayItem).toBe(false)
+  })
+
+  it('does not fire when onElement is not provided', () => {
+    expect(() => compile('{ "v": $(h1):text }')(dom('<h1>x</h1>').body)).not.toThrow()
+  })
+})

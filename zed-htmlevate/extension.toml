@@ -1,0 +1,13 @@
+id = "htmlevate"
+name = "HTMLevate"
+version = "0.0.1"
+schema_version = 1
+authors = ["Xetera"]
+description = "Syntax highlighting for .htmlevate files"
+repository = "file:///Users/xetera/projects/spatula/zed-htmlevate"
+
+languages = ["HTMLevate"]
+
+[grammars.htmlevate]
+repository = "file:///Users/xetera/projects/spatula/tree-sitter-htmlevate"
+rev = "26b106f04ce76e68bc56714e03d0b8ab9e9e8d76"

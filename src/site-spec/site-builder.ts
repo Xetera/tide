@@ -10,7 +10,8 @@ import {
   TUnsafe,
   TRecord,
 } from 'typebox'
-import type { Entity, PageSpec, SiteDefinition } from '~/site-spec/types'
+import type { Entity, HtmlEvatePage, PageSpec, SiteDefinition } from '~/site-spec/types'
+import { parseWithFrontmatter } from '~/htmlevate/parser'
 
 // just a type to correlate unsafe references
 type TReference = symbol
@@ -149,7 +150,7 @@ export function Many(entityName: string) {
   })
 }
 
-type SiteInput = Omit<SiteDefinition, 'loaders' | 'pages' | 'entities'> & {
+type SiteInput = Omit<SiteDefinition, 'loaders' | 'pages' | 'htmlevatePages' | 'entities'> & {
   dir: string
   icon?: string
   entities: EntityBuilder[]
@@ -162,6 +163,12 @@ export function defineSite(input: SiteInput): SiteDefinition {
     eager: true,
   }) as Record<string, PageSpec>
 
+  const allHtmlevateModules = import.meta.glob('../sites/*/pages/*/index.htmlevate', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }) as Record<string, string>
+
   const pages: PageSpec[] = []
   for (const [path, page] of Object.entries(allPageModules)) {
     const match = path.match(/\/sites\/([^/]+)\/pages\//)
@@ -173,6 +180,29 @@ export function defineSite(input: SiteInput): SiteDefinition {
       continue
     }
     pages.push(page)
+  }
+
+  const htmlevatePages: HtmlEvatePage[] = []
+  for (const [path, source] of Object.entries(allHtmlevateModules)) {
+    const match = path.match(/\/sites\/([^/]+)\/pages\//)
+    if (!match) {
+      continue
+    }
+    const [, site] = match
+    if (site !== input.dir) {
+      continue
+    }
+    const { frontmatter } = parseWithFrontmatter(source)
+    if (!frontmatter.entity || !frontmatter.urlPattern) {
+      console.warn(`[htmlevate] ${path} missing entity or urlPattern frontmatter`)
+      continue
+    }
+    htmlevatePages.push({
+      $entity: String(frontmatter.entity),
+      $urlPattern: frontmatter.urlPattern as string | string[],
+      $hostname: input.hostname,
+      source,
+    })
   }
 
   const loaders: SiteDefinition['loaders'] = {}
@@ -195,5 +225,6 @@ export function defineSite(input: SiteInput): SiteDefinition {
     requests: input.requests,
     loaders,
     pages,
+    htmlevatePages,
   }
 }

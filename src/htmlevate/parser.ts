@@ -1,7 +1,12 @@
 import * as ohm from 'ohm-js'
+import type { NonterminalNode, IterationNode, TerminalNode } from 'ohm-js'
+import type {
+  HTMLevateActionDict,
+  HTMLevateSemantics,
+} from './grammar.ohm-bundle'
 import grammarSrc from './grammar.ohm?raw'
 
-const grammar = ohm.grammar(grammarSrc)
+const grammar = ohm.grammar(grammarSrc) as unknown as import('./grammar.ohm-bundle').HTMLevateGrammar
 
 export type Expr =
   | { kind: 'array'; items: Expr[] }
@@ -35,7 +40,7 @@ export type PipelineTail =
   | { kind: 'pipe_transform'; op: PipeOp }
   | { kind: 'fallback_selector'; selector: string }
   | { kind: 'block'; fields: Field[] }
-  | { kind: 'conditional'; then: Expr; else_: Expr | null }
+  | { kind: 'conditional'; then_: Expr; else_: Expr | null }
   | { kind: 'scoped_expr'; expr: Expr }
 
 export type ColonOp =
@@ -48,110 +53,109 @@ export type PipeArg = string | number | { key: string; value: string | number }
 
 export type PipeOp = { name: string; args: PipeArg[] }
 
-type AstNode =
+type AstResult =
   | Expr
   | Field
   | MatchArm
   | Source
   | PipelineTail
+  | PipeArg
   | string
   | number
   | string[]
 
-interface NodWithAst extends ohm.Node {
-  toAst(): AstNode
+type WithAst = (NonterminalNode | IterationNode | TerminalNode) & {
+  toAst(): AstResult
 }
+const toAst = (
+  node: NonterminalNode | IterationNode | TerminalNode,
+): AstResult => (node as WithAst).toAst()
 
-function ast<T extends AstNode>(node: ohm.Node): T {
-  return (node as NodWithAst).toAst() as T
-}
+const semantics: HTMLevateSemantics = grammar.createSemantics()
 
-function astChildren<T extends AstNode>(nodes: ohm.Node[]): T[] {
-  return nodes.map((n) => ast<T>(n))
-}
-
-const semantics = grammar.createSemantics()
-
-semantics.addOperation<AstNode>('toAst', {
+const exprActions: HTMLevateActionDict<AstResult> = {
   Expr(e) {
-    return ast(e)
+    return e.toAst()
   },
 
   Array(_l, items, _r) {
-    return { kind: 'array', items: astChildren<Expr>(items.asIteration().children) } satisfies Expr
+    return {
+      kind: 'array',
+      items: items.asIteration().children.map((c) => toAst(c) as Expr),
+    } satisfies Expr
   },
 
   Object(_l, fields, _r) {
     return {
       kind: 'object',
-      fields: astChildren<Field>(fields.asIteration().children),
+      fields: fields.asIteration().children.map((c) => toAst(c) as Field),
     } satisfies Expr
   },
 
   Field_static(key, _colon, value) {
     return {
       dynamic: false,
-      key: ast<string>(key),
-      value: ast<Expr>(value),
+      key: toAst(key) as string,
+      value: toAst(value) as Expr,
     } satisfies Field
   },
   Field_dynamic(_lb, keyExpr, _rb, _colon, value) {
     return {
       dynamic: true,
-      keyExpr: ast<Expr>(keyExpr),
-      value: ast<Expr>(value),
+      keyExpr: toAst(keyExpr) as Expr,
+      value: toAst(value) as Expr,
     } satisfies Field
   },
   Field_expr(_lp, pipeline, _rp) {
-    return { expr: true, value: ast<Expr>(pipeline) } satisfies Field
+    return { expr: true, value: toAst(pipeline) as Expr } satisfies Field
   },
 
   Match(_kw, _l, arms, _r) {
     return {
       kind: 'match',
-      arms: astChildren<MatchArm>(arms.children),
+      arms: arms.children.map((c) => toAst(c) as MatchArm),
     } satisfies Expr
   },
   MatchArm_fallback(_ident, _arrow, body) {
-    return { kind: 'fallback', body: ast<Expr>(body) } satisfies MatchArm
+    return { kind: 'fallback', body: toAst(body) as Expr } satisfies MatchArm
   },
   MatchArm_selector(sel, _arrow, body) {
-    const src = ast<Source>(sel) as Source & { kind: 'single' }
+    const src = toAst(sel) as Source & { kind: 'single' }
     return {
       kind: 'selector',
       selector: src.selector,
-      body: ast<Expr>(body),
+      body: toAst(body) as Expr,
     } satisfies MatchArm
   },
 
   Pipeline(source, tail) {
     return {
       kind: 'pipeline',
-      source: ast<Source>(source),
-      tail: astChildren<PipelineTail>(tail.children),
+      source: toAst(source) as Source,
+      tail: tail.children.map((c) => toAst(c) as PipelineTail),
     } satisfies Expr
   },
 
   Source_watch(_kw, inner) {
-    return { kind: 'watch', inner: ast<Source>(inner) } satisfies Source
+    return { kind: 'watch', inner: toAst(inner) as Source } satisfies Source
   },
   Source_awaitCond(_kw, _l, cond, _r, inner) {
     return {
       kind: 'await',
       condition: cond.sourceString.trim(),
-      inner: ast<Source>(inner),
+      inner: toAst(inner) as Source,
     } satisfies Source
   },
   Source_awaitSelf(_kw, inner) {
     return {
       kind: 'await',
       condition: null,
-      inner: ast<Source>(inner),
+      inner: toAst(inner) as Source,
     } satisfies Source
   },
 
   Source_aliasEach(_at, name, sel) {
-    const s = ast<Source>(sel) as Source & { kind: 'each' }
+    const s = toAst(sel) as Source & { kind: 'each' }
     return {
       kind: 'alias_each',
       name: name.sourceString,
@@ -159,7 +163,7 @@ semantics.addOperation<AstNode>('toAst', {
     } satisfies Source
   },
   Source_aliasSingle(_at, name, sel) {
-    const s = ast<Source>(sel) as Source & { kind: 'single' }
+    const s = toAst(sel) as Source & { kind: 'single' }
     return {
       kind: 'alias_single',
       name: name.sourceString,
@@ -189,7 +193,7 @@ semantics.addOperation<AstNode>('toAst', {
   },
 
   PipelineTail(t) {
-    return ast(t)
+    return t.toAst()
   },
 
   ColonTransform_text(_colon, _kw) {
@@ -220,7 +224,9 @@ semantics.addOperation<AstNode>('toAst', {
   PipeTransform(_pipe, name, _lp, argList, _rp) {
     const args: PipeArg[] =
       _lp.children.length > 0
-        ? astChildren<PipeArg>(argList.children[0].asIteration().children)
+        ? argList.children[0]!.asIteration().children.map(
+            (c) => toAst(c) as PipeArg,
+          )
         : []
     return {
       kind: 'pipe_transform',
@@ -228,23 +234,26 @@ semantics.addOperation<AstNode>('toAst', {
     } satisfies PipelineTail
   },
   PipeArg_kwarg(key, _colon, val) {
-    return { key: key.sourceString, value: ast<string>(val) }
+    return { key: key.sourceString, value: toAst(val) as string }
   },
   PipeArg_kwargInt(key, _colon, val) {
-    return { key: key.sourceString, value: ast<number>(val) }
+    return { key: key.sourceString, value: toAst(val) as number }
   },
   PipeArg_string(s) {
-    return ast<string>(s)
+    return s.toAst() as string
   },
   PipeArg_integer(n) {
-    return ast<number>(n)
+    return n.toAst() as number
   },
   PipeArg_ident(n) {
     return n.sourceString
   },
 
   ScopedExpr(_dotlp, expr, _rp) {
-    return { kind: 'scoped_expr', expr: ast<Expr>(expr) } satisfies PipelineTail
+    return {
+      kind: 'scoped_expr',
+      expr: toAst(expr) as Expr,
+    } satisfies PipelineTail
   },
 
   FallbackSelector(_qq, _d, _l, body, _r) {
@@ -257,30 +266,30 @@ semantics.addOperation<AstNode>('toAst', {
   Block(_l, fields, _r) {
     return {
       kind: 'block',
-      fields: astChildren<Field>(fields.asIteration().children),
+      fields: fields.asIteration().children.map((c) => toAst(c) as Field),
     } satisfies PipelineTail
   },
 
   Conditional_full(_q, then_, _colon, else_) {
     return {
       kind: 'conditional',
-      then: ast<Expr>(then_),
-      else_: ast<Expr>(else_),
+      then_: toAst(then_) as Expr,
+      else_: toAst(else_) as Expr,
     } satisfies PipelineTail
   },
   Conditional_partial(_q, then_) {
     return {
       kind: 'conditional',
-      then: ast<Expr>(then_),
+      then_: toAst(then_) as Expr,
       else_: null,
     } satisfies PipelineTail
   },
 
   Literal(e) {
-    return ast(e)
+    return e.toAst()
   },
   Literal_string(s) {
-    return { kind: 'literal', value: ast<string>(s) } satisfies Expr
+    return { kind: 'literal', value: s.toAst() as string } satisfies Expr
   },
   Literal_number(n) {
     return {
@@ -299,17 +308,17 @@ semantics.addOperation<AstNode>('toAst', {
   },
 
   stringLit(e) {
-    return ast(e)
+    return e.toAst()
   },
   stringLit_double(_l, chars, _r) {
-    return chars.children.map((c) => (c as NodWithAst).toAst()).join('')
+    return chars.children.map((c) => c.toAst()).join('')
   },
   stringLit_single(_l, chars, _r) {
-    return chars.children.map((c) => (c as NodWithAst).toAst()).join('')
+    return chars.children.map((c) => c.toAst()).join('')
   },
 
   doubleStringChar(e) {
-    return ast(e)
+    return e.toAst()
   },
   doubleStringChar_escaped(_bs, ch) {
     return ch.sourceString
@@ -319,7 +328,7 @@ semantics.addOperation<AstNode>('toAst', {
   },
 
   singleStringChar(e) {
-    return ast(e)
+    return e.toAst()
   },
   singleStringChar_escaped(_bs, ch) {
     return ch.sourceString
@@ -335,18 +344,115 @@ semantics.addOperation<AstNode>('toAst', {
     return parseInt(this.sourceString, 10)
   },
 
+  Document(_entries, _expr) {
+    throw new Error(
+      'Document node reached toAst — use parseWithFrontmatter instead',
+    )
+  },
+  frontmatterEntry(_key, _sp1, _eq, _sp2, _value, _nl) {
+    throw new Error(
+      'frontmatterEntry node reached toAst — use parseWithFrontmatter instead',
+    )
+  },
+  frontmatterValue_array(_l, _items, _r) {
+    throw new Error(
+      'frontmatterValue node reached toAst — use parseWithFrontmatter instead',
+    )
+  },
+  frontmatterValue_scalar(_chars) {
+    throw new Error(
+      'frontmatterValue node reached toAst — use parseWithFrontmatter instead',
+    )
+  },
+  frontmatterKey(_first, _rest) {
+    return this.sourceString
+  },
+  frontmatterScalar(_chars) {
+    return this.sourceString
+  },
+  frontmatterSep(_sp1, _comma, _sp2) {
+    return this.sourceString
+  },
+  newline(_) {
+    return this.sourceString
+  },
+
   _iter(...children) {
-    return children.map((c) => (c as NodWithAst).toAst()) as AstNode[]
+    return children.map((c) => toAst(c)) as unknown as AstResult
+  },
+  _terminal() {
+    return this.sourceString
+  },
+}
+
+semantics.addOperation<AstResult>('toAst', exprActions)
+
+export interface Frontmatter {
+  entity?: string
+  urlPattern?: string | string[]
+  [key: string]: unknown
+}
+
+export interface ParseResult {
+  frontmatter: Frontmatter
+  expr: Expr
+}
+
+type FrontmatterEntry = { key: string; value: string | string[] }
+type DocResult = ParseResult | FrontmatterEntry | string | string[]
+
+const docSemantics: HTMLevateSemantics = grammar.createSemantics()
+
+docSemantics.addOperation<DocResult>('toDocAst', {
+  Document(entries, expr) {
+    const fm: Frontmatter = {}
+    for (const entry of entries.children.map(
+      (c) => c.toDocAst() as FrontmatterEntry,
+    )) {
+      fm[entry.key] = entry.value
+    }
+    const exprMatch = grammar.match(expr.sourceString, 'Expr')
+    if (exprMatch.failed()) {
+      throw new Error(exprMatch.message ?? 'Parse failed')
+    }
+    return { frontmatter: fm, expr: semantics(exprMatch).toAst() as Expr }
+  },
+
+  frontmatterEntry(key, _sp1, _eq, _sp2, value, _nl) {
+    return {
+      key: key.sourceString,
+      value: value.toDocAst() as string | string[],
+    }
+  },
+
+  frontmatterValue_array(_l, items, _r) {
+    return items.asIteration().children.map((c) => c.sourceString.trim())
+  },
+
+  frontmatterValue_scalar(chars) {
+    return chars.sourceString.trim()
+  },
+
+  _iter(...children) {
+    return children.map((c) => c.toDocAst()) as unknown as DocResult
   },
   _terminal() {
     return this.sourceString
   },
 })
 
-export function parse(src: string): Expr {
-  const match = grammar.match(src)
+export function parseWithFrontmatter(src: string): ParseResult {
+  const match = grammar.match(src, 'Document')
   if (match.failed()) {
     throw new Error(match.message ?? 'Parse failed')
   }
-  return ast<Expr>(semantics(match))
+  return docSemantics(match).toDocAst() as ParseResult
+}
+
+export function parse(src: string): Expr {
+  const match = grammar.match(src, 'Expr')
+  if (match.failed()) {
+    throw new Error(match.message ?? 'Parse failed')
+  }
+  return semantics(match).toAst() as Expr
 }

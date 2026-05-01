@@ -1,11 +1,13 @@
 import { isCloudflareChallengePage } from './detection'
-import type { PageSpec } from '~/site-spec/types'
+import type { HtmlEvatePage, PageSpec } from '~/site-spec/types'
 import { parseVariables } from './shared'
+import { constructPathRegexes } from '~/site-spec/resource'
 
 export class PageEvaluator {
   constructor(
     private document: Document,
     private readonly resources: PageSpec[],
+    private readonly htmlevatePages: HtmlEvatePage[] = [],
   ) {}
 
   updateDocument(document: Document) {
@@ -22,6 +24,18 @@ export class PageEvaluator {
     }
 
     const url = new URL(this.document.URL)
+
+    for (const page of this.htmlevatePages) {
+      if (page.$hostname && url.hostname !== page.$hostname) {
+        continue
+      }
+      const patterns = constructPathRegexes(page.$urlPattern)
+      const matched = patterns.some((re) => re.test(url.pathname))
+      if (matched) {
+        return { kind: 'htmlevate', page }
+      }
+    }
+
     const validResources = this.matchingHosts(url)
     for (const resource of validResources) {
       const variables = parseVariables(resource, url)
@@ -133,12 +147,17 @@ export class PageEvaluator {
   }
 }
 
-export type PageCheckResult = MatchingResource | NoMatchFailure
+export type PageCheckResult = MatchingResource | MatchingHtmlEvatePage | NoMatchFailure
 
 export type MatchingResource = {
   kind: 'match'
   resource: PageSpec
   variables: Record<string, unknown>
+}
+
+export type MatchingHtmlEvatePage = {
+  kind: 'htmlevate'
+  page: HtmlEvatePage
 }
 
 export type NoMatchFailure =

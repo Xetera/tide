@@ -40,13 +40,14 @@ import './stream-capture'
         source.start()
       }
       if (message?.type === 'update-resources') {
-        source.updateResources(message.resources)
+        source.updateResources(message.resources, message.htmlevatePages)
       }
     })
 
     console.group('[spatula] running')
     console.log('[spatula] injecting page source')
     const defaultPages = allSites.flatMap((s) => s.pages)
+    const defaultHtmlevatePages = allSites.flatMap((s) => s.htmlevatePages)
     console.log(
       '[spatula] loaded sites',
       allSites.map((s) => s.hostname),
@@ -56,7 +57,7 @@ import './stream-capture'
       defaultPages.map((p) => p.$entity),
     )
     registerLoaders(allSites)
-    const source = new HtmlPageSource(defaultPages, onEmit)
+    const source = new HtmlPageSource(defaultPages, defaultHtmlevatePages, onEmit)
     source.onHighlightsChanged = (highlights) => {
       if (debugEnabled) {
         highlighter.apply(highlights)
