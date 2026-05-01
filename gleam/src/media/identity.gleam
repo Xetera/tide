@@ -18,3 +18,9 @@ pub fn instagram_video_identity(
 ) -> Result(String, types.IdentityError) {
   fingerprint.instagram_video_identity(media)
 }
+
+pub fn shbdn_image_identity(
+  media: types.MediaRecord,
+) -> Result(String, types.IdentityError) {
+  fingerprint.shbdn_image_identity(media)
+}

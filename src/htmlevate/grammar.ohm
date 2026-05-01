@@ -1,0 +1,105 @@
+HTMLevate {
+  Expr
+    = Array
+    | Object
+    | Match
+    | Pipeline
+    | Literal
+
+  Array = "[" ListOf<Expr, ","?> "]"
+
+  Object = "{" ListOf<Field, ","?> "}"
+
+  Field
+    = "[" Pipeline "]" ":" Expr  -- dynamic
+    | stringLit ":" Expr         -- static
+    | "(" Pipeline ")"           -- expr
+
+  Match = "match" "{" MatchArm* "}"
+
+  MatchArm
+    = SingleSelector "=>" Expr  -- selector
+    | ident "=>" Expr           -- fallback
+
+  Pipeline = Source PipelineTail*
+
+  Source
+    = "watch" Source                                       -- watch
+    | "await" "(" SelectorBody ")" Source                 -- awaitCond
+    | "await" Source                                       -- awaitSelf
+    | "@" ident EachSelector                              -- aliasEach
+    | "@" ident SingleSelector                            -- aliasSingle
+    | "@" ident                                           -- aliasRef
+    | "@" ~alnum                                          -- rootRef
+    | EachSelector
+    | SingleSelector
+    | ContextRef
+  ContextRef = "$" ~"$" ~"(" ~alnum
+
+  EachSelector   = "$$" "(" SelectorBody ")"
+  SingleSelector = "$"  "(" SelectorBody ")" (~"??" "?")?
+
+  SelectorBody = SelectorChar*
+  SelectorChar
+    = "(" SelectorBody ")"  -- nested
+    | ~")" any              -- other
+
+  PipelineTail
+    = ColonTransform
+    | PipeTransform
+    | FallbackSelector
+    | Block
+    | Conditional
+    | ScopedExpr
+
+  ScopedExpr = ".(" Expr ")"
+
+  Block = "{" ListOf<Field, ","?> "}"
+
+  ColonTransform
+    = ":" "text"               -- text
+    | ":" "attr" "(" ident ")" -- attr
+    | ":" "data" "(" ident ")" -- data
+    | ":" "exists"             -- exists
+
+  PipeTransform = "|" ident ("(" ListOf<PipeArg, ","> ")")?
+
+  PipeArg
+    = ident ":" stringLit  -- kwarg
+    | ident ":" integer    -- kwargInt
+    | stringLit            -- string
+    | integer              -- integer
+    | ident                -- ident
+
+  FallbackSelector = "??" "$" "(" SelectorBody ")"
+
+  Conditional
+    = ~"??" "?" Expr ":" Expr  -- full
+    | ~"??" "?" Expr           -- partial
+
+  Literal
+    = stringLit  -- string
+    | number     -- number
+    | "null"     -- null
+    | "true"     -- true
+    | "false"    -- false
+
+  stringLit
+    = "\"" doubleStringChar* "\""  -- double
+    | "'" singleStringChar* "'"    -- single
+
+  doubleStringChar
+    = "\\" any   -- escaped
+    | ~"\"" any  -- other
+
+  singleStringChar
+    = "\\" any  -- escaped
+    | ~"'" any  -- other
+
+  number  (a number)  = digit+
+  integer (an integer) = digit+
+
+  ident = (letter | "_") (alnum | "_" | "-")*
+
+  space += "//" (~"\n" any)*  -- lineComment
+}

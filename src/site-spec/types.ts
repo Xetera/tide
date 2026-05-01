@@ -44,8 +44,6 @@ export interface EntityRef {
   _id: EntityId
 }
 
-// export class Entity
-
 export interface RawEntityPatch {
   _entity: string
   _id: EntityId

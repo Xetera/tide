@@ -8,6 +8,7 @@ import {
   type TUnion,
   Type,
   TUnsafe,
+  TRecord,
 } from 'typebox'
 import type { Entity, PageSpec, SiteDefinition } from '~/site-spec/types'
 
@@ -36,6 +37,7 @@ type FieldInput = Record<
   | TInteger
   | TBoolean
   | TUnsafe<TReference>
+  | TRecord
 >
 
 export class EntityBuilder {
@@ -89,8 +91,9 @@ export class EntityBuilder {
   }
 
   build(): Entity {
-    if (!this.#fields)
-      {throw new Error(`Entity "${this.#entityName}" has no fields defined`)}
+    if (!this.#fields) {
+      throw new Error(`Entity "${this.#entityName}" has no fields defined`)
+    }
     return {
       entity: this.#entityName,
       version: this.#version,
