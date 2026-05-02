@@ -19,6 +19,8 @@ import type {
 declare module 'webext-bridge' {
   export interface ProtocolMap {
     'open-tab': { url: string }
+    'get-tabs-for-hostname': ProtocolWithReturn<{ hostname: string }, Array<{ tabId: number; title: string; url: string }>>
+    'get-tab-html': ProtocolWithReturn<{ tabId: number }, { html: string; url: string } | null>
     'url-update': unknown
     'toggle-highlight': void
     'run-job': JobParameters

@@ -3,7 +3,6 @@ import { allSites } from '~/sites'
 import { HighlightManager } from '~/sources/highlight-manager'
 import { HtmlPageSource } from '~/sources/html-page-source'
 import { registerLoaders } from '~/sources/network-source'
-import { patchSiteSource } from '~/site-spec/site-builder'
 import type { HtmlEvateLoader } from '~/site-spec/types'
 import type { SourceEmission } from '~/sources/data-source'
 import { matchesGlob } from '~/extraction/glob'
@@ -27,15 +26,32 @@ import './stream-capture'
       }
       debugEnabled = change.newValue as boolean
       if (debugEnabled) {
-        const errorMessages = source.lastErrors.map((e) => `${e.entity}${e.path}: ${e.message}`)
-        highlighter.apply(source.lastHighlights, source.lastPatchCounts, errorMessages)
+        highlighter.applyOrMount(source.lastHighlights, source.lastPatchCounts,
+          source.lastErrors.map((e) => `${e.entity}${e.path}: ${e.message}`),
+        )
       } else {
         highlighter.clear()
       }
     })
 
+    const loaderFilePatchCounts = new Map<string, number>()
+
     function onEmit(emission: SourceEmission) {
       sendMessage('entity-patches', emission)
+      const src = emission.scrapeSource
+      if (!src) {
+        return
+      }
+      let key: string | null = null
+      if (src.kind === 'network') {
+        key = `${src.loader}/${src.file}`
+      } else if (src.kind === 'htmlevate-loader') {
+        key = src.loader
+      }
+      if (key !== null) {
+        loaderFilePatchCounts.set(key, (loaderFilePatchCounts.get(key) ?? 0) + emission.patches.length)
+        highlighter.updateLoaderFileCounts(loaderFilePatchCounts)
+      }
     }
 
     chrome.runtime.onMessage.addListener((message) => {
@@ -50,8 +66,8 @@ import './stream-capture'
 
     console.group('[spatula] running')
     console.log('[spatula] injecting page source')
-    const defaultPages = allSites.flatMap((s) => s.pages)
-    const defaultHtmlevatePages = allSites.flatMap((s) => s.htmlevatePages)
+    const defaultPages = allSites.flatMap((s) => s.getPages())
+    const defaultHtmlevatePages = allSites.flatMap((s) => s.getHtmlevatePages())
     console.log(
       '[spatula] loaded sites',
       allSites.map((s) => s.hostname),
@@ -60,27 +76,30 @@ import './stream-capture'
       '[spatula] loaded pages',
       defaultPages.map((p) => p.$entity),
     )
-    const defaultHtmlevateLoaders: HtmlEvateLoader[] = []
-    for (const site of allSites) {
-      for (const [name, exprs] of Object.entries(site.loaders)) {
-        const urlPattern = site.requests[name]?.url
-        if (!urlPattern) {
-          continue
-        }
-        for (const expr of exprs) {
-          if (expr.format !== 'htmlevate') {
-            continue
-          }
-          console.log(`[spatula] htmlevate loader: ${site.hostname} "${name}" → ${urlPattern}`)
-          defaultHtmlevateLoaders.push({ name, hostname: site.hostname, urlPattern, source: expr.expression, path: `src/sites/${site.dir}/loaders/${expr.file}` })
+    const defaultHtmlevateLoaders = allSites.flatMap((s) => {
+      const loaders = s.getHtmlevateLoaders()
+      for (const l of loaders) {
+        console.log(`[spatula] htmlevate loader: ${s.hostname} "${l.name}" → ${l.urlPattern}`)
+      }
+      return loaders
+    })
+    function allMatchingLoaderFiles(htmlevateLoaders: HtmlEvateLoader[]) {
+      const url = new URL(document.URL)
+      const files: Array<{ name: string; path: string; format: 'htmlevate' | 'jsonata' }> = []
+      for (const l of htmlevateLoaders) {
+        if (l.path && url.hostname === l.hostname && matchesGlob(l.urlPattern, url.pathname)) {
+          files.push({ name: l.name, path: l.path, format: 'htmlevate' })
         }
       }
-    }
-    function matchingLoaderFiles(loaders: HtmlEvateLoader[]) {
-      const url = new URL(document.URL)
-      return loaders
-        .filter((l) => url.hostname === l.hostname && matchesGlob(l.urlPattern, url.pathname) && l.path)
-        .map((l) => ({ name: l.name, path: l.path!, format: 'htmlevate' as const }))
+      for (const site of allSites) {
+        if (url.hostname !== site.hostname) {
+          continue
+        }
+        for (const { name, path } of site.getJsonataLoaderFiles()) {
+          files.push({ name, path, format: 'jsonata' })
+        }
+      }
+      return files
     }
 
     registerLoaders(allSites)
@@ -92,39 +111,23 @@ import './stream-capture'
       }
     }
     source.start()
-    highlighter.setLoaderFiles(matchingLoaderFiles(defaultHtmlevateLoaders))
+    const loaderFiles = allMatchingLoaderFiles(defaultHtmlevateLoaders)
+    highlighter.setLoaderFiles(loaderFiles)
     if (debugEnabled) {
-      const errorMessages = source.lastErrors.map((e) => `${e.entity}${e.path}: ${e.message}`)
-      highlighter.apply(source.lastHighlights, source.lastPatchCounts, errorMessages)
+      highlighter.applyOrMount(source.lastHighlights, source.lastPatchCounts,
+        source.lastErrors.map((e) => `${e.entity}${e.path}: ${e.message}`),
+        loaderFiles,
+      )
     }
 
     if (import.meta.hot) {
       import.meta.hot.on('spatula:source-update', ({ path, content }: { path: string; content: string }) => {
-        let changed = false
-        for (const site of allSites) {
-          if (patchSiteSource(site, path, content)) {
-            changed = true
-          }
-        }
+        const changed = allSites.some((s) => s.patchSource(path, content))
         if (!changed) {
           return
         }
-        const htmlevatePages = allSites.flatMap((s) => s.htmlevatePages)
-        const htmlevateLoaders: HtmlEvateLoader[] = []
-        for (const site of allSites) {
-          for (const [name, exprs] of Object.entries(site.loaders)) {
-            const urlPattern = site.requests[name]?.url
-            if (!urlPattern) {
-              continue
-            }
-            for (const expr of exprs) {
-              if (expr.format !== 'htmlevate') {
-                continue
-              }
-              htmlevateLoaders.push({ name, hostname: site.hostname, urlPattern, source: expr.expression, path: `src/sites/${site.dir}/loaders/${expr.file}` })
-            }
-          }
-        }
+        const htmlevatePages = allSites.flatMap((s) => s.getHtmlevatePages())
+        const htmlevateLoaders = allSites.flatMap((s) => s.getHtmlevateLoaders())
         source.updateResources(defaultPages, htmlevatePages, htmlevateLoaders)
         console.log(`[spatula] hot-reloaded: ${path}`)
       })

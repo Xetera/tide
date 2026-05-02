@@ -6,7 +6,7 @@ import { HTMLParser } from './html-parser'
 import { JSDOM } from 'jsdom'
 import { sahibindenSite } from '~/sites/sahibinden'
 
-const sahibinden = sahibindenSite.pages[0]!
+const sahibinden = sahibindenSite.getPages()[0]!
 
 function makeResource(opts: Partial<PageSpec>): PageSpec {
   return {

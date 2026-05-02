@@ -10,6 +10,7 @@ import {
 } from 'solid-js'
 import { sendMessage } from 'webext-bridge/popup'
 import { allSites } from '~/sites'
+import { matchesGlob } from '~/extraction/glob'
 import type {
   LoaderInfo,
   LoaderFixture,
@@ -18,7 +19,7 @@ import type {
 } from '~/generation/types'
 import Resizable from '@corvu/resizable'
 import { HighlightedCode, JsonViewer } from './json-viewer'
-import { JsonataEditor } from './jsonata-editor'
+import { JsonataEditor, parseErrorPosition } from './jsonata-editor'
 import {
   evaluate,
   evaluateHtmlevate,
@@ -279,6 +280,7 @@ function EditorPanel({
   canGenerate,
   onGenerate,
   evalError,
+  errorPosition,
 }: {
   loaderPath: () => string
   expression: () => string
@@ -294,6 +296,7 @@ function EditorPanel({
   canGenerate: () => boolean
   onGenerate: () => void
   evalError: () => string | undefined
+  errorPosition: () => import('./jsonata-editor').ErrorPosition | null
 }) {
   return (
     <Resizable.Panel
@@ -337,6 +340,7 @@ function EditorPanel({
         value={expression}
         onInput={onExpressionChange}
         entityNames={allSites.flatMap((s) => s.entities.map((e) => e.entity))}
+        errorPosition={errorPosition}
       />
       <Show when={llmStatus() !== 'idle' || generationAttempts().length > 0}>
         <GenerationAttemptList
@@ -474,6 +478,10 @@ function InputPanel({
   iframeBody,
   iframeRef,
   onIframeLoad,
+  liveTabs,
+  selectedLiveTab,
+  liveTabStatus,
+  onSelectLiveTab,
   fixtures,
   selectedFixture,
   onSelectFixture,
@@ -491,8 +499,8 @@ function InputPanel({
   isHtmlevate: () => boolean
   inputTab: () => 'fixture' | 'capture'
   onInputTabChange: (tab: 'fixture' | 'capture') => void
-  htmlInputTab: () => 'html' | 'url'
-  onHtmlInputTabChange: (tab: 'html' | 'url') => void
+  htmlInputTab: () => 'html' | 'url' | 'tab'
+  onHtmlInputTabChange: (tab: 'html' | 'url' | 'tab') => void
   htmlInput: () => string
   onHtmlInputChange: (v: string) => void
   urlInput: () => string
@@ -501,7 +509,11 @@ function InputPanel({
   urlFetchStatus: () => 'idle' | 'loading' | 'error'
   iframeBody: () => HTMLElement | null
   iframeRef: (el: HTMLIFrameElement) => void
-  onIframeLoad: (body: HTMLElement | null, tab: 'html' | 'url') => void
+  onIframeLoad: (body: HTMLElement | null, tab: 'html' | 'url' | 'tab') => void
+  liveTabs: () => Array<{ tabId: number; title: string; url: string }>
+  selectedLiveTab: () => number | null
+  liveTabStatus: () => 'idle' | 'loading' | 'error'
+  onSelectLiveTab: (tabId: number) => void
   fixtures: () => LoaderFixture[]
   selectedFixture: () => LoaderFixture | null
   onSelectFixture: (f: LoaderFixture) => void
@@ -522,10 +534,10 @@ function InputPanel({
       minSize={0.1}
       class='flex flex-col overflow-hidden'
     >
-      <Show when={isHtmlevate()}>
+      <Show when={isHtmlevate() && htmlInputTab() !== 'tab'}>
         <iframe
           ref={iframeRef}
-          sandbox={htmlInputTab() === 'url' ? undefined : ''}
+          sandbox={htmlInputTab() === 'url' ? undefined : 'allow-same-origin'}
           srcdoc={htmlInputTab() === 'html' ? htmlInput() : undefined}
           style='display:none'
           onLoad={(e) => {
@@ -563,10 +575,10 @@ function InputPanel({
         <div class='border-b border-border flex shrink-0'>
           <button
             type='button'
-            onClick={() => onHtmlInputTabChange('html')}
-            class={`flex-1 px-3 py-1.5 text-xs transition-colors ${htmlInputTab() === 'html' ? 'text-foreground border-b-2 border-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            onClick={() => onHtmlInputTabChange('tab')}
+            class={`flex-1 px-3 py-1.5 text-xs transition-colors ${htmlInputTab() === 'tab' ? 'text-foreground border-b-2 border-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            HTML
+            Live
           </button>
           <button
             type='button'
@@ -575,18 +587,60 @@ function InputPanel({
           >
             URL
           </button>
+          <button
+            type='button'
+            onClick={() => onHtmlInputTabChange('html')}
+            class={`flex-1 px-3 py-1.5 text-xs transition-colors ${htmlInputTab() === 'html' ? 'text-foreground border-b-2 border-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            HTML
+          </button>
         </div>
-        <Show
-          when={htmlInputTab() === 'url'}
-          fallback={
-            <textarea
-              value={htmlInput()}
-              onInput={(e) => onHtmlInputChange(e.currentTarget.value)}
-              placeholder='Paste HTML here...'
-              class='flex-1 w-full px-3 py-2 text-xs font-mono bg-transparent resize-none outline-none text-foreground placeholder:text-muted-foreground'
+        <Show when={htmlInputTab() === 'tab'}>
+          <div class='flex flex-col flex-1 overflow-hidden min-h-0'>
+            <Show when={liveTabs().length === 0 && liveTabStatus() !== 'loading'}>
+              <p class='text-xs text-muted-foreground p-3'>No matching tabs open</p>
+            </Show>
+            <Show when={liveTabs().length > 1}>
+              <div class='border-b border-border flex gap-0 overflow-x-auto shrink-0'>
+                <For each={liveTabs()}>
+                  {(t) => (
+                    <button
+                      type='button'
+                      onClick={() => onSelectLiveTab(t.tabId)}
+                      class={`px-3 py-1.5 text-xs font-mono shrink-0 truncate max-w-[160px] transition-colors ${selectedLiveTab() === t.tabId ? 'text-foreground border-b-2 border-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                      title={t.url}
+                    >
+                      {new URL(t.url).pathname || '/'}
+                    </button>
+                  )}
+                </For>
+              </div>
+            </Show>
+            <Show when={liveTabStatus() === 'error'}>
+              <p class='text-xs text-destructive px-3 py-2 shrink-0'>Failed to fetch tab HTML</p>
+            </Show>
+            <iframe
+              ref={iframeRef}
+              sandbox='allow-same-origin'
+              srcdoc={htmlInput() || ' '}
+              class='flex-1 w-full min-h-0 border-0'
+              style={liveTabStatus() === 'loading' ? 'opacity:0.3' : ''}
+              onLoad={(e) => {
+                if (!htmlInput()) {
+                  return
+                }
+                const frame = e.currentTarget
+                iframeRef(frame)
+                try {
+                  onIframeLoad(frame.contentDocument?.body ?? null, 'tab')
+                } catch {
+                  onIframeLoad(null, 'tab')
+                }
+              }}
             />
-          }
-        >
+          </div>
+        </Show>
+        <Show when={htmlInputTab() === 'url'}>
           <div class='flex flex-col flex-1 gap-2 p-3'>
             <div class='flex gap-2'>
               <input
@@ -615,6 +669,14 @@ function InputPanel({
               <span class='text-xs text-muted-foreground'>Page loaded</span>
             </Show>
           </div>
+        </Show>
+        <Show when={htmlInputTab() === 'html'}>
+          <textarea
+            value={htmlInput()}
+            onInput={(e) => onHtmlInputChange(e.currentTarget.value)}
+            placeholder='Paste HTML here...'
+            class='flex-1 w-full px-3 py-2 text-xs font-mono bg-transparent resize-none outline-none text-foreground placeholder:text-muted-foreground'
+          />
         </Show>
       </Show>
 
@@ -864,14 +926,38 @@ function Playground() {
   const [newCaptureIds, setNewCaptureIds] = createSignal<Set<string>>(new Set())
   const [htmlInput, setHtmlInput] = createSignal('')
   const [urlInput, setUrlInput] = createSignal('')
-  const [htmlInputTab, setHtmlInputTab] = createSignal<'html' | 'url'>('html')
+  const [htmlInputTab, setHtmlInputTab] = createSignal<'html' | 'url' | 'tab'>('tab')
   const [urlFetchStatus, setUrlFetchStatus] = createSignal<
     'idle' | 'loading' | 'error'
   >('idle')
   const [iframeBody, setIframeBody] = createSignal<HTMLElement | null>(null)
+  const [liveTabs, setLiveTabs] = createSignal<Array<{ tabId: number; title: string; url: string }>>([])
+  const [selectedLiveTab, setSelectedLiveTab] = createSignal<number | null>(null)
+  const [liveTabStatus, setLiveTabStatus] = createSignal<'idle' | 'loading' | 'error'>('idle')
   let iframeRef: HTMLIFrameElement | undefined
 
   const isHtmlevate = () => selectedLoader()?.format === 'htmlevate'
+
+  async function loadLiveTabHtml(tabId: number) {
+    setLiveTabStatus('loading')
+    setIframeBody(null)
+    try {
+      const result = await sendMessage('get-tab-html', { tabId }, { context: 'background', tabId: 0 })
+      if (!result) {
+        setLiveTabStatus('error')
+        return
+      }
+      setHtmlInput(result.html)
+      setLiveTabStatus('idle')
+    } catch {
+      setLiveTabStatus('error')
+    }
+  }
+
+  async function selectLiveTab(tabId: number) {
+    setSelectedLiveTab(tabId)
+    await loadLiveTabHtml(tabId)
+  }
 
   function loadUrl() {
     const url = urlInput().trim()
@@ -1014,6 +1100,32 @@ function Playground() {
     onCleanup(() => clearInterval(interval))
   })
 
+  createEffect(() => {
+    if (!isHtmlevate() || htmlInputTab() !== 'tab') {
+      return
+    }
+    const loader = selectedLoader()
+    if (!loader) {
+      return
+    }
+    const site = allSites.find((s) => s.dir === loader.site)
+    if (!site) {
+      return
+    }
+    void (async () => {
+      const tabs = await sendMessage('get-tabs-for-hostname', { hostname: site.hostname }, { context: 'background', tabId: 0 })
+      setLiveTabs(tabs)
+      if (tabs.length > 0) {
+        const urlPattern = site.getLoaderRequest(loader.loader)?.url
+        const best = urlPattern
+          ? (tabs.find((t) => { try { return matchesGlob(urlPattern, new URL(t.url).pathname) } catch { return false } }) ?? tabs[0]!)
+          : tabs[0]!
+        setSelectedLiveTab(best.tabId)
+        await loadLiveTabHtml(best.tabId)
+      }
+    })()
+  })
+
   const loaderParam = new URLSearchParams(location.search).get('loader')
   let loaderParamApplied = false
   createEffect(() => {
@@ -1039,6 +1151,12 @@ function Playground() {
     setWriteStatus('idle')
     setSelectedFixture(loader.fixtures[0] ?? null)
     setSelectedCapture(null)
+    if (loader.format === 'htmlevate') {
+      setHtmlInputTab('tab')
+      setLiveTabs([])
+      setSelectedLiveTab(null)
+      setIframeBody(null)
+    }
   }
 
   const activeInput = (): {
@@ -1334,6 +1452,7 @@ function Playground() {
                   canGenerate={() => selectedCapture() !== null}
                   onGenerate={generateJsonata}
                   evalError={() => evalResult()?.error}
+                  errorPosition={() => parseErrorPosition(evalResult()?.error ?? '')}
                 />
 
                 <Resizable.Handle class='w-1 bg-border hover:bg-foreground/30 transition-colors cursor-col-resize' />
@@ -1346,6 +1465,9 @@ function Playground() {
                   onHtmlInputTabChange={(tab) => {
                     setHtmlInputTab(tab)
                     setIframeBody(null)
+                    if (tab !== 'tab') {
+                      setHtmlInput('')
+                    }
                   }}
                   htmlInput={htmlInput}
                   onHtmlInputChange={setHtmlInput}
@@ -1363,6 +1485,10 @@ function Playground() {
                       setUrlFetchStatus(body ? 'idle' : 'error')
                     }
                   }}
+                  liveTabs={liveTabs}
+                  selectedLiveTab={selectedLiveTab}
+                  liveTabStatus={liveTabStatus}
+                  onSelectLiveTab={selectLiveTab}
                   fixtures={() => loader().fixtures}
                   selectedFixture={selectedFixture}
                   onSelectFixture={(f) => {

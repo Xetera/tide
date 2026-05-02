@@ -5,8 +5,9 @@ import {
   type DecorationSet,
   ViewPlugin,
   type ViewUpdate,
+  WidgetType,
 } from '@codemirror/view'
-import { EditorState, RangeSetBuilder } from '@codemirror/state'
+import { EditorState, RangeSetBuilder, StateEffect, StateField } from '@codemirror/state'
 import { syntaxHighlighting } from '@codemirror/language'
 import { classHighlighter } from '@lezer/highlight'
 import {
@@ -19,14 +20,69 @@ import { keymap } from '@codemirror/view'
 import { jsonataLanguage } from './jsonata-language'
 import { allSites } from '~/sites'
 
+export interface ErrorPosition {
+  line: number
+  col: number
+  message: string
+}
+
+export function parseErrorPosition(msg: string): ErrorPosition | null {
+  const m = msg.match(/^Line (\d+), col (\d+):/)
+  if (!m) {
+    return null
+  }
+  return { line: parseInt(m[1]!), col: parseInt(m[2]!), message: msg }
+}
+
+const setErrorEffect = StateEffect.define<ErrorPosition | null>()
+
+class ErrorWidget extends WidgetType {
+  constructor(readonly msg: string) { super() }
+  toDOM() {
+    const el = document.createElement('span')
+    el.className = 'cm-error-widget'
+    const lines = this.msg.split('\n')
+    const detail = lines.find(l => l.startsWith('Expected') || l.startsWith('Failed') || (!l.startsWith('>') && !l.match(/^\s*\^/) && !l.match(/^Line \d/) && l.trim()))
+    el.textContent = ' ' + (detail ?? lines[0] ?? this.msg)
+    return el
+  }
+  ignoreEvent() { return true }
+}
+
+const errorField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(setErrorEffect)) {
+        const pos = effect.value
+        if (!pos) {
+          return Decoration.none
+        }
+        const line = tr.state.doc.line(Math.min(pos.line, tr.state.doc.lines))
+        const col = Math.min(pos.col - 1, line.length)
+        const from = line.from + col
+        const firstLine = pos.message.split('\n')[0] ?? pos.message
+        return Decoration.set([
+          Decoration.line({ class: 'cm-error-line' }).range(line.from),
+          Decoration.widget({ widget: new ErrorWidget(firstLine), side: 1 }).range(from),
+        ])
+      }
+    }
+    return deco.map(tr.changes)
+  },
+  provide: f => EditorView.decorations.from(f),
+})
+
 export function JsonataEditor({
   value,
   onInput,
   entityNames,
+  errorPosition,
 }: {
   value: () => string
   onInput: (v: string) => void
   entityNames: string[]
+  errorPosition?: () => ErrorPosition | null
 }) {
   let container: HTMLDivElement | undefined
   let view: EditorView | undefined
@@ -135,6 +191,7 @@ export function JsonataEditor({
           jsonataLanguage,
           syntaxHighlighting(classHighlighter),
           entityValidationPlugin,
+          errorField,
           autocompletion({ override: [entityCompletion] }),
           keymap.of([
             {
@@ -151,6 +208,7 @@ export function JsonataEditor({
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
               onInput(update.state.doc.toString())
+              update.view.dispatch({ effects: setErrorEffect.of(null) })
             }
           }),
           EditorView.theme(
@@ -176,6 +234,16 @@ export function JsonataEditor({
               '.cm-unknown-entity': {
                 textDecoration: 'underline wavy var(--destructive)',
                 textDecorationSkipInk: 'none',
+              },
+              '.cm-error-line': {
+                background: 'color-mix(in srgb, var(--destructive) 12%, transparent)',
+              },
+              '.cm-error-widget': {
+                color: 'var(--destructive)',
+                opacity: '0.8',
+                fontStyle: 'italic',
+                fontSize: '0.7rem',
+                pointerEvents: 'none',
               },
               '.cm-tooltip': {
                 background: 'var(--background)',
@@ -213,6 +281,13 @@ export function JsonataEditor({
     view.dispatch({
       changes: { from: 0, to: view.state.doc.length, insert: newVal },
     })
+  })
+
+  createEffect(() => {
+    if (!view || !errorPosition) {
+      return
+    }
+    view.dispatch({ effects: setErrorEffect.of(errorPosition()) })
   })
 
   return <div ref={container} class='flex-1 overflow-hidden' />

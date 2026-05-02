@@ -40,7 +40,7 @@ console.log(
 )
 console.log(
   '[spatula] allSites requests:',
-  allSites.map((s) => `${s.hostname}: ${Object.keys(s.requests).join(', ')}`),
+  allSites.map((s) => `${s.hostname}: ${s.getNetworkLoaders().map((l) => l.name).join(', ')}`),
 )
 
 function hostnameFromUrl(url: string): string {
@@ -486,6 +486,36 @@ function emitUrlUpdate(
     onMessage('open-tab', ({ data }) => {
       chrome.tabs.create({ url: data.url })
     })
+    onMessage('get-tabs-for-hostname', async ({ data }) => {
+      const tabs = await chrome.tabs.query({})
+      return tabs
+        .filter((t) => {
+          if (!t.url || t.id == null) {
+            return false
+          }
+          try {
+            return new URL(t.url).hostname === data.hostname
+          } catch {
+            return false
+          }
+        })
+        .map((t) => ({ tabId: t.id!, title: t.title ?? t.url ?? '', url: t.url! }))
+    })
+    onMessage('get-tab-html', async ({ data }) => {
+      try {
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: data.tabId },
+          func: () => ({ html: document.documentElement.outerHTML, url: location.href }),
+        })
+        const result = results[0]?.result
+        if (!result) {
+          return null
+        }
+        return result as { html: string; url: string }
+      } catch {
+        return null
+      }
+    })
     onMessage('toggle-resource', () => {})
     onMessage('log', ({ data }) => {
       log(data)
@@ -746,7 +776,7 @@ function emitUrlUpdate(
     validator = new EntityValidator(allSites)
 
     const localSchema = await storage.get('schema:local', '')
-    const defaultResources = instagramSite.pages
+    const defaultResources = instagramSite.getPages()
     const resources: PageSpec[] = localSchema
       ? (() => {
           try {

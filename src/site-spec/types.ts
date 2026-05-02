@@ -1,3 +1,6 @@
+import { matchesGlob } from '~/extraction/glob'
+import { parse } from '~/htmlevate/parser'
+
 export interface RequestMatcher {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   url: string
@@ -18,19 +21,159 @@ export interface HtmlEvateLoader {
   path?: string
 }
 
-export interface SiteDefinition {
-  hostname: string
-  dir: string
-  icon?: string
-  entities: Entity[]
-  /** Named request matchers — what network requests to capture, keyed by name */
-  requests: Record<string, RequestMatcher>
-  /** Loaders keyed by loader name, auto-discovered from loaders/ directory */
-  loaders: Record<string, LoaderExpression[]>
-  /** HTML page specs */
-  pages: PageSpec[]
-  // HTMLevate page specs auto-discovered from pages/[page]/index.htmlevate
-  htmlevatePages: HtmlEvatePage[]
+export class SiteDefinition {
+  readonly hostname: string
+  readonly dir: string
+  readonly icon?: string
+  readonly entities: Entity[]
+
+  #pages: PageSpec[]
+  #htmlevatePages: HtmlEvatePage[]
+  #loaders: Record<string, LoaderExpression[]>
+  #requests: Record<string, RequestMatcher>
+
+  constructor(init: {
+    hostname: string
+    dir: string
+    icon?: string
+    entities: Entity[]
+    pages: PageSpec[]
+    htmlevatePages: HtmlEvatePage[]
+    loaders: Record<string, LoaderExpression[]>
+    requests: Record<string, RequestMatcher>
+  }) {
+    this.hostname = init.hostname
+    this.dir = init.dir
+    this.icon = init.icon
+    this.entities = init.entities
+    this.#pages = init.pages
+    this.#htmlevatePages = init.htmlevatePages
+    this.#loaders = init.loaders
+    this.#requests = init.requests
+  }
+
+  getPages(): PageSpec[] {
+    return this.#pages
+  }
+
+  getHtmlevatePages(): HtmlEvatePage[] {
+    return this.#htmlevatePages
+  }
+
+  matchesCapture(url: URL, method: string): boolean {
+    const upperMethod = method.toUpperCase()
+    for (const matcher of Object.values(this.#requests)) {
+      if (matcher.method.toUpperCase() !== upperMethod) {
+        continue
+      }
+      if (matchesGlob(matcher.url, url.pathname)) {
+        return true
+      }
+    }
+    return false
+  }
+
+  getHtmlevateLoaders(): HtmlEvateLoader[] {
+    const result: HtmlEvateLoader[] = []
+    for (const [name, exprs] of Object.entries(this.#loaders)) {
+      const matcher = this.#requests[name]
+      if (!matcher) {
+        continue
+      }
+      for (const expr of exprs) {
+        if (expr.format !== 'htmlevate') {
+          continue
+        }
+        result.push({
+          name,
+          hostname: this.hostname,
+          urlPattern: matcher.url,
+          source: expr.expression,
+          path: `src/sites/${this.dir}/loaders/${expr.file}`,
+        })
+      }
+    }
+    return result
+  }
+
+  getJsonataLoaderFiles(): Array<{ name: string; path: string; format: 'jsonata' }> {
+    const result: Array<{ name: string; path: string; format: 'jsonata' }> = []
+    for (const [name, exprs] of Object.entries(this.#loaders)) {
+      for (const expr of exprs) {
+        if (expr.format === 'jsonata') {
+          result.push({ name, path: `src/sites/${this.dir}/loaders/${expr.file}`, format: 'jsonata' })
+        }
+      }
+    }
+    return result
+  }
+
+  getLoaderRequest(loaderName: string): RequestMatcher | undefined {
+    return this.#requests[loaderName]
+  }
+
+  hasLoader(loaderName: string): boolean {
+    return loaderName in this.#loaders
+  }
+
+  getNetworkLoaders(): Array<{
+    name: string
+    url: string
+    method: string
+    expressions: LoaderExpression[]
+  }> {
+    const result: Array<{ name: string; url: string; method: string; expressions: LoaderExpression[] }> = []
+    for (const [name, expressions] of Object.entries(this.#loaders)) {
+      const matcher = this.#requests[name]
+      if (!matcher) {
+        continue
+      }
+      result.push({ name, url: matcher.url, method: matcher.method, expressions })
+    }
+    return result
+  }
+
+  patchSource(relPath: string, content: string): boolean {
+    const pageMatch = relPath.match(/sites\/([^/]+)\/pages\/([^/]+)\/index\.htmlevate$/)
+    if (pageMatch && pageMatch[1] === this.dir) {
+      try {
+        const { frontmatter } = parse(content)
+        if (!frontmatter.entity || !frontmatter.urlPattern) {
+          return false
+        }
+        const entity = String(frontmatter.entity)
+        const updated: HtmlEvatePage = {
+          $entity: entity,
+          $urlPattern: frontmatter.urlPattern as string | string[],
+          $hostname: this.hostname,
+          source: content,
+        }
+        const idx = this.#htmlevatePages.findIndex((p) => p.$entity === entity)
+        if (idx >= 0) {
+          this.#htmlevatePages[idx] = updated
+        } else {
+          this.#htmlevatePages.push(updated)
+        }
+      } catch {
+        return false
+      }
+      return true
+    }
+
+    const loaderMatch = relPath.match(/sites\/([^/]+)\/loaders\/(?:[^/]+\/)?(.+\.(jsonata|htmlevate))$/)
+    if (loaderMatch && loaderMatch[1] === this.dir) {
+      const file = loaderMatch[2]!
+      for (const entries of Object.values(this.#loaders)) {
+        for (const entry of entries) {
+          if (entry.file === file) {
+            entry.expression = content
+            return true
+          }
+        }
+      }
+    }
+    return false
+  }
 }
 
 export interface Entity {

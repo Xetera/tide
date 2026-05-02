@@ -26,8 +26,8 @@ function generateFixture(name: string) {
   return { html, result }
 }
 
-const sahibinden = sahibindenSite.pages[0]!
-const instagram = instagramSite.pages.find(
+const sahibinden = sahibindenSite.getPages()[0]!
+const instagram = instagramSite.getPages().find(
   (p) => p.$entity === 'instagram:profile',
 )!
 

@@ -8,7 +8,7 @@ export const restHandlers = [
   http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/resources`, () => {
     return HttpResponse.json<ResourcesResponse>({
       name: 'test',
-      resources: sahibindenSite.pages,
+      resources: sahibindenSite.getPages(),
     })
   }),
   http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/worker/jobs`, () => {

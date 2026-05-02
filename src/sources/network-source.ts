@@ -19,12 +19,8 @@ export function registerLoaders(sites: SiteDefinition[]) {
     }
   > = {}
   for (const site of sites) {
-    for (const [name, expressions] of Object.entries(site.loaders)) {
-      const matcher = site.requests[name]
-      if (!matcher) {
-        continue
-      }
-      loaders[name] = { url: matcher.url, method: matcher.method, expressions }
+    for (const { name, url, method, expressions } of site.getNetworkLoaders()) {
+      loaders[name] = { url, method, expressions }
     }
   }
   window.postMessage(

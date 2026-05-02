@@ -128,13 +128,8 @@ export function captureMatchesKnownLoader(
     return false
   }
   for (const site of sites) {
-    for (const matcher of Object.values(site.requests)) {
-      if (matcher.method.toUpperCase() !== method.toUpperCase()) {
-        continue
-      }
-      if (matchesGlob(matcher.url, parsedUrl.pathname)) {
-        return true
-      }
+    if (site.matchesCapture(parsedUrl, method)) {
+      return true
     }
   }
   return false
@@ -145,8 +140,8 @@ export function buildLoaderInfos(sites: SiteDefinition[]): LoaderInfo[] {
     const fixtures = fixtureEntries
       .filter((f) => f.site === entry.site && f.loader === entry.loader)
       .map((f) => ({ path: f.path, name: f.name, data: f.data }))
-    const site = sites.find((s) => s.loaders[entry.loader])
-    const matcher = site?.requests[entry.loader]
+    const site = sites.find((s) => s.hasLoader(entry.loader))
+    const matcher = site?.getLoaderRequest(entry.loader)
     return {
       site: entry.site,
       loader: entry.loader,
@@ -162,8 +157,8 @@ export function buildLoaderInfos(sites: SiteDefinition[]): LoaderInfo[] {
   })
 }
 
-export function buildSiteLoaders(dir: string): SiteDefinition['loaders'] {
-  const loaders: SiteDefinition['loaders'] = {}
+export function buildSiteLoaders(dir: string): Record<string, import('~/site-spec/types').LoaderExpression[]> {
+  const loaders: Record<string, import('~/site-spec/types').LoaderExpression[]> = {}
   for (const entry of loaderEntries) {
     if (entry.site !== dir) {
       continue

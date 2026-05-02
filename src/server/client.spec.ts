@@ -2,7 +2,7 @@ import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { sahibindenSite, sahibindenSmallJobs } from '~/sites/sahibinden'
 
-const sahibinden = sahibindenSite.pages[0]!
+const sahibinden = sahibindenSite.getPages()[0]!
 import { server } from '~/msw'
 import { TEST_URL_ENDPOINT } from '~/setup-tools'
 import { Client, type ServerDefinition } from './client'

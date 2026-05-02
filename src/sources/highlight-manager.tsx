@@ -167,6 +167,9 @@ const LEGEND_CSS = `
   .file-ext { font-size: 8px; font-weight: 600; }
   .file-ext-html { color: oklch(0.65 0.15 50); }
   .file-ext-json { color: oklch(0.6 0.15 250); }
+  .file-count { margin-left: auto; font-size: 9px; color: oklch(0.55 0 0); }
+  .file-count.empty { opacity: 0.35; }
+  .file-link.unfired { opacity: 0.4; }
   .opacity-row {
     display: flex;
     align-items: center;
@@ -188,7 +191,7 @@ function LegendComponent(props: {
   host: HTMLElement
   entries: () => Array<{ entity: string; hue: number; count: number }>
   errors: () => string[]
-  loaderFiles: () => Array<{ name: string; path: string; format: string }>
+  loaderFiles: () => Array<{ name: string; path: string; format: string; patchCount?: number }>
   onHiddenChange: (hidden: Set<string>) => void
   onOpacityChange: (v: number) => void
 }) {
@@ -375,7 +378,7 @@ function LegendComponent(props: {
           <For each={props.loaderFiles()}>
             {(file) => (
               <a
-                class="file-link"
+                class={`file-link${file.patchCount === undefined ? ' unfired' : ''}`}
                 href="#"
                 on:mousedown={(e: MouseEvent) => e.stopPropagation()}
                 on:click={(e: MouseEvent) => {
@@ -388,6 +391,9 @@ function LegendComponent(props: {
                   {file.format === 'htmlevate' ? '</>' : '{}'}
                 </span>
                 <span>{file.name}</span>
+                {file.patchCount !== undefined && (
+                  <span class={`file-count${file.patchCount === 0 ? ' empty' : ''}`}>{file.patchCount}</span>
+                )}
               </a>
             )}
           </For>
@@ -405,7 +411,7 @@ export class LegendOverlay {
   #onRedraw: (() => void) | null = null
   #setEntries: ((v: Array<{ entity: string; hue: number; count: number }>) => void) | null = null
   #setErrors: ((v: string[]) => void) | null = null
-  #setLoaderFiles: ((v: Array<{ name: string; path: string; format: string }>) => void) | null = null
+  #setLoaderFiles: ((v: Array<{ name: string; path: string; format: string; patchCount?: number }>) => void) | null = null
 
   set onRedraw(cb: () => void) {
     this.#onRedraw = cb
@@ -432,7 +438,7 @@ export class LegendOverlay {
 
     const [entries, setEntries] = createSignal<Array<{ entity: string; hue: number; count: number }>>([])
     const [errors, setErrors] = createSignal<string[]>([])
-    const [loaderFiles, setLoaderFiles] = createSignal<Array<{ name: string; path: string; format: string }>>([])
+    const [loaderFiles, setLoaderFiles] = createSignal<Array<{ name: string; path: string; format: string; patchCount?: number }>>([])
     this.#setEntries = setEntries
     this.#setErrors = setErrors
     this.#setLoaderFiles = setLoaderFiles
@@ -486,7 +492,7 @@ export class LegendOverlay {
     )
   }
 
-  setLoaderFiles(files: Array<{ name: string; path: string; format: string }>) {
+  setLoaderFiles(files: Array<{ name: string; path: string; format: string; patchCount?: number }>) {
     this.#setLoaderFiles?.(files)
   }
 }
@@ -496,7 +502,7 @@ export class HighlightManager {
   #entries: readonly HighlightEntry[] = []
   #patchCounts: Map<string, number> | null = null
   #errors: string[] = []
-  #loaderFiles: Array<{ name: string; path: string; format: string }> = []
+  #loaderFiles: Array<{ name: string; path: string; format: string; patchCount?: number }> = []
   #hues = new Map<string, number>()
   #canvas: HTMLCanvasElement | null = null
   #raf = 0
@@ -504,9 +510,29 @@ export class HighlightManager {
   #listeners: (() => void)[] = []
   #legend = new LegendOverlay()
 
-  setLoaderFiles(files: Array<{ name: string; path: string; format: string }>) {
+  setLoaderFiles(files: Array<{ name: string; path: string; format: string; patchCount?: number }>) {
     this.#loaderFiles = files
     this.#legend.setLoaderFiles(files)
+  }
+
+  updateLoaderFileCounts(counts: Map<string, number>) {
+    const updated = this.#loaderFiles.map((file) => {
+      const parts = file.path.split('/')
+      const loadersIdx = parts.lastIndexOf('loaders')
+      if (loadersIdx === -1) {
+        return file
+      }
+      const after = parts.slice(loadersIdx + 1)
+      const networkKey = after.join('/')
+      const stemKey = after[0]?.replace(/\.[^.]+$/, '') ?? ''
+      const count = counts.get(networkKey) ?? counts.get(stemKey)
+      if (count === undefined) {
+        return file
+      }
+      return { ...file, patchCount: count }
+    })
+    this.#loaderFiles = updated
+    this.#legend.setLoaderFiles(updated)
   }
 
   toggle(entries: readonly HighlightEntry[]) {
@@ -514,6 +540,24 @@ export class HighlightManager {
       this.clear()
     } else {
       this.apply(entries)
+    }
+  }
+
+  applyOrMount(
+    entries: readonly HighlightEntry[],
+    patchCounts?: Map<string, number>,
+    errors?: string[],
+    loaderFiles?: Array<{ name: string; path: string; format: string; patchCount?: number }>,
+  ) {
+    if (loaderFiles) {
+      this.#loaderFiles = loaderFiles
+    }
+    if (entries.length > 0) {
+      this.apply(entries, patchCounts, errors)
+    } else {
+      this.#legend.mount()
+      this.#legend.setLoaderFiles(this.#loaderFiles)
+      this.#legend.update(new Map(), new Map(), errors ?? [])
     }
   }
 
