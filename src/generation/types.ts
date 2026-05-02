@@ -57,6 +57,7 @@ export interface LoaderInfo {
   file: string
   path: string
   expression: string
+  format: 'jsonata' | 'htmlevate'
   fixtures: LoaderFixture[]
   request?: { method: string; url: string }
 }

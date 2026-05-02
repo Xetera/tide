@@ -8,7 +8,7 @@ import type {
   RawEntityPatch,
   JobSource,
 } from './site-spec/types'
-import type { PlainLog, ScrapeLog } from './shared'
+import type { PlainLog, ScrapeLog, ScrapeSource } from './shared'
 import type {
   CaptureEntry,
   GenerationRequest,
@@ -18,6 +18,7 @@ import type {
 } from './generation/types'
 declare module 'webext-bridge' {
   export interface ProtocolMap {
+    'open-tab': { url: string }
     'url-update': unknown
     'toggle-highlight': void
     'run-job': JobParameters
@@ -30,7 +31,7 @@ declare module 'webext-bridge' {
       patches: RawEntityPatch[]
       source: JobSource
       warnings: string[]
-      loader?: { name: string; file: string }
+      scrapeSource?: ScrapeSource
     }
     'raw-capture': {
       url: string

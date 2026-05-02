@@ -72,27 +72,33 @@ export default defineConfig({
       },
     },
     {
-      name: 'jsonata-hmr',
+      name: 'spatula-source-hmr',
       configureServer(server) {
         server.watcher.add('src/**/*.jsonata')
+        server.watcher.add('src/**/*.htmlevate')
       },
-      async handleHotUpdate({ file, server }) {
-        if (!file.endsWith('.jsonata')) {
+      async handleHotUpdate({ file, server, read }) {
+        if (!file.endsWith('.jsonata') && !file.endsWith('.htmlevate')) {
           return
         }
+        const srcDir = resolve(__dirname, 'src')
+        if (!file.startsWith(srcDir)) {
+          return
+        }
+        const content = await read()
+        const relPath = file.slice(srcDir.length + 1)
+        server.hot.send({
+          type: 'custom',
+          event: 'spatula:source-update',
+          data: { path: relPath, content },
+        })
         const mods = server.moduleGraph.getModulesByFile(file)
-        if (!mods) {return}
-        const affected = new Set<typeof mods extends Set<infer T> ? T : never>()
-        const collect = (mod: typeof mods extends Set<infer T> ? T : never) => {
-          if (affected.has(mod)) {return}
-          affected.add(mod)
-          for (const importer of mod.importers) {collect(importer)}
+        if (!mods) {
+          return
         }
         for (const mod of mods) {
           await server.moduleGraph.invalidateModule(mod)
-          collect(mod)
         }
-        return [...affected]
       },
     },
     crx({

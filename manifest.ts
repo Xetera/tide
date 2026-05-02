@@ -20,6 +20,7 @@ export default defineManifest({
     'declarativeNetRequestFeedback',
     'webNavigation',
     'storage',
+    'tabs',
   ],
   optional_host_permissions: ['*://*/*'],
   host_permissions: ['<all_urls>'],

@@ -9,13 +9,15 @@ import type { IdentityFn } from '~/extraction/media-types'
 import {
   instagram_image_identity,
   instagram_video_identity,
+  shbdn_image_identity,
 } from '~gleam/media/identity.mjs'
 import { MediaRecord$MediaRecord } from '~gleam/media/fingerprint/types.mjs'
 
-const identityFunctions: Record<string, IdentityFn> = {
+const allIdentityFunctions: IdentityFn[] = [
   instagram_image_identity,
   instagram_video_identity,
-}
+  shbdn_image_identity,
+]
 
 function isIdentityTarget(
   value: unknown,
@@ -31,6 +33,7 @@ function isIdentityTarget(
 function applyIdentity(
   value: unknown,
   identity: { fn: string },
+  registry: Map<string, IdentityFn>,
   patchIndex: number,
   warnings: IdentityWarning[],
 ): unknown {
@@ -40,7 +43,7 @@ function applyIdentity(
   if (value._id != null) {
     return value
   }
-  const fn = identityFunctions[identity.fn]
+  const fn = registry.get(identity.fn)
   if (!fn) {
     warnings.push({ message: `unknown identity function: ${identity.fn}`, patchIndex })
     return value
@@ -65,12 +68,13 @@ type WalkableSchema = {
 function walkSchema(
   value: unknown,
   schema: WalkableSchema,
+  registry: Map<string, IdentityFn>,
   patchIndex: number,
   warnings: IdentityWarning[],
 ): unknown {
   const identity = schema['x-identity']
   if (identity) {
-    return applyIdentity(value, identity, patchIndex, warnings)
+    return applyIdentity(value, identity, registry, patchIndex, warnings)
   }
 
   if (
@@ -84,19 +88,19 @@ function walkSchema(
     }
     for (const [key, childSchema] of Object.entries(schema.properties)) {
       const childValue = (value as Record<string, unknown>)[key]
-      result[key] = walkSchema(childValue, childSchema, patchIndex, warnings)
+      result[key] = walkSchema(childValue, childSchema, registry, patchIndex, warnings)
     }
     return result
   }
 
   if (schema.type === 'array' && schema.items && Array.isArray(value)) {
-    return value.map((item) => walkSchema(item, schema.items!, patchIndex, warnings))
+    return value.map((item) => walkSchema(item, schema.items!, registry, patchIndex, warnings))
   }
 
   if (schema.anyOf) {
     let result = value
     for (const variant of schema.anyOf) {
-      result = walkSchema(result, variant, patchIndex, warnings)
+      result = walkSchema(result, variant, registry, patchIndex, warnings)
     }
     return result
   }
@@ -118,6 +122,7 @@ export interface EntityValidationError {
 
 export class EntityValidator {
   #entities: Map<string, Entity>
+  #identityFunctions: Map<string, IdentityFn>
 
   constructor(sites: SiteDefinition[]) {
     this.#entities = new Map()
@@ -126,6 +131,7 @@ export class EntityValidator {
         this.#entities.set(entity.entity, entity)
       }
     }
+    this.#identityFunctions = new Map(allIdentityFunctions.map((fn) => [fn.name, fn]))
   }
 
   validate(name: string, data: unknown): EntityValidationError[] {
@@ -175,7 +181,9 @@ export class EntityValidator {
       try {
         patches.push(this.parse(entityName, item))
       } catch {
-        errors.push(...this.validate(entityName, item))
+        const errs = this.validate(entityName, item)
+        console.warn('[spatula] validation failed for', entityName, JSON.stringify(item), JSON.stringify(errs))
+        errors.push(...errs)
       }
     }
     const deduped = EntityValidator.deduplicateByIdentity(patches)
@@ -221,6 +229,7 @@ export class EntityValidator {
       return walkSchema(
         patch,
         entity.fields as unknown as WalkableSchema,
+        this.#identityFunctions,
         patchIndex,
         warnings,
       ) as EntityPatch

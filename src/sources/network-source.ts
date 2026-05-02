@@ -11,7 +11,11 @@ export function registerLoaders(sites: SiteDefinition[]) {
     {
       url: string
       method: string
-      expressions: { file: string; expression: string }[]
+      expressions: {
+        file: string
+        expression: string
+        format: 'jsonata' | 'htmlevate'
+      }[]
     }
   > = {}
   for (const site of sites) {
@@ -30,7 +34,9 @@ export function registerLoaders(sites: SiteDefinition[]) {
 }
 
 window.addEventListener('message', (evt) => {
-  if (!evt.data?.__spatula) {return}
+  if (!evt.data?.__spatula) {
+    return
+  }
 
   if (evt.data.kind === 'loader-result') {
     const { name, file, result, url, body } = evt.data as {
@@ -61,23 +67,19 @@ window.addEventListener('message', (evt) => {
       )
     }
     if (warnings.length > 0) {
-      console.warn(
-        `[spatula] identity warnings from ${name}/${file}`,
-        warnings,
-      )
+      console.warn(`[spatula] identity warnings from ${name}/${file}`, warnings)
     }
     if (patches.length > 0) {
       sendMessage('entity-patches', {
         patches,
         source: { kind: 'passive' },
         warnings: [],
-        loader: { name, file },
+        scrapeSource: { kind: 'network', loader: name, file },
       })
     }
   }
 
   if (evt.data.kind === 'raw-capture') {
-    console.log('[spatula] relaying raw-capture', evt.data.method, evt.data.url)
     const {
       url,
       method,

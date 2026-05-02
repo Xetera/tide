@@ -1,7 +1,8 @@
 import { JsonataExpression } from '~/extraction/jsonata-bindings'
 import { EntityValidator, type IdentityWarning } from '~/extraction/entity-validator'
 import { allSites } from '~/sites'
-import type { EntityPatch } from '~/site-spec/types'
+import type { RawEntityPatch } from '~/site-spec/types'
+import { compile } from '~/htmlevate/compiler'
 
 export const validator = new EntityValidator(allSites)
 
@@ -39,6 +40,40 @@ export async function evaluate(
         ? err.message
         : ((err as { message?: string })?.message ?? String(err))
     return { patches: [], validationErrors: [], identityWarnings: [] as IdentityWarning[], raw: undefined, error: msg }
+  }
+}
+
+export function htmlevateToPatches(entity: string, result: unknown): RawEntityPatch[] {
+  if (Array.isArray(result)) {
+    return result.filter(
+      (item): item is RawEntityPatch =>
+        typeof item === 'object' && item !== null && '_entity' in item,
+    )
+  }
+  if (typeof result === 'object' && result !== null && '_entity' in result) {
+    return [result as RawEntityPatch]
+  }
+  if (typeof result === 'object' && result !== null) {
+    return [{ _entity: entity, _id: '', ...(result as Record<string, unknown>) }]
+  }
+  return []
+}
+
+export function evaluateHtmlevate(
+  expression: string,
+  entity: string,
+  root: Element,
+): EvalResult {
+  try {
+    const result = compile(expression)(root)
+    const patches = htmlevateToPatches(entity, result)
+    return { patches, validationErrors: [], identityWarnings: [], raw: result }
+  } catch (err) {
+    const msg =
+      err instanceof Error
+        ? err.message
+        : ((err as { message?: string })?.message ?? String(err))
+    return { patches: [], validationErrors: [], identityWarnings: [], raw: undefined, error: msg }
   }
 }
 

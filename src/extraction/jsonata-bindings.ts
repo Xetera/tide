@@ -1,6 +1,7 @@
 import jsonata from 'jsonata'
 import type { RawEntityPatch, EntityRef } from '~/site-spec/types'
 import { EntityValidator } from './entity-validator'
+import { expandLocaleSuffix, parseLocaleNumber } from './number-parser'
 
 type MediaRef = {
   _type: 'image' | 'video'
@@ -89,17 +90,33 @@ export class JsonataExpression {
       return { _type: 'ref', _id: String(id) }
     })
 
-    evaluator.assign('entity', (fields: unknown, entityName: unknown) => {
-      if (typeof entityName !== 'string') {
-        return null
-      }
-      if (Array.isArray(fields)) {
-        return fields.map((field) => ({ _entity: entityName, ...field }))
-      } else if (fields instanceof Object) {
-        return { _entity: entityName, ...fields }
-      }
-      throw new Error('Invalid type of fields for: ' + entityName)
-    })
+    evaluator.assign(
+      'number',
+      (value: unknown, locale: unknown): number | null => {
+        if (value == null) {
+          return null
+        }
+        const result = parseLocaleNumber(
+          String(value),
+          typeof locale === 'string' ? locale : 'en',
+        )
+        return Number.isNaN(result) ? null : result
+      },
+    )
+
+    evaluator.assign(
+      'expand_suffix',
+      (value: unknown, locale: unknown): string | null => {
+        if (value == null) {
+          return null
+        }
+        return expandLocaleSuffix(
+          String(value),
+          typeof locale === 'string' ? locale : 'en',
+        )
+      },
+    )
+
     evaluator.assign('query_param', (url: unknown, param: unknown) => {
       if (typeof url !== 'string' || typeof param !== 'string') {
         return null

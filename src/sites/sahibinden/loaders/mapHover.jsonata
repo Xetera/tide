@@ -1,0 +1,12 @@
+[
+  /* Map the main listing entity */
+  {
+    "_entity":  "@sahibinden/listing"
+    "_id": $string(id),
+    "name": title,
+    "price": price,
+    "latitude": lat,
+    "longitude": lon,
+    "attributes": attributes
+  }
+]

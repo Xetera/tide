@@ -10,6 +10,14 @@ export interface HtmlEvatePage {
   source: string
 }
 
+export interface HtmlEvateLoader {
+  name: string
+  hostname: string
+  urlPattern: string
+  source: string
+  path?: string
+}
+
 export interface SiteDefinition {
   hostname: string
   dir: string
@@ -17,8 +25,8 @@ export interface SiteDefinition {
   entities: Entity[]
   /** Named request matchers — what network requests to capture, keyed by name */
   requests: Record<string, RequestMatcher>
-  /** JSONata expressions keyed by loader name, auto-discovered from loaders/ directory */
-  loaders: Record<string, { file: string; expression: string }[]>
+  /** Loaders keyed by loader name, auto-discovered from loaders/ directory */
+  loaders: Record<string, LoaderExpression[]>
   /** HTML page specs */
   pages: PageSpec[]
   // HTMLevate page specs auto-discovered from pages/[page]/index.htmlevate
@@ -85,6 +93,10 @@ export type FieldDescriptor =
   | ArrayFieldDescriptor
   | LiteralFieldDescriptor
   | VariantDescriptor[]
+
+export type LoaderExpression =
+  | { format: 'jsonata'; file: string; expression: string }
+  | { format: 'htmlevate'; file: string; expression: string }
 
 export type SourceDescriptor = { $css: string } | { $query: string }
 

@@ -18,7 +18,16 @@ export const sahibindenSite = defineSite({
   loaderEntries,
   hostname: 'www.sahibinden.com',
   entities: sahibindenEntities,
-  requests: {},
+  requests: {
+    map: {
+      url: '/ajax/mapSearch/classified/markers',
+      method: 'GET',
+    },
+    mapHover: {
+      url: '/ajax/mapSearch/classified/markers/*',
+      method: 'GET',
+    },
+  },
 })
 
 export default sahibindenSite

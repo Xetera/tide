@@ -41,7 +41,7 @@ function isVariantArray(value: unknown): value is S.VariantDescriptor[] {
 
 export interface HighlightEntry {
   element: Element
-  label: string
+  label: { entity: string; field: string }
   isArrayItem?: boolean
 }
 

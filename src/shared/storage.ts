@@ -121,7 +121,12 @@ export type BrowserStorageSchema = {
     patches: RawEntityPatch[]
     source: JobSource
     warnings: string[]
+    loader?: string
   }
+  'legend:position'?: { x: number; y: number }
+  'legend:opacity'?: number
+  'legend:hidden'?: string[]
+  'legend:collapsed'?: boolean
   'debug:visual'?: boolean
   'resources:all'?: import('~/site-spec/types').PageSpec[]
   'gemini:api-key'?: string

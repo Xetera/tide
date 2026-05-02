@@ -1,11 +1,13 @@
 import gleam/option
 import gleam/regexp
 import gleam/result
-import media/fingerprint/types.{type IdentityError, type MediaRecord, IdentityError}
+import media/fingerprint/types.{
+  type IdentityError, type MediaRecord, IdentityError,
+}
 
 pub fn image_identity(media: MediaRecord) -> Result(String, IdentityError) {
   use re <- result.try(
-    regexp.from_string("/(?:l?thmb|x_[0-9_]+)_([0-9a-z]+)\\.[a-z]+$")
+    regexp.from_string("/(?:.+)_([0-9a-z]+)\\.[a-z]+$")
     |> result.map_error(fn(_) { IdentityError("invalid regex") }),
   )
   case regexp.scan(re, media.url) {

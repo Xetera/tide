@@ -34,10 +34,13 @@ HTMLevate {
   Match = "match" "{" MatchArm* "}"
 
   MatchArm
-    = SingleSelector "=>" Expr  -- selector
+    = EachSelector   "=>" Expr  -- each
+    | SingleSelector "=>" Expr  -- selector
     | ident "=>" Expr           -- fallback
 
-  Pipeline = Source PipelineTail*
+  Pipeline = SimplePipeline ("??" SimplePipeline)?
+
+  SimplePipeline = Source PipelineTail*
 
   Source
     = "watch" Source                                       -- watch
@@ -63,7 +66,6 @@ HTMLevate {
   PipelineTail
     = ColonTransform
     | PipeTransform
-    | FallbackSelector
     | Block
     | Conditional
     | ScopedExpr
@@ -86,8 +88,6 @@ HTMLevate {
     | stringLit            -- string
     | integer              -- integer
     | ident                -- ident
-
-  FallbackSelector = "??" "$" "(" SelectorBody ")"
 
   Conditional
     = ~"??" "?" Expr ":" Expr  -- full

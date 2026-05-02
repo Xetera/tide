@@ -29,10 +29,12 @@ export interface HTMLevateActionDict<T> extends BaseActionDict<T> {
   Field_expr?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode) => T;
   Field?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   Match?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: IterationNode, arg3: TerminalNode) => T;
+  MatchArm_each?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
   MatchArm_selector?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
   MatchArm_fallback?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
   MatchArm?: (this: NonterminalNode, arg0: NonterminalNode) => T;
-  Pipeline?: (this: NonterminalNode, arg0: NonterminalNode, arg1: IterationNode) => T;
+  Pipeline?: (this: NonterminalNode, arg0: NonterminalNode, arg1: IterationNode, arg2: IterationNode) => T;
+  SimplePipeline?: (this: NonterminalNode, arg0: NonterminalNode, arg1: IterationNode) => T;
   Source_watch?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode) => T;
   Source_awaitCond?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: TerminalNode, arg4: NonterminalNode) => T;
   Source_awaitSelf?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode) => T;
@@ -63,7 +65,6 @@ export interface HTMLevateActionDict<T> extends BaseActionDict<T> {
   PipeArg_integer?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   PipeArg_ident?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   PipeArg?: (this: NonterminalNode, arg0: NonterminalNode) => T;
-  FallbackSelector?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: TerminalNode, arg3: NonterminalNode, arg4: TerminalNode) => T;
   Conditional_full?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode, arg3: NonterminalNode) => T;
   Conditional_partial?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode) => T;
   Conditional?: (this: NonterminalNode, arg0: NonterminalNode) => T;

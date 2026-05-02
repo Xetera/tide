@@ -4,6 +4,7 @@ import { matchesGlob } from '~/extraction/glob'
 interface LoaderExpression {
   file: string
   expression: string
+  format: 'jsonata' | 'htmlevate'
 }
 
 interface LoaderRegistration {
@@ -84,22 +85,32 @@ async function processCapture(capture: QueuedCapture) {
       continue
     }
 
-    let json: unknown
-    try {
-      json = JSON.parse(body)
-    } catch {
-      continue
-    }
-
-    for (const { file, expression: expr } of loader.expressions) {
+    for (const { file, expression: expr, format } of loader.expressions) {
       try {
-        const expression = new JsonataExpression(expr, {
-          request: { url, method, headers: requestHeaders },
-          response: { url, status, headers: responseHeaders, body: json },
-        })
-        const result = await expression.evaluate(
-          json as Record<string, unknown>,
-        )
+        let result: unknown
+        let rawBody: unknown = body
+
+        if (format === 'htmlevate') {
+          const { compile } = await import('~/htmlevate/compiler')
+          const fn = compile(expr)
+          const parser = new DOMParser()
+          const doc = parser.parseFromString(body, 'text/html')
+          result = fn(doc.documentElement)
+        } else {
+          let json: unknown
+          try {
+            json = JSON.parse(body)
+          } catch {
+            continue
+          }
+          rawBody = json
+          const expression = new JsonataExpression(expr, {
+            request: { url, method, headers: requestHeaders },
+            response: { url, status, headers: responseHeaders, body: json },
+          })
+          result = await expression.evaluate(json as Record<string, unknown>)
+        }
+
         if (result === undefined) {
           continue
         }
@@ -111,7 +122,7 @@ async function processCapture(capture: QueuedCapture) {
             file,
             result,
             url,
-            body: json,
+            body: rawBody,
           },
           '*',
         )
@@ -119,7 +130,6 @@ async function processCapture(capture: QueuedCapture) {
         console.warn(
           `[spatula] loader "${name}/${file}" failed for ${url}:`,
           err,
-          json,
         )
       }
     }
@@ -130,7 +140,6 @@ async function processCapture(capture: QueuedCapture) {
   } catch {
     return
   }
-  console.log('[spatula] raw-capture:', method, url)
   window.postMessage(
     {
       __spatula: true,

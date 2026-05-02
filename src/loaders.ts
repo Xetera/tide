@@ -9,6 +9,7 @@ export interface LoaderEntry {
   file: string
   path: string
   expression: string
+  format: 'jsonata' | 'htmlevate'
 }
 
 export interface FixtureEntry {
@@ -19,7 +20,7 @@ export interface FixtureEntry {
   data: unknown
 }
 
-const rawLoaderModules = {
+const rawJsonataModules = {
   ...import.meta.glob('./sites/*/loaders/*/*.jsonata', {
     query: '?raw',
     import: 'default',
@@ -32,18 +33,29 @@ const rawLoaderModules = {
   }),
 } as Record<string, string>
 
+const rawHtmlevateModules = {
+  ...import.meta.glob('./sites/*/loaders/*/*.htmlevate', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }),
+  ...import.meta.glob('./sites/*/loaders/*.htmlevate', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }),
+} as Record<string, string>
+
 const rawFixtureModules = import.meta.glob('./sites/*/loaders/*/*.json', {
   import: 'default',
   eager: true,
 }) as Record<string, unknown>
 
-const LOADER_DIR_RE = /\/sites\/([^/]+)\/loaders\/([^/]+)\/(.+\.jsonata)$/
-const LOADER_FLAT_RE = /\/sites\/([^/]+)\/loaders\/([^/]+\.jsonata)$/
+const LOADER_DIR_RE = /\/sites\/([^/]+)\/loaders\/([^/]+)\/(.+\.(jsonata|htmlevate))$/
+const LOADER_FLAT_RE = /\/sites\/([^/]+)\/loaders\/([^/]+\.(jsonata|htmlevate))$/
 const FIXTURE_RE = /\/sites\/([^/]+)\/loaders\/([^/]+)\/([^/]+\.json)$/
 
-export const loaderEntries: LoaderEntry[] = Object.entries(
-  rawLoaderModules,
-).flatMap(([path, expression]) => {
+function parseLoaderEntry(path: string, expression: string, format: 'jsonata' | 'htmlevate'): LoaderEntry[] {
   const dirMatch = path.match(LOADER_DIR_RE)
   if (dirMatch) {
     const [, site, loader, file] = dirMatch
@@ -54,13 +66,14 @@ export const loaderEntries: LoaderEntry[] = Object.entries(
         file: file!,
         path: `src/sites${path.split('/sites')[1]}`,
         expression,
+        format,
       },
     ]
   }
   const flatMatch = path.match(LOADER_FLAT_RE)
   if (flatMatch) {
     const [, site, filename] = flatMatch
-    const loader = filename!.replace(/\.jsonata$/, '')
+    const loader = filename!.replace(/\.(jsonata|htmlevate)$/, '')
     return [
       {
         site: site!,
@@ -68,11 +81,21 @@ export const loaderEntries: LoaderEntry[] = Object.entries(
         file: filename!,
         path: `src/sites${path.split('/sites')[1]}`,
         expression,
+        format,
       },
     ]
   }
   return []
-})
+}
+
+export const loaderEntries: LoaderEntry[] = [
+  ...Object.entries(rawJsonataModules).flatMap(([path, expression]) =>
+    parseLoaderEntry(path, expression, 'jsonata'),
+  ),
+  ...Object.entries(rawHtmlevateModules).flatMap(([path, expression]) =>
+    parseLoaderEntry(path, expression, 'htmlevate'),
+  ),
+]
 
 export const fixtureEntries: FixtureEntry[] = Object.entries(
   rawFixtureModules,
@@ -130,6 +153,7 @@ export function buildLoaderInfos(sites: SiteDefinition[]): LoaderInfo[] {
       file: entry.file,
       path: entry.path,
       expression: entry.expression,
+      format: entry.format,
       fixtures,
       request: matcher
         ? { method: matcher.method, url: matcher.url }
@@ -146,11 +170,28 @@ export function buildSiteLoaders(dir: string): SiteDefinition['loaders'] {
     }
     loaders[entry.loader] ??= []
     loaders[entry.loader]!.push({
+      format: entry.format,
       file: entry.file,
       expression: entry.expression,
     })
   }
   return loaders
+}
+
+if (import.meta.hot) {
+  import.meta.hot.on('spatula:source-update', ({ path, content }: { path: string; content: string }) => {
+    const viteKey = `./${path}`
+    const entry = loaderEntries.find((e) => e.path === `src/${path}`)
+    if (!entry) {
+      return
+    }
+    entry.expression = content
+    if (path.endsWith('.jsonata')) {
+      rawJsonataModules[viteKey] = content
+    } else if (path.endsWith('.htmlevate')) {
+      rawHtmlevateModules[viteKey] = content
+    }
+  })
 }
 
 export function buildBuiltinExamples(

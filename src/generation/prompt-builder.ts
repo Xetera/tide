@@ -11,7 +11,6 @@ const BINDINGS_REFERENCE = `
 - \`$with_dimensions(media, width, height)\` → adds \`width\` and \`height\` to a media object
 - \`$unique_id(obj, id)\` → adds \`_id\` to an object, returns \`{ _id: string, ...obj }\`. Returns null if id is null.
 - \`$ref(id: string | string[])\` → \`{ _type: "ref", _id: id }\` or array of refs
-- \`$entity(fields, entityName: string)\` → adds \`_entity\` to an object or array of objects
 - \`$timestamp(value: number | string)\` → \`{ _type: "timestamp", value: ISO string, precision: "full" }\`
 - \`$request.url\`, \`$request.method\`, \`$request.headers\`
 - \`$response.url\`, \`$response.status\`, \`$response.headers\`, \`$response.body\`

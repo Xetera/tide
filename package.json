@@ -13,7 +13,8 @@
     "lint": "oxlint --fix && oxfmt --write .",
     "test": "vitest --no-isolate --ui",
     "schema": "jiti src/scripts/schema.ts",
-    "ohm": "pnpm exec ohm generateBundles --withTypes 'src/**/*.ohm'"
+    "ohm": "pnpm exec ohm generateBundles --withTypes 'src/**/*.ohm'",
+    "push:android": "bash scripts/push-android.sh"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",

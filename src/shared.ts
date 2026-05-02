@@ -18,6 +18,8 @@ export type ScrapeLogStatus = 'pending' | 'submitted' | 'failed'
 
 export type ScrapeSource =
   | { kind: 'network'; loader: string; file: string }
+  | { kind: 'htmlevate-loader'; loader: string }
+  | { kind: 'htmlevate-page'; entity: string }
   | { kind: 'html' }
 
 export type ScrapeLog = {

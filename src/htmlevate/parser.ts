@@ -8,11 +8,13 @@ import grammarSrc from './grammar.ohm?raw'
 
 const grammar = ohm.grammar(grammarSrc) as unknown as import('./grammar.ohm-bundle').HTMLevateGrammar
 
+export type SimplePipeline = { source: Source; tail: PipelineTail[] }
+
 export type Expr =
   | { kind: 'array'; items: Expr[] }
   | { kind: 'object'; fields: Field[] }
   | { kind: 'match'; arms: MatchArm[] }
-  | { kind: 'pipeline'; source: Source; tail: PipelineTail[] }
+  | { kind: 'pipeline'; primary: SimplePipeline; fallback: SimplePipeline | null }
   | { kind: 'literal'; value: unknown }
 
 export type Field =
@@ -21,6 +23,7 @@ export type Field =
   | { expr: true; value: Expr }
 
 export type MatchArm =
+  | { kind: 'each'; selector: string; body: Expr }
   | { kind: 'selector'; selector: string; body: Expr }
   | { kind: 'fallback'; body: Expr }
 
@@ -38,7 +41,6 @@ export type Source =
 export type PipelineTail =
   | { kind: 'colon_transform'; op: ColonOp }
   | { kind: 'pipe_transform'; op: PipeOp }
-  | { kind: 'fallback_selector'; selector: string }
   | { kind: 'block'; fields: Field[] }
   | { kind: 'conditional'; then_: Expr; else_: Expr | null }
   | { kind: 'scoped_expr'; expr: Expr }
@@ -119,6 +121,14 @@ const exprActions: HTMLevateActionDict<AstResult> = {
   MatchArm_fallback(_ident, _arrow, body) {
     return { kind: 'fallback', body: toAst(body) as Expr } satisfies MatchArm
   },
+  MatchArm_each(sel, _arrow, body) {
+    const src = toAst(sel) as Source & { kind: 'each' }
+    return {
+      kind: 'each',
+      selector: src.selector,
+      body: toAst(body) as Expr,
+    } satisfies MatchArm
+  },
   MatchArm_selector(sel, _arrow, body) {
     const src = toAst(sel) as Source & { kind: 'single' }
     return {
@@ -128,12 +138,21 @@ const exprActions: HTMLevateActionDict<AstResult> = {
     } satisfies MatchArm
   },
 
-  Pipeline(source, tail) {
+  Pipeline(primary, _qq, fallback) {
     return {
       kind: 'pipeline',
+      primary: toAst(primary) as SimplePipeline,
+      fallback: fallback.children.length > 0
+        ? toAst(fallback.children[0]!) as SimplePipeline
+        : null,
+    } satisfies Expr
+  },
+
+  SimplePipeline(source, tail) {
+    return {
       source: toAst(source) as Source,
       tail: tail.children.map((c) => toAst(c) as PipelineTail),
-    } satisfies Expr
+    } satisfies SimplePipeline
   },
 
   Source_watch(_kw, inner) {
@@ -196,6 +215,7 @@ const exprActions: HTMLevateActionDict<AstResult> = {
     return t.toAst()
   },
 
+
   ColonTransform_text(_colon, _kw) {
     return {
       kind: 'colon_transform',
@@ -253,13 +273,6 @@ const exprActions: HTMLevateActionDict<AstResult> = {
     return {
       kind: 'scoped_expr',
       expr: toAst(expr) as Expr,
-    } satisfies PipelineTail
-  },
-
-  FallbackSelector(_qq, _d, _l, body, _r) {
-    return {
-      kind: 'fallback_selector',
-      selector: body.sourceString.trim(),
     } satisfies PipelineTail
   },
 
@@ -346,22 +359,22 @@ const exprActions: HTMLevateActionDict<AstResult> = {
 
   Document(_entries, _expr) {
     throw new Error(
-      'Document node reached toAst — use parseWithFrontmatter instead',
+      'Document node reached toAst — use parse instead',
     )
   },
   frontmatterEntry(_key, _sp1, _eq, _sp2, _value, _nl) {
     throw new Error(
-      'frontmatterEntry node reached toAst — use parseWithFrontmatter instead',
+      'frontmatterEntry node reached toAst — use parse instead',
     )
   },
   frontmatterValue_array(_l, _items, _r) {
     throw new Error(
-      'frontmatterValue node reached toAst — use parseWithFrontmatter instead',
+      'frontmatterValue node reached toAst — use parse instead',
     )
   },
   frontmatterValue_scalar(_chars) {
     throw new Error(
-      'frontmatterValue node reached toAst — use parseWithFrontmatter instead',
+      'frontmatterValue node reached toAst — use parse instead',
     )
   },
   frontmatterKey(_first, _rest) {
@@ -441,18 +454,10 @@ docSemantics.addOperation<DocResult>('toDocAst', {
   },
 })
 
-export function parseWithFrontmatter(src: string): ParseResult {
+export function parse(src: string): ParseResult {
   const match = grammar.match(src, 'Document')
   if (match.failed()) {
     throw new Error(match.message ?? 'Parse failed')
   }
   return docSemantics(match).toDocAst() as ParseResult
-}
-
-export function parse(src: string): Expr {
-  const match = grammar.match(src, 'Expr')
-  if (match.failed()) {
-    throw new Error(match.message ?? 'Parse failed')
-  }
-  return semantics(match).toAst() as Expr
 }

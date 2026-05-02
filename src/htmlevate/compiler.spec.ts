@@ -73,6 +73,67 @@ describe('expandSuffix', () => {
   })
 })
 
+describe('number locale suffix expansion', () => {
+  const tr = (expr: string, html: string) =>
+    compile(expr, { locale: 'tr' })(dom(html).body)
+
+  describe('en', () => {
+    it('expands k', () => {
+      expect(run('{ "v": $(span):text | number }', '<span>1.5k</span>')).toEqual({ v: 1500 })
+    })
+
+    it('expands K', () => {
+      expect(run('{ "v": $(span):text | number }', '<span>42K</span>')).toEqual({ v: 42000 })
+    })
+
+    it('expands m', () => {
+      expect(run('{ "v": $(span):text | number }', '<span>2m</span>')).toEqual({ v: 2000000 })
+    })
+
+    it('expands b', () => {
+      expect(run('{ "v": $(span):text | number }', '<span>1b</span>')).toEqual({ v: 1000000000 })
+    })
+
+    it('does not expand tr suffixes', () => {
+      expect(run('{ "v": $(span):text | number }', '<span>100 bin</span>')).toEqual({ v: 100 })
+    })
+  })
+
+  describe('tr', () => {
+    it('expands bin', () => {
+      expect(tr('{ "v": $(span):text | number }', '<span>100 bin</span>')).toEqual({ v: 100000 })
+    })
+
+    it('expands B as bin', () => {
+      expect(tr('{ "v": $(span):text | number }', '<span>2,5 B</span>')).toEqual({ v: 2500 })
+    })
+
+    it('expands milyon', () => {
+      expect(tr('{ "v": $(span):text | number }', '<span>1,5 milyon</span>')).toEqual({ v: 1500000 })
+    })
+
+    it('expands mn', () => {
+      expect(tr('{ "v": $(span):text | number }', '<span>3 mn</span>')).toEqual({ v: 3000000 })
+    })
+
+    it('expands milyar', () => {
+      expect(tr('{ "v": $(span):text | number }', '<span>2 milyar</span>')).toEqual({ v: 2000000000 })
+    })
+
+    it('expands mr', () => {
+      expect(tr('{ "v": $(span):text | number }', '<span>1 mr</span>')).toEqual({ v: 1000000000 })
+    })
+
+    it('does not expand en suffixes', () => {
+      expect(tr('{ "v": $(span):text | number }', '<span>1b</span>')).toEqual({ v: 1000 })
+    })
+
+    it('handles decimal with Turkish formatting', () => {
+      expect(tr('{ "v": $(span):text | number(locale: \'tr\') }', '<span>1.234 bin</span>')).toEqual({ v: 1234000 })
+    })
+  })
+})
+
 describe('regex', () => {
   it('extracts full match', () => {
     expect(run('{ "v": $(span):text | regex("[0-9]+") }', '<span>abc 42 def</span>')).toEqual({ v: '42' })
@@ -156,20 +217,26 @@ describe('omit with ?', () => {
 describe('?? selector fallback', () => {
   it('uses first matching selector', () => {
     const html = '<span class="a">42K</span>'
-    const result = run('{ "v": $(.a) ?? $(.b) :text | expandSuffix | number }', html)
+    const result = run('{ "v": $(.a):text | expandSuffix | number ?? $(.b):text | expandSuffix | number }', html)
     expect(result).toEqual({ v: 42000 })
   })
 
   it('falls back to second selector when first is absent', () => {
     const html = '<span class="b">42K</span>'
-    const result = run('{ "v": $(.a) ?? $(.b) :text | expandSuffix | number }', html)
+    const result = run('{ "v": $(.a):text | expandSuffix | number ?? $(.b):text | expandSuffix | number }', html)
     expect(result).toEqual({ v: 42000 })
   })
 
   it('applies the pipeline once to whichever matched', () => {
     const html = '<span class="b">1.2M</span>'
-    const result = run('{ "v": $(.a) ?? $(.b) :text | expandSuffix | number }', html)
+    const result = run('{ "v": $(.a):text | expandSuffix | number ?? $(.b):text | expandSuffix | number }', html)
     expect(result).toEqual({ v: 1200000 })
+  })
+
+  it('does not apply post-fallback transforms when primary already produced a value', () => {
+    const html = '<span class="a" data-id="123"></span><span class="b">456</span>'
+    const result = run('{ "v": $(.a):data(id) ?? $(.b):text }', html)
+    expect(result).toEqual({ v: '123' })
   })
 })
 
@@ -442,7 +509,7 @@ describe('scoped expression .( )', () => {
 describe('onElement highlight callback', () => {
   function runWithHighlights(expr: string, html: string) {
     const doc = dom(html)
-    const highlights: { element: Element; label: string; isArrayItem: boolean }[] = []
+    const highlights: { element: Element; label: { entity: string; field: string }; isArrayItem: boolean }[] = []
     compile(expr, {
       onElement: (element, label, isArrayItem) => {
         highlights.push({ element, label, isArrayItem })
@@ -458,20 +525,20 @@ describe('onElement highlight callback', () => {
     )
     expect(highlights).toHaveLength(1)
     expect(highlights[0]!.element).toBe(doc.body.querySelector('h1'))
-    expect(highlights[0]!.label).toBe('title')
+    expect(highlights[0]!.label).toEqual({ entity: '', field: 'title' })
     expect(highlights[0]!.isArrayItem).toBe(false)
   })
 
-  it('fires for each element in an each selector with isArrayItem true', () => {
+  it('fires for fields inside an each block with isArrayItem true', () => {
     const { doc, highlights } = runWithHighlights(
-      '{ "items": $$(li):text }',
-      '<ul><li>a</li><li>b</li></ul>'
+      '{ "items": $$(li) { "name": $(span):text } }',
+      '<ul><li><span>a</span></li><li><span>b</span></li></ul>'
     )
-    const lis = Array.from(doc.body.querySelectorAll('li'))
+    const spans = Array.from(doc.body.querySelectorAll('span'))
     expect(highlights).toHaveLength(2)
-    expect(highlights.map((h) => h.element)).toEqual(lis)
-    expect(highlights.every((h) => h.isArrayItem)).toBe(true)
-    expect(highlights.every((h) => h.label === 'items')).toBe(true)
+    expect(highlights.map((h) => h.element)).toEqual(spans)
+    expect(highlights.every((h) => h.isArrayItem)).toBe(false)
+    expect(highlights.every((h) => h.label.field === 'name')).toBe(true)
   })
 
   it('uses dotted path label for nested fields', () => {
@@ -482,9 +549,9 @@ describe('onElement highlight callback', () => {
     const div = doc.body.querySelector('div')!
     const span = doc.body.querySelector('span')!
     expect(highlights[0]!.element).toBe(div)
-    expect(highlights[0]!.label).toBe('author')
+    expect(highlights[0]!.label).toEqual({ entity: '', field: 'author' })
     expect(highlights[1]!.element).toBe(span)
-    expect(highlights[1]!.label).toBe('author.name')
+    expect(highlights[1]!.label).toEqual({ entity: '', field: 'name' })
   })
 
   it('does not fire for a selector that matches nothing', () => {

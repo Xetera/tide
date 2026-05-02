@@ -89,11 +89,14 @@ function ScrapeViewer() {
               <div class='flex items-start justify-between gap-4'>
                 <div class='flex flex-col gap-1'>
                   <h1 class='text-lg font-semibold font-mono'>
-                    {entry().source?.kind === 'network'
-                      ? `network / ${entry().source.loader} / ${entry().source.file}`
-                      : entry().source?.kind === 'html'
-                        ? 'html'
-                        : null}
+                    {(() => {
+                      const s = entry().source
+                      if (!s) return null
+                      if (s.kind === 'network') return `network / ${s.loader} / ${s.file}`
+                      if (s.kind === 'htmlevate-loader') return `htmlevate / ${s.loader}`
+                      if (s.kind === 'htmlevate-page') return `htmlevate / ${s.entity}`
+                      return 'html'
+                    })()}
                   </h1>
                   <p class='text-sm text-muted-foreground'>
                     {new Date(entry().date).toLocaleString()}

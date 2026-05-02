@@ -304,7 +304,7 @@ function Page() {
                 <div class='border-b border-border'>
                   <details class='group'>
                     <summary class='cursor-pointer flex items-center justify-between px-3 py-2 text-sm font-medium select-none hover:bg-accent'>
-                      <span>Last scrape</span>
+                      <span>Last scrape{scrape().loader ? ` · ${scrape().loader}` : ''}</span>
                       <Badge variant='outline'>
                         {scrape().patches.length} patches
                       </Badge>

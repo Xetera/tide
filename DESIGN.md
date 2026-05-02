@@ -190,7 +190,6 @@ JSONata has the follow bindings available when acting on requests
 - `$response.url`
 - `$response.status`
 - `$response.headers`
-- `$entity($fields, $name)`
 - `$video($url)` -> { \_type: "video", url: ... }
 - `$image($url)` -> { \_type: "image", url: ... }
 - `$with_dimensions($width, $height)`

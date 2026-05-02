@@ -483,6 +483,9 @@ function emitUrlUpdate(
       storage.set('resources:all', data)
       client!.setResources(client!.getServer(), data)
     })
+    onMessage('open-tab', ({ data }) => {
+      chrome.tabs.create({ url: data.url })
+    })
     onMessage('toggle-resource', () => {})
     onMessage('log', ({ data }) => {
       log(data)
@@ -496,11 +499,6 @@ function emitUrlUpdate(
         `body=${data.responseBody.length}b`,
       )
       if (!captureMatchesKnownLoader(allSites, data.url, data.method)) {
-        console.log(
-          '[spatula] raw-capture discarded (no matching loader)',
-          data.method,
-          data.url,
-        )
         return
       }
       try {

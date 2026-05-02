@@ -1,6 +1,7 @@
 import dayjs from 'dayjs'
 import { onMessage, sendMessage } from 'webext-bridge/background'
 import { log, withScrapeLog } from '~/background/backend-logger'
+import type { ScrapeSource } from '~/shared'
 import { flashError, flashSuccess } from '~/background/badge'
 import type { ContentScriptTracker } from '~/background/content-script-tracker'
 import { Job } from './job'
@@ -97,7 +98,7 @@ export class Client {
         data.warnings,
         0,
         undefined,
-        data.loader,
+        data.scrapeSource,
         sender.tabId,
       )
     })
@@ -227,7 +228,7 @@ export class Client {
     warnings: string[],
     retryCount = 0,
     existingScrapeLogId?: string,
-    loader?: { name: string; file: string },
+    scrapeSource?: ScrapeSource,
     tabId?: number,
   ) {
     const server = this.servers[0]
@@ -235,7 +236,7 @@ export class Client {
       return
     }
     console.log(
-      `[spatula] scraped${loader ? ` ${loader.name}/${loader.file}` : ''}`,
+      `[spatula] scraped${scrapeSource?.kind === 'network' ? ` ${scrapeSource.loader}/${scrapeSource.file}` : scrapeSource?.kind === 'htmlevate-loader' ? ` htmlevate/${scrapeSource.loader}` : ''}`,
       patches,
     )
     const body: JobResult = {
@@ -266,9 +267,7 @@ export class Client {
         severity: 'info',
         patches,
         warnings,
-        source: loader
-          ? { kind: 'network', loader: loader.name, file: loader.file }
-          : { kind: 'html' },
+        source: scrapeSource ?? { kind: 'html' },
       },
       async (scrapeLogId) => {
         const jobPostReq = this.#requestJobPost(
@@ -318,7 +317,7 @@ export class Client {
               warnings,
               retryCount + 1,
               scrapeLogId,
-              loader,
+              scrapeSource,
               tabId,
             )
           } catch (err) {

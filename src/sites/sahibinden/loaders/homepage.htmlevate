@@ -1,0 +1,10 @@
+urlPattern = /
+
+[
+  $$(.vitrin-list > li:has(a[href*="/ilan/"]), #interestingAds > li) {
+    "_entity": "@sahibinden/listing",
+    "_id": $(a):attr(href) | url,
+    "name": $(a > span):text,
+    "image": $(a picture.s-picture img.s-image) ?? $(a > img) | media
+  }
+]

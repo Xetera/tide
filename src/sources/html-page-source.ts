@@ -6,14 +6,19 @@ import {
   PageEvaluator,
 } from '~/extraction/page-evaluator'
 import { EvaluatedResource } from '~/extraction/evaluated-resource'
+import { EntityValidator } from '~/extraction/entity-validator'
 import type {
   HtmlEvatePage,
+  HtmlEvateLoader,
   RawEntityPatch,
   JobParameters,
   JobSource,
   PageSpec,
+  SiteDefinition,
 } from '~/site-spec/types'
 import { compile } from '~/htmlevate/compiler'
+import type { EntityValidationError } from '~/extraction/entity-validator'
+import { matchesGlob } from '~/extraction/glob'
 import { Timeout, timeoutReject } from '~/shared'
 import { sendLog } from './content-script-log'
 import type { DataSource, SourceEmission } from './data-source'
@@ -26,12 +31,16 @@ const IFRAME_SCRAPE_TIMEOUT_MS = 10_000
 
 export class HtmlPageSource implements DataSource {
   #evaluator: PageEvaluator
+  #validator: EntityValidator
   #resources: PageSpec[]
   #htmlevatePages: HtmlEvatePage[]
+  #htmlevateLoaders: HtmlEvateLoader[]
   #observers: MutationObserver[] = []
   #runGeneration = 0
   #lastHighlights: readonly HighlightEntry[] = []
-  #onHighlightsChanged?: (highlights: readonly HighlightEntry[]) => void
+  #lastPatchCounts: Map<string, number> = new Map()
+  #lastErrors: EntityValidationError[] = []
+  #onHighlightsChanged?: (highlights: readonly HighlightEntry[], patchCounts: Map<string, number>, errors: EntityValidationError[]) => void
   #onEmit: (emission: SourceEmission) => void
 
   readonly isInIframe: boolean
@@ -40,17 +49,29 @@ export class HtmlPageSource implements DataSource {
     return this.#lastHighlights
   }
 
-  set onHighlightsChanged(cb: (highlights: readonly HighlightEntry[]) => void) {
+  get lastPatchCounts(): Map<string, number> {
+    return this.#lastPatchCounts
+  }
+
+  get lastErrors(): EntityValidationError[] {
+    return this.#lastErrors
+  }
+
+  set onHighlightsChanged(cb: (highlights: readonly HighlightEntry[], patchCounts: Map<string, number>, errors: EntityValidationError[]) => void) {
     this.#onHighlightsChanged = cb
   }
 
   constructor(
     resources: PageSpec[],
     htmlevatePages: HtmlEvatePage[],
+    htmlevateLoaders: HtmlEvateLoader[],
+    sites: SiteDefinition[],
     onEmit: (emission: SourceEmission) => void,
   ) {
     this.#resources = resources
     this.#htmlevatePages = htmlevatePages
+    this.#htmlevateLoaders = htmlevateLoaders
+    this.#validator = new EntityValidator(sites)
     this.#evaluator = new PageEvaluator(document, resources, htmlevatePages)
     this.isInIframe = window.self !== window.top
     this.#onEmit = onEmit
@@ -69,32 +90,65 @@ export class HtmlPageSource implements DataSource {
     this.#runGeneration++
   }
 
-  updateResources(resources: PageSpec[], htmlevatePages: HtmlEvatePage[] = this.#htmlevatePages) {
+  updateResources(
+    resources: PageSpec[],
+    htmlevatePages: HtmlEvatePage[] = this.#htmlevatePages,
+    htmlevateLoaders: HtmlEvateLoader[] = this.#htmlevateLoaders,
+  ) {
     if (
       JSON.stringify(resources) === JSON.stringify(this.#resources) &&
-      JSON.stringify(htmlevatePages) === JSON.stringify(this.#htmlevatePages)
+      JSON.stringify(htmlevatePages) === JSON.stringify(this.#htmlevatePages) &&
+      JSON.stringify(htmlevateLoaders) === JSON.stringify(this.#htmlevateLoaders)
     ) {
       return
     }
     this.#resources = resources
     this.#htmlevatePages = htmlevatePages
+    this.#htmlevateLoaders = htmlevateLoaders
     this.#evaluator = new PageEvaluator(document, resources, htmlevatePages)
     this.stop()
     this.#run()
   }
 
+  #matchingLoader(): HtmlEvateLoader | undefined {
+    const url = new URL(document.URL)
+    return this.#htmlevateLoaders.find(
+      (loader) =>
+        url.hostname === loader.hostname &&
+        matchesGlob(loader.urlPattern, url.pathname),
+    )
+  }
+
   async #run() {
     this.#lastHighlights = []
-    this.#onHighlightsChanged?.(this.#lastHighlights)
+    this.#onHighlightsChanged?.(this.#lastHighlights, this.#lastPatchCounts, this.#lastErrors)
     const generation = ++this.#runGeneration
+    const loader = this.#matchingLoader()
+    if (loader) {
+      console.log(
+        `[spatula] matched htmlevate loader: "${loader.name}" for ${document.URL}`,
+      )
+      const source: JobSource = this.isInIframe
+        ? { kind: 'active', id: await this.#getJobId() }
+        : { kind: 'passive' }
+      await this.#runHtmlevateLoader(document, loader, source, generation)
+      window.parent?.postMessage(JOB_FINISHED_MARKER, '*')
+      return
+    }
     const matching = this.#evaluator.checkCurrentPage()
     if (matching.kind === 'match') {
+      console.log(
+        `[spatula] matched page spec: ${matching.resource.$entity} for ${document.URL}`,
+      )
       const source: JobSource = this.isInIframe
         ? { kind: 'active', id: await this.#getJobId() }
         : { kind: 'passive' }
       await this.#processPage(document, matching, source, generation)
       window.parent?.postMessage(JOB_FINISHED_MARKER, '*')
     } else if (matching.kind === 'htmlevate') {
+      console.log(
+        `[spatula] matched htmlevate page: ${matching.page.$entity} for ${document.URL}`,
+      )
       const source: JobSource = this.isInIframe
         ? { kind: 'active', id: await this.#getJobId() }
         : { kind: 'passive' }
@@ -126,6 +180,52 @@ export class HtmlPageSource implements DataSource {
     await this.#buildAndEmit(doc, matching, source, generation)
   }
 
+  async #runHtmlevateLoader(
+    doc: Document,
+    loader: HtmlEvateLoader,
+    source: JobSource,
+    generation: number,
+  ) {
+    const highlights: HighlightEntry[] = []
+    const fn = compile(loader.source, {
+      onElement(element, label, isArrayItem) {
+        highlights.push({ element, label, isArrayItem })
+      },
+    })
+    const result = fn(doc.documentElement)
+    if (this.#runGeneration !== generation) {
+      return
+    }
+    this.#lastHighlights = highlights
+    const asArray = Array.isArray(result) ? result : [result]
+    const { patches, errors } = this.#validator.parsePatches(asArray)
+    const { patches: validated, warnings } =
+      this.#validator.applyIdentityExprs(patches)
+    const patchCounts = new Map<string, number>()
+    for (const patch of validated) {
+      patchCounts.set(patch._entity, (patchCounts.get(patch._entity) ?? 0) + 1)
+    }
+    this.#lastPatchCounts = patchCounts
+    this.#lastErrors = errors
+    this.#onHighlightsChanged?.(this.#lastHighlights, patchCounts, errors)
+    if (errors.length > 0) {
+      console.warn(
+        `[spatula] htmlevate loader "${loader.name}" validation errors`,
+        errors,
+      )
+    }
+    console.log(
+      `[spatula] htmlevate loader "${loader.name}" produced ${validated.length} patches`,
+      validated,
+    )
+    this.#onEmit({
+      patches: validated,
+      source,
+      warnings: warnings.map((w) => w.message),
+      scrapeSource: { kind: 'htmlevate-loader', loader: loader.name },
+    })
+  }
+
   async #processHtmlevatePage(
     doc: Document,
     matching: MatchingHtmlEvatePage,
@@ -152,9 +252,14 @@ export class HtmlPageSource implements DataSource {
       return
     }
     this.#lastHighlights = highlights
-    this.#onHighlightsChanged?.(this.#lastHighlights)
-    const patches = htmlevateToPatches(page.$entity, result)
-    this.#onEmit({ patches, source, warnings: [] })
+    this.#onHighlightsChanged?.(this.#lastHighlights, this.#lastPatchCounts, this.#lastErrors)
+    const patches = htmlevateResultToPatches(result, page.$entity)
+    this.#onEmit({
+      patches,
+      source,
+      warnings: [],
+      scrapeSource: { kind: 'htmlevate-page', entity: page.$entity },
+    })
   }
 
   #observeMutations(
@@ -187,7 +292,7 @@ export class HtmlPageSource implements DataSource {
     const patches = await parser.parseAsync(doc)
     if (this.#runGeneration === generation) {
       this.#lastHighlights = parser.highlights
-      this.#onHighlightsChanged?.(this.#lastHighlights)
+      this.#onHighlightsChanged?.(this.#lastHighlights, this.#lastPatchCounts, this.#lastErrors)
     }
 
     const evaluated = new EvaluatedResource(resource, patches)
@@ -264,7 +369,10 @@ export class HtmlPageSource implements DataSource {
   }
 }
 
-function htmlevateToPatches(entity: string, result: unknown): RawEntityPatch[] {
+function htmlevateResultToPatches(
+  result: unknown,
+  fallbackEntity?: string,
+): RawEntityPatch[] {
   if (Array.isArray(result)) {
     return result.filter(
       (item): item is RawEntityPatch =>
@@ -274,8 +382,14 @@ function htmlevateToPatches(entity: string, result: unknown): RawEntityPatch[] {
   if (typeof result === 'object' && result !== null && '_entity' in result) {
     return [result as RawEntityPatch]
   }
-  if (typeof result === 'object' && result !== null) {
-    return [{ _entity: entity, _id: '', ...(result as Record<string, unknown>) }]
+  if (typeof result === 'object' && result !== null && fallbackEntity) {
+    return [
+      {
+        _entity: fallbackEntity,
+        _id: '',
+        ...(result as Record<string, unknown>),
+      },
+    ]
   }
   return []
 }

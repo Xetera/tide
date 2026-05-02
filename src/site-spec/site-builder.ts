@@ -11,7 +11,7 @@ import {
   TRecord,
 } from 'typebox'
 import type { Entity, HtmlEvatePage, PageSpec, SiteDefinition } from '~/site-spec/types'
-import { parseWithFrontmatter } from '~/htmlevate/parser'
+import { parse } from '~/htmlevate/parser'
 
 // just a type to correlate unsafe references
 type TReference = symbol
@@ -192,7 +192,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
     if (site !== input.dir) {
       continue
     }
-    const { frontmatter } = parseWithFrontmatter(source)
+    const { frontmatter } = parse(source)
     if (!frontmatter.entity || !frontmatter.urlPattern) {
       console.warn(`[htmlevate] ${path} missing entity or urlPattern frontmatter`)
       continue
@@ -206,25 +206,81 @@ export function defineSite(input: SiteInput): SiteDefinition {
   }
 
   const loaders: SiteDefinition['loaders'] = {}
+  const requests: SiteDefinition['requests'] = { ...input.requests }
   for (const entry of input.loaderEntries) {
     if (entry.site !== input.dir) {
       continue
     }
     loaders[entry.loader] ??= []
     loaders[entry.loader]!.push({
+      format: entry.format,
       file: entry.file,
       expression: entry.expression,
     })
+    if (entry.format === 'htmlevate' && !(entry.loader in requests)) {
+      const { frontmatter } = parse(entry.expression)
+      const urlPattern = frontmatter.urlPattern
+      if (urlPattern && typeof urlPattern === 'string') {
+        requests[entry.loader] = { method: 'GET', url: urlPattern }
+      }
+    }
   }
 
-  return {
+  const site: SiteDefinition = {
     hostname: input.hostname,
     dir: input.dir,
     icon: input.icon,
     entities: input.entities.map((e) => e.build()),
-    requests: input.requests,
+    requests,
     loaders,
     pages,
     htmlevatePages,
   }
+  return site
+}
+
+export function patchSiteSource(
+  site: SiteDefinition,
+  relPath: string,
+  content: string,
+): boolean {
+  const pageMatch = relPath.match(/sites\/([^/]+)\/pages\/([^/]+)\/index\.htmlevate$/)
+  if (pageMatch && pageMatch[1] === site.dir) {
+    try {
+      const { frontmatter } = parse(content)
+      if (!frontmatter.entity || !frontmatter.urlPattern) {
+        return false
+      }
+      const entity = String(frontmatter.entity)
+      const idx = site.htmlevatePages.findIndex((p) => p.$entity === entity)
+      const updated: import('~/site-spec/types').HtmlEvatePage = {
+        $entity: entity,
+        $urlPattern: frontmatter.urlPattern as string | string[],
+        $hostname: site.hostname,
+        source: content,
+      }
+      if (idx >= 0) {
+        site.htmlevatePages[idx] = updated
+      } else {
+        site.htmlevatePages.push(updated)
+      }
+    } catch {
+      return false
+    }
+    return true
+  }
+
+  const loaderMatch = relPath.match(/sites\/([^/]+)\/loaders\/(?:[^/]+\/)?(.+\.(jsonata|htmlevate))$/)
+  if (loaderMatch && loaderMatch[1] === site.dir) {
+    const file = loaderMatch[2]!
+    for (const entries of Object.values(site.loaders)) {
+      for (const entry of entries) {
+        if (entry.file === file) {
+          entry.expression = content
+          return true
+        }
+      }
+    }
+  }
+  return false
 }
