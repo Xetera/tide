@@ -355,6 +355,7 @@ export function JsonViewer({
   validationErrors?: () => string[]
   idToUrl?: () => PatchMeta[]
   rawPatches?: () => unknown[]
+  identityWarnings?: () => string[]
   foldByDefault?: boolean
   unfoldSignal?: () => unknown
   foldKey?: () => unknown

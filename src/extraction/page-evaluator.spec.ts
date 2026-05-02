@@ -1,21 +1,19 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import type { MatchingResource, PageCheckResult } from './page-evaluator'
 import { PageEvaluator } from './page-evaluator'
-import type { PageSpec } from '~/site-spec/types'
-import { HTMLParser } from './html-parser'
+import { PageLoader } from '~/site-spec/types'
+import type { LoaderEntry } from '~/loaders'
 import { JSDOM } from 'jsdom'
-import { sahibindenSite } from '~/sites/sahibinden'
 
-const sahibinden = sahibindenSite.getPages()[0]!
-
-function makeResource(opts: Partial<PageSpec>): PageSpec {
-  return {
-    $entity: 'test',
-    $hostname: 'example.com',
-    $urlPattern: '/',
-    $fields: {},
-    ...opts,
+function makeLoader(opts: { hostname?: string; urlPattern?: string | string[]; source?: string }): PageLoader {
+  const entry: LoaderEntry = {
+    site: 'test',
+    loader: 'test',
+    file: 'test.htmlevate',
+    path: 'src/sites/test/loaders/test.htmlevate',
+    expression: opts.source ?? '',
+    format: 'htmlevate',
   }
+  return new PageLoader({ name: 'test', file: 'test.htmlevate', path: 'src/sites/test/loaders/test.htmlevate', urlPattern: opts.urlPattern ?? '/', hostname: opts.hostname, entry })
 }
 
 describe('page evaluator', () => {
@@ -31,191 +29,71 @@ describe('page evaluator', () => {
     setUrl('https://example.com')
   })
 
-  it('should strictly match www. subdomains', () => {
+  it('matches a rule by hostname and url pattern', () => {
+    setUrl('https://abc.com/abcd123')
+    const rule = makeLoader({ hostname: 'abc.com', urlPattern: '/*' })
+    const pe = new PageEvaluator(document, [rule])
+    expect(pe.checkCurrentPage()).toStrictEqual({ kind: 'match', loader: rule })
+  })
+
+  it('does not match a different hostname', () => {
     setUrl('https://www.example.com')
-    const pe = new PageEvaluator(document, [makeResource({})])
-    expect(pe.checkCurrentPage()).toStrictEqual({
-      kind: 'fail',
-      reason: 'no-matching-resource',
-    } as PageCheckResult)
+    const rule = makeLoader({ hostname: 'example.com', urlPattern: '/' })
+    const pe = new PageEvaluator(document, [rule])
+    expect(pe.checkCurrentPage()).toMatchObject({ kind: 'fail', reason: 'no-matching-rule' })
   })
 
-  it('should match a direct hit', () => {
+  it('ignores trailing slash in url pattern', () => {
     setUrl('https://abc.com/abcd123')
-    const correct = makeResource({
-      $hostname: 'abc.com',
-      $urlPattern: '/:test',
-      $variables: {
-        test: {
-          $alias: 'test',
-          $kind: 'url',
-          $description: 'test',
-        },
-      },
-    })
-    const pe = new PageEvaluator(document, [makeResource({}), correct])
-    expect(pe.checkCurrentPage()).toStrictEqual({
-      kind: 'match',
-      resource: correct,
-      variables: { test: 'abcd123' },
-    } satisfies MatchingResource)
+    const rule = makeLoader({ hostname: 'abc.com', urlPattern: '/*/' })
+    const pe = new PageEvaluator(document, [rule])
+    expect(pe.checkCurrentPage()).toStrictEqual({ kind: 'match', loader: rule })
   })
 
-  it('should ignore trailing slashes in a resource', () => {
-    setUrl('https://abc.com/abcd123')
-    const correct = makeResource({
-      $hostname: 'abc.com',
-      $urlPattern: '/:test_value/',
-      $variables: {
-        test_value: {
-          $alias: 'test_value',
-          $kind: 'url',
-          $description: 'test',
-        },
-      },
-    })
-    const pe = new PageEvaluator(document, [makeResource({}), correct])
-    expect(pe.checkCurrentPage()).toStrictEqual({
-      kind: 'match',
-      resource: correct,
-      variables: { test_value: 'abcd123' },
-    } satisfies MatchingResource)
-  })
-
-  it('should ignore trailing slashes in a url', () => {
+  it('ignores trailing slash in the current url', () => {
     setUrl('https://abc.com/abcd123/')
-    const correct = makeResource({
-      $hostname: 'abc.com',
-      $urlPattern: '/:test',
-      $variables: {
-        test: {
-          $alias: 'test',
-          $kind: 'url',
-          $description: 'test',
-        },
-      },
-    })
-    const pe = new PageEvaluator(document, [makeResource({}), correct])
-    expect(pe.checkCurrentPage()).toStrictEqual({
-      kind: 'match',
-      resource: correct,
-      variables: { test: 'abcd123' },
-    } satisfies MatchingResource)
+    const rule = makeLoader({ hostname: 'abc.com', urlPattern: '/*' })
+    const pe = new PageEvaluator(document, [rule])
+    expect(pe.checkCurrentPage()).toStrictEqual({ kind: 'match', loader: rule })
   })
 
-  it('should match a direct hit with multiple variables', () => {
-    setUrl('https://abc.com/abcd123/bbcad')
-    const correct = makeResource({
-      $hostname: 'abc.com',
-      $urlPattern: '/:test/:test2',
-      $variables: {
-        test: {
-          $alias: 'test',
-          $kind: 'url',
-          $description: 'test',
-        },
-        test2: {
-          $alias: 'test2',
-          $kind: 'url',
-          $description: 'test2',
-        },
-      },
-    })
-    const pe = new PageEvaluator(document, [makeResource({}), correct])
-    expect(pe.checkCurrentPage()).toStrictEqual({
-      kind: 'match',
-      resource: correct,
-      variables: { test: 'abcd123', test2: 'bbcad' },
-    } satisfies PageCheckResult)
+  it('does not partially match patterns', () => {
+    setUrl('https://abc.com/abcd123/extra')
+    const rule = makeLoader({ hostname: 'abc.com', urlPattern: '/*' })
+    const pe = new PageEvaluator(document, [rule])
+    expect(pe.checkCurrentPage()).toMatchObject({ kind: 'fail', reason: 'no-matching-rule' })
   })
 
-  it('wont match partial patterns', () => {
-    setUrl('https://abc.com/abcd123/bbcad')
-    const correct = makeResource({
-      $hostname: 'abc.com',
-      $urlPattern: '/:test',
-    })
-    const pe = new PageEvaluator(document, [makeResource({}), correct])
-    expect(pe.checkCurrentPage()).toStrictEqual({
-      kind: 'fail',
-      reason: 'no-matching-resource',
-    } as PageCheckResult)
+  it('picks the first matching rule when multiple rules exist', () => {
+    setUrl('https://abc.com/posts/123')
+    const first = makeLoader({ hostname: 'abc.com', urlPattern: '/posts/*' })
+    const second = makeLoader({ hostname: 'abc.com', urlPattern: '/posts/*' })
+    const pe = new PageEvaluator(document, [first, second])
+    expect(pe.checkCurrentPage()).toStrictEqual({ kind: 'match', loader: first })
   })
 
-  it('waits for mutations to occur', { timeout: 1000 }, async () => {
-    const correct = makeResource({
-      $hostname: 'abc.com',
-      $urlPattern: '/:test',
-      $waitFor: ['h1'],
-      $fields: {
-        title: {
-          $source: { $css: 'h1' },
-          $ifMissing: { $strategy: 'omit' },
-          $transform: [{ $text: true }],
-        },
-      },
-    })
-    const parser = new HTMLParser(correct)
-    const dom = new JSDOM('<div></div>')
-    expect(parser.parse(dom.window.document)).toStrictEqual({})
-    process.nextTick(() => {
-      const elem = dom.window.document.createElement('h1')
-      elem.innerHTML = 'test'
-      dom.window.document.body.appendChild(elem)
-    })
-    await PageEvaluator.waitForLoad(dom.window.document, correct)
-    expect(parser.parse(dom.window.document)).toStrictEqual({
-      title: 'test',
-    })
+  it('matches when no hostname is specified', () => {
+    setUrl('https://anything.com/foo')
+    const rule = makeLoader({ hostname: undefined, urlPattern: '/foo' })
+    const pe = new PageEvaluator(document, [rule])
+    expect(pe.checkCurrentPage()).toStrictEqual({ kind: 'match', loader: rule })
   })
 
-  it('extracts variables from query parameters', () => {
-    setUrl('https://example.com/abc?pagingOffset=34&something=xyz')
-    const r = makeResource({
-      $variables: {
-        pagingOffset: {
-          $kind: 'query',
-          $alias: 'test',
-          $description: 'test',
-        },
-        something: {
-          $kind: 'url',
-          $description: 'whatever',
-        },
-      },
-      $urlPattern: '/:something',
-    })
-    const pe = new PageEvaluator(document, [r])
-    expect(pe.checkCurrentPage()).toStrictEqual({
-      kind: 'match',
-      resource: r,
-      variables: { something: 'abc', test: '34' },
-    } satisfies MatchingResource)
+  it('supports multiple url patterns', () => {
+    setUrl('https://abc.com/bar/123')
+    const rule = makeLoader({ hostname: 'abc.com', urlPattern: ['/foo/*', '/bar/*'] })
+    const pe = new PageEvaluator(document, [rule])
+    expect(pe.checkCurrentPage()).toStrictEqual({ kind: 'match', loader: rule })
   })
 
-  it('should match both paths in the sahibinden fixture', () => {
-    setUrl('https://www.sahibinden.com/otomobil')
-    const pe = new PageEvaluator(document, [sahibinden])
-    expect(pe.checkCurrentPage()).toStrictEqual({
-      kind: 'match',
-      resource: sahibinden,
-      variables: {
-        category: 'otomobil',
-        pageOffset: '0',
-        region: undefined,
-      },
-    } satisfies MatchingResource)
+  it('updateDocument re-evaluates against the new url', () => {
+    setUrl('https://abc.com/foo')
+    const rule = makeLoader({ hostname: 'abc.com', urlPattern: '/foo' })
+    const pe = new PageEvaluator(document, [rule])
+    expect(pe.checkCurrentPage()).toStrictEqual({ kind: 'match', loader: rule })
 
-    setUrl('https://www.sahibinden.com/satilik/antalya')
+    setUrl('https://abc.com/bar')
     pe.updateDocument(document)
-    expect(pe.checkCurrentPage()).toStrictEqual({
-      kind: 'match',
-      resource: sahibinden,
-      variables: {
-        category: 'satilik',
-        region: 'antalya',
-        pageOffset: '0',
-      },
-    } satisfies MatchingResource)
+    expect(pe.checkCurrentPage()).toMatchObject({ kind: 'fail', reason: 'no-matching-rule' })
   })
 })

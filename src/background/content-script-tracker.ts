@@ -1,6 +1,6 @@
 import { shuffle } from 'lodash'
 import { onMessage } from 'webext-bridge/background'
-import type { PageSpec } from '~/site-spec/types'
+import type { ResourceSpec } from '~/site-spec/types'
 import { log } from './backend-logger'
 
 export class ContentScriptTracker {
@@ -16,7 +16,7 @@ export class ContentScriptTracker {
     })
   }
 
-  async getScriptTab(resource?: PageSpec): Promise<number> {
+  async getScriptTab(resource?: ResourceSpec): Promise<number> {
     const rawTabs = await chrome.tabs.query({})
     const tabs = shuffle(rawTabs)
     for (const tab of tabs) {
@@ -30,7 +30,7 @@ export class ContentScriptTracker {
       text: 'No valid tabs open to run job. Need a tab with the script injected. Default browser tabs like chrome://* or about:chrome are not valid.',
       severity: 'error',
       data: {
-        ...(resource ? { resourceId: resource.$entity } : {}),
+        ...(resource ? { resourceId: resource.entity } : {}),
         tabCount: tabs.length,
       },
     })

@@ -18,9 +18,11 @@ export type ScrapeLogStatus = 'pending' | 'submitted' | 'failed'
 
 export type ScrapeSource =
   | { kind: 'network'; loader: string; file: string }
-  | { kind: 'htmlevate-loader'; loader: string }
-  | { kind: 'htmlevate-page'; entity: string }
-  | { kind: 'html' }
+  | { kind: 'page'; urlPattern: string; loader: string; file: string }
+
+export function scrapeSourceLoaderKey(src: ScrapeSource): string | null {
+  return `${src.loader}/${src.file}`
+}
 
 export type ScrapeLog = {
   id: string
@@ -28,7 +30,7 @@ export type ScrapeLog = {
   severity: 'info'
   /** unix timestamp */
   date: number
-  patches: import('./protocol/scrapeer').EntityPatch[]
+  patches: import('./site-spec/types').EntityPatch[]
   warnings: readonly string[]
   status: ScrapeLogStatus
   source?: ScrapeSource

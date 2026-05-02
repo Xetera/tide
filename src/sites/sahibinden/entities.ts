@@ -21,6 +21,6 @@ export const sahibindenEntities = [
   new EntityBuilder('@sahibinden/agency').fields({
     name: Type.String(),
     link: Type.String({ format: 'uri' }),
-    logo: Type.String(SahibindenImage),
+    logo: SahibindenImage,
   }),
 ]

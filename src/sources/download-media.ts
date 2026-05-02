@@ -1,4 +1,14 @@
-import type { DownloadedMedia, MediaRef } from '~/extraction/evaluated-resource'
+export interface MediaRef {
+  url: string
+  dimensions?: { width: number; height: number }
+}
+
+export interface DownloadedMedia {
+  bytes: number
+  mimeType: string
+  sha256hash: string
+  buffer: ArrayBuffer
+}
 
 export type MediaResult = DownloadedMedia
 

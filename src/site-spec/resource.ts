@@ -1,5 +1,3 @@
-import type { PageSpec } from '~/site-spec/types'
-
 export const constructPathRegex = (pattern: string): RegExp => {
   const regexValue = normalizePath(pattern).replaceAll(
     /:([a-zA-Z0-9-_]+)/g,
@@ -16,6 +14,5 @@ export const normalizePath = (path: string): string => path.replace(/\/$/, '')
 export const originToUrl = (origin: string) =>
   `https://${origin.replace(/^\./, '')}`
 
-export const toOrigin = (resource: PageSpec) => `*://${resource.$hostname}/*`
-
-export const toOrigins = (resources: PageSpec[]) => resources.map(toOrigin)
+export const toOrigin = (resource: { hostname: string }): string =>
+  `https://${resource.hostname}/*`

@@ -1,13 +1,29 @@
 ;(function () {
-  if (window.__spatulaQueue) {return}
-  window.__spatulaQueue = []
-  window.__spatulaFlush = null
+  type QueuedCapture = {
+    url: string
+    method: string
+    body: string
+    requestBody: string | null
+    requestHeaders: Record<string, string>
+    responseHeaders: Record<string, string>
+    status: number
+    capturedAt: number
+  }
+  const w = window as typeof window & {
+    __spatulaQueue: QueuedCapture[]
+    __spatulaFlush: ((c: QueuedCapture) => void) | null
+  }
+  if (w.__spatulaQueue) {
+    return
+  }
+  w.__spatulaQueue = []
+  w.__spatulaFlush = null
 
-  function enqueue(capture) {
-    if (window.__spatulaFlush) {
-      window.__spatulaFlush(capture)
+  function enqueue(capture: QueuedCapture) {
+    if (w.__spatulaFlush) {
+      w.__spatulaFlush(capture)
     } else {
-      window.__spatulaQueue.push(capture)
+      w.__spatulaQueue.push(capture)
     }
   }
 
@@ -22,24 +38,27 @@
         'GET'
       ).toUpperCase()
       var promise = Reflect.apply(target, thisArg, args)
-      promise.then(function (response) {
-        var responseHeaders = {}
-        response.headers.forEach(function (value, key) {
+      promise.then(function (response: Response) {
+        var responseHeaders: Record<string, string> = {}
+        response.headers.forEach(function (value: string, key: string) {
           responseHeaders[key.toLowerCase()] = value
         })
         response
           .clone()
           .text()
-          .then(function (body) {
+          .then(function (body: string) {
             try {
               JSON.parse(body)
-            } catch (_) {
+            } catch {
               return
             }
             var resolvedUrl = new URL(url, window.location.origin).href
-            var requestHeaders = {}
+            var requestHeaders: Record<string, string> = {}
             if (init && init.headers) {
-              new Headers(init.headers).forEach(function (v, k) {
+              new Headers(init.headers).forEach(function (
+                v: string,
+                k: string,
+              ) {
                 requestHeaders[k] = v
               })
             }
@@ -78,15 +97,15 @@
       thisArg.addEventListener('load', function () {
         try {
           JSON.parse(thisArg.responseText)
-        } catch (_) {
+        } catch {
           return
         }
-        var headers = {}
+        var headers: Record<string, string> = {}
         var raw = thisArg.getAllResponseHeaders()
         raw
           .trim()
           .split('\r\n')
-          .forEach(function (line) {
+          .forEach(function (line: string) {
             var idx = line.indexOf(': ')
             if (idx !== -1) {
               headers[line.slice(0, idx).toLowerCase()] = line.slice(idx + 2)

@@ -5,7 +5,7 @@ import { onMessage, sendMessage } from 'webext-bridge/popup'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { Badge } from '~/components/ui/badge'
 import { toOrigin } from '~/site-spec/resource'
-import type { PageSpec } from '~/site-spec/types'
+import type { ResourceSpec } from '~/site-spec/types'
 import { type BrowserStorageSchema, Storage } from '~/shared/storage'
 import { useBrowserStorage } from '~/shared/hooks'
 import type { Log, PlainLog, ScrapeLog } from '~/shared'
@@ -19,7 +19,7 @@ const formatter = createDateFormatter({
   timeStyle: 'medium',
 })()
 
-async function requestNewPermissions(resource: PageSpec) {
+async function requestNewPermissions(resource: ResourceSpec) {
   await chrome.permissions.request({
     origins: [toOrigin(resource)],
     permissions: ['declarativeNetRequest', 'webNavigation'],
@@ -33,7 +33,7 @@ function ResourceRow({
   hostAllowed,
   onClick,
 }: {
-  resource: PageSpec
+  resource: ResourceSpec
   hostAllowed: boolean
   onClick: () => void
 }) {
@@ -46,8 +46,8 @@ function ResourceRow({
       <span
         class={`h-1.5 w-1.5 rounded-full shrink-0 ${hostAllowed ? 'bg-green-500' : 'bg-muted-foreground'}`}
       />
-      <span class='flex-1 font-medium truncate'>{resource.$entity}</span>
-      <Badge variant='muted'>{resource.$entity}</Badge>
+      <span class='flex-1 font-medium truncate'>{resource.entity}</span>
+      <Badge variant='muted'>{resource.entity}</Badge>
     </button>
   )
 }
@@ -57,9 +57,7 @@ function ScrapeLogEntry({ log }: { log: ScrapeLog }) {
   const title =
     log.source?.kind === 'network'
       ? `${log.source.loader} / ${log.source.file}`
-      : log.source?.kind === 'html'
-        ? 'html'
-        : [...new Set(log.patches.map((p) => p._entity))].join(', ')
+      : [...new Set(log.patches.map((p) => p._entity))].join(', ')
   const patchesByEntity = Object.entries(
     log.patches.reduce<Record<string, number>>((acc, p) => {
       acc[p._entity] = (acc[p._entity] ?? 0) + 1
@@ -170,12 +168,6 @@ function PlainLogEntry({ log }: { log: Exclude<Log, ScrapeLog> }) {
   )
 }
 
-function LogEntry({ log }: { log: Log }) {
-  if (log.type === 'scrape') {
-    return <ScrapeLogEntry log={log} />
-  }
-  return <PlainLogEntry log={log} />
-}
 
 function PoolLogs({ logs }: { logs: PlainLog[] }) {
   return (
@@ -206,7 +198,7 @@ function Page() {
     undefined,
   )
 
-  async function updateState(resources: PageSpec[]) {
+  async function updateState(resources: ResourceSpec[]) {
     const stateful = await Promise.all(
       resources.map(async (resource) => {
         const hostAllowed = await chrome.permissions.contains({
@@ -235,9 +227,9 @@ function Page() {
   //   console.log(a)
   // })
 
-  function getNewPermissions(resource: PageSpec) {
+  function getNewPermissions(resource: ResourceSpec) {
     requestNewPermissions(resource)
-    storage.push('enabledResources', resource.$entity)
+    storage.push('enabledResources', resource.entity)
   }
 
   const [tab, setTab] = createSignal('dashboard')
@@ -304,7 +296,7 @@ function Page() {
                 <div class='border-b border-border'>
                   <details class='group'>
                     <summary class='cursor-pointer flex items-center justify-between px-3 py-2 text-sm font-medium select-none hover:bg-accent'>
-                      <span>Last scrape{scrape().loader ? ` · ${scrape().loader}` : ''}</span>
+                      <span>Last scrape{scrape().scrapeSource ? ` · ${scrape().scrapeSource?.loader}` : ''}</span>
                       <Badge variant='outline'>
                         {scrape().patches.length} patches
                       </Badge>
@@ -355,7 +347,7 @@ function Page() {
 
 export interface StatefulResource {
   hostAllowed: boolean
-  resource: PageSpec
+  resource: ResourceSpec
 }
 
 export default Page

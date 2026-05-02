@@ -1,6 +1,6 @@
 import { onMessage } from 'webext-bridge/background'
 import { Client } from '~/server/client'
-import { ServerAutonomy, type PageSpec, type Entity } from '~/site-spec/types'
+import { ServerAutonomy, type ResourceSpec, type Entity } from '~/site-spec/types'
 import { instagramSite } from '~/sites/instagram'
 import { allSites } from '~/sites'
 import { generateUID } from '~/shared'
@@ -23,11 +23,9 @@ import type {
   LoaderMatchResult,
 } from '~/generation/types'
 import {
-  loaderEntries,
+  loaderProvider,
   matchesGlob,
   captureMatchesKnownLoader,
-  buildLoaderInfos,
-  buildBuiltinExamples,
 } from '~/loaders'
 
 const storage = new Storage<BrowserStorageSchema>()
@@ -36,7 +34,7 @@ const CAPTURE_RING_MAX = 10
 
 console.log(
   '[spatula] loaderEntries:',
-  loaderEntries.map((e) => `${e.site}/${e.loader}/${e.file}`),
+  loaderProvider.getEntries().map((e) => `${e.site}/${e.loader}/${e.file}`),
 )
 console.log(
   '[spatula] allSites requests:',
@@ -87,7 +85,7 @@ async function storeCaptureEntry(entry: CaptureEntry) {
   }
 }
 
-const BUILTIN_EXAMPLES = buildBuiltinExamples()
+const BUILTIN_EXAMPLES = loaderProvider.buildBuiltinExamples()
 
 let validator: EntityValidator | null = null
 
@@ -437,12 +435,12 @@ function emitUrlUpdate(
       defaultServers: [
         {
           id: generateUID(),
-          name: serverName,
-          url: serverUrl,
-          autonomy,
-          poolId,
-          workerId,
-          workerSecret,
+          name: serverName!,
+          url: serverUrl!,
+          autonomy: autonomy!,
+          poolId: poolId!,
+          workerId: workerId!,
+          workerSecret: workerSecret!,
         },
       ],
       async enabledResources(_server) {
@@ -455,10 +453,10 @@ function emitUrlUpdate(
         const tabIds = await cst.getAllScriptTabs()
         storage.set(
           'enabledResources',
-          resources.map((resource) => resource.$entity),
+          resources.map((resource) => resource.entity),
         )
         storage.set('resources:all', resources)
-        const hostnames = resources.map((re) => re.$hostname)
+        const hostnames = resources.map((re) => re.hostname)
         disableIframeSecurity(hostnames)
         for (const tabId of tabIds) {
           chrome.tabs
@@ -468,7 +466,7 @@ function emitUrlUpdate(
         chrome.webNavigation.onHistoryStateUpdated.removeListener(emitUrlUpdate)
         chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
           url: resources.map((resource) => ({
-            hostContains: resource.$hostname,
+            hostContains: resource.hostname,
           })),
         })
       },
@@ -573,7 +571,7 @@ function emitUrlUpdate(
         return []
       }
       const results: LoaderMatchResult[] = []
-      for (const entry of loaderEntries) {
+      for (const entry of loaderProvider.getEntries()) {
         const expr = new JsonataExpression(entry.expression, {
           request: {
             url: capture.url,
@@ -650,7 +648,7 @@ function emitUrlUpdate(
     })
 
     onMessage('get-loaders', () => {
-      return buildLoaderInfos(allSites)
+      return loaderProvider.buildLoaderInfos(allSites)
     })
 
     onMessage('write-loader', async ({ data }) => {
@@ -681,7 +679,7 @@ function emitUrlUpdate(
     onMessage('generate-jsonata', async ({ data }) => {
       const capture = await getCaptureById(data.captureId)
       if (!capture) {
-        return { ok: false, error: 'Capture not found' }
+        return { ok: false, error: 'Capture not found' } as const
       }
       const geminiKey = await storage.get('gemini:api-key', '')
       const zaiKey = await storage.get('zai:api-key', '')
@@ -689,7 +687,7 @@ function emitUrlUpdate(
         return {
           ok: false,
           error: 'No API key configured in settings (Gemini or z.ai)',
-        }
+        } as const
       }
       const site = allSites.find((s) => capture.hostname.endsWith(s.hostname))
       const entities = site?.entities ?? instagramSite.entities
@@ -702,13 +700,13 @@ function emitUrlUpdate(
         data.userNote || undefined,
       )
       if (!result.success) {
-        return { ok: false, error: result.error }
+        return { ok: false, error: result.error } as const
       }
       return {
         ok: true,
         expression: result.jsonataExpression,
         explanation: result.potentialEntities,
-      }
+      } as const
     })
 
     onMessage('generate-spec', async ({ data }) => {
@@ -776,16 +774,15 @@ function emitUrlUpdate(
     validator = new EntityValidator(allSites)
 
     const localSchema = await storage.get('schema:local', '')
-    const defaultResources = instagramSite.getPages()
-    const resources: PageSpec[] = localSchema
+    const resources: ResourceSpec[] = localSchema
       ? (() => {
           try {
             return JSON.parse(localSchema)
           } catch {
-            return defaultResources
+            return []
           }
         })()
-      : defaultResources
+      : []
     client.setResources(client.getServer(), resources)
     storage.set('resources:all', resources)
 

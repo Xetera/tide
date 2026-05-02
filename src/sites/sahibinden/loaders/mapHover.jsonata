@@ -1,7 +1,7 @@
 [
   /* Map the main listing entity */
   {
-    "_entity":  "@sahibinden/listing"
+    "_entity":  "@sahibinden/listing",
     "_id": $string(id),
     "name": title,
     "price": price,

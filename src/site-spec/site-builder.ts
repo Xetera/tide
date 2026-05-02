@@ -9,10 +9,12 @@ import {
   Type,
   TUnsafe,
   TRecord,
+  TNumber,
 } from 'typebox'
 import { SiteDefinition } from '~/site-spec/types'
-import type { Entity, HtmlEvatePage, PageSpec } from '~/site-spec/types'
-import { parse } from '~/htmlevate/parser'
+import type { Entity } from '~/site-spec/types'
+import { MediaBuilder } from '~/extraction/media-types'
+import type { LoaderProvider } from '~/loaders'
 
 // just a type to correlate unsafe references
 type TReference = symbol
@@ -36,9 +38,11 @@ type FieldInput = Record<
   | TArray
   | TOptional
   | TString
+  | TNumber
   | TInteger
   | TBoolean
   | TUnsafe<TReference>
+  | MediaBuilder
   | TRecord
 >
 
@@ -157,87 +161,16 @@ type SiteInput = {
   icon?: string
   entities: EntityBuilder[]
   requests: Record<string, import('~/site-spec/types').RequestMatcher>
-  loaderEntries: import('~/loaders').LoaderEntry[]
+  loaderProvider: LoaderProvider
 }
 
 export function defineSite(input: SiteInput): SiteDefinition {
-  const allPageModules = import.meta.glob('../sites/*/pages/*/index.ts', {
-    import: 'default',
-    eager: true,
-  }) as Record<string, PageSpec>
-
-  const allHtmlevateModules = import.meta.glob('../sites/*/pages/*/index.htmlevate', {
-    query: '?raw',
-    import: 'default',
-    eager: true,
-  }) as Record<string, string>
-
-  const pages: PageSpec[] = []
-  for (const [path, page] of Object.entries(allPageModules)) {
-    const match = path.match(/\/sites\/([^/]+)\/pages\//)
-    if (!match) {
-      continue
-    }
-    const [, site] = match
-    if (site !== input.dir) {
-      continue
-    }
-    pages.push(page)
-  }
-
-  const htmlevatePages: HtmlEvatePage[] = []
-  for (const [path, source] of Object.entries(allHtmlevateModules)) {
-    const match = path.match(/\/sites\/([^/]+)\/pages\//)
-    if (!match) {
-      continue
-    }
-    const [, site] = match
-    if (site !== input.dir) {
-      continue
-    }
-    const { frontmatter } = parse(source)
-    if (!frontmatter.entity || !frontmatter.urlPattern) {
-      console.warn(`[htmlevate] ${path} missing entity or urlPattern frontmatter`)
-      continue
-    }
-    htmlevatePages.push({
-      $entity: String(frontmatter.entity),
-      $urlPattern: frontmatter.urlPattern as string | string[],
-      $hostname: input.hostname,
-      source,
-    })
-  }
-
-  const loaders: Record<string, import('~/site-spec/types').LoaderExpression[]> = {}
-  const requests: Record<string, import('~/site-spec/types').RequestMatcher> = { ...input.requests }
-  for (const entry of input.loaderEntries) {
-    if (entry.site !== input.dir) {
-      continue
-    }
-    loaders[entry.loader] ??= []
-    loaders[entry.loader]!.push({
-      format: entry.format,
-      file: entry.file,
-      expression: entry.expression,
-    })
-    if (entry.format === 'htmlevate' && !(entry.loader in requests)) {
-      const { frontmatter } = parse(entry.expression)
-      const urlPattern = frontmatter.urlPattern
-      if (urlPattern && typeof urlPattern === 'string') {
-        requests[entry.loader] = { method: 'GET', url: urlPattern }
-      }
-    }
-  }
-
   return new SiteDefinition({
     hostname: input.hostname,
     dir: input.dir,
     icon: input.icon,
     entities: input.entities.map((e) => e.build()),
-    requests,
-    loaders,
-    pages,
-    htmlevatePages,
+    requests: input.requests,
+    provider: input.loaderProvider,
   })
 }
-

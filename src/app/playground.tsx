@@ -1051,7 +1051,7 @@ function Playground() {
       changes: Record<string, chrome.storage.StorageChange>,
     ) => {
       if (changes['generation:attempts']) {
-        setGenerationAttempts(changes['generation:attempts'].newValue ?? [])
+        setGenerationAttempts(changes['generation:attempts'].newValue as GenerationAttempt[] ?? [])
       }
     }
     chrome.storage.local.onChanged.addListener(onStorageChanged)
@@ -1149,7 +1149,7 @@ function Playground() {
     setSelectedLoader(loader)
     setEvalResult(null)
     setWriteStatus('idle')
-    setSelectedFixture(loader.fixtures[0] ?? null)
+    setSelectedFixture(null)
     setSelectedCapture(null)
     if (loader.format === 'htmlevate') {
       setHtmlInputTab('tab')

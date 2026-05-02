@@ -10,10 +10,13 @@ export type HashSource =
 export type IdentityFn = (media: MediaRecord) => Result<string, IdentityError>
 export type IdentitySource = { fn: IdentityFn }
 
-type MediaBuilder = TObject & {
+export const kIdentityFn = Symbol('identityFn')
+
+export type MediaBuilder = TObject & {
   'x-ephemeral'?: { ttl?: number }
   'x-offload'?: boolean
   'x-identity'?: { fn: string }
+  [kIdentityFn]?: IdentityFn
   'x-hash'?: HashSource
   ephemeral(ttl?: number): MediaBuilder
   offload(): MediaBuilder
@@ -46,11 +49,13 @@ function mediaBuilder(schema: TObject): MediaBuilder {
       )
     },
     identity(source: IdentitySource): MediaBuilder {
-      return mediaBuilder(
+      const next = mediaBuilder(
         Object.assign({}, this, {
           'x-identity': { fn: source.fn.name },
         }),
       )
+      next[kIdentityFn] = source.fn
+      return next
     },
     hash(source: HashSource): MediaBuilder {
       return mediaBuilder(Object.assign({}, this, { 'x-hash': source }))

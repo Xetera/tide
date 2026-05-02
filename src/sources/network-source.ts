@@ -71,6 +71,9 @@ window.addEventListener('message', (evt) => {
         source: { kind: 'passive' },
         warnings: [],
         scrapeSource: { kind: 'network', loader: name, file },
+        highlights: [],
+        patchCounts: new Map(),
+        errors: [],
       })
     }
   }

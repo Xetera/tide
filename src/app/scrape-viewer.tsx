@@ -93,9 +93,7 @@ function ScrapeViewer() {
                       const s = entry().source
                       if (!s) return null
                       if (s.kind === 'network') return `network / ${s.loader} / ${s.file}`
-                      if (s.kind === 'htmlevate-loader') return `htmlevate / ${s.loader}`
-                      if (s.kind === 'htmlevate-page') return `htmlevate / ${s.entity}`
-                      return 'html'
+                      if (s.kind === 'page') return `page / ${s.urlPattern}`
                     })()}
                   </h1>
                   <p class='text-sm text-muted-foreground'>

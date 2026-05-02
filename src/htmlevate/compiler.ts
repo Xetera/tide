@@ -1,8 +1,6 @@
 import { parse } from './parser'
 import type { EntityRef } from '~/site-spec/types'
 import {
-  LOCALE_SUFFIXES,
-  localeFormatParts,
   expandLocaleSuffix,
   parseLocaleNumber,
 } from '~/extraction/number-parser'

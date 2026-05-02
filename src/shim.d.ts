@@ -9,6 +9,8 @@ import type {
   JobSource,
 } from './site-spec/types'
 import type { PlainLog, ScrapeLog, ScrapeSource } from './shared'
+import type { EntityPatch } from './site-spec/types'
+import type { ScrapeResult } from './sources/page-rule-runner'
 import type {
   CaptureEntry,
   GenerationRequest,
@@ -29,12 +31,7 @@ declare module 'webext-bridge' {
     log: Omit<PlainLog, 'date' | 'id' | 'type'> | Omit<ScrapeLog, 'date' | 'id'>
     resources: ProtocolWithReturn<unknown, Resource[]>
     'set-schema': ProtocolWithReturn<Resource[], void>
-    'entity-patches': {
-      patches: RawEntityPatch[]
-      source: JobSource
-      warnings: string[]
-      scrapeSource?: ScrapeSource
-    }
+    'entity-patches': ScrapeResult
     'raw-capture': {
       url: string
       method: string

@@ -1,10 +1,10 @@
 import { defineSite } from '~/site-spec/site-builder'
-import { loaderEntries } from '~/loaders'
+import { loaderProvider } from '~/loaders'
 import { instagramEntities } from './entities'
 
 export const instagramSite = defineSite({
   dir: 'instagram',
-  loaderEntries,
+  loaderProvider,
   hostname: 'www.instagram.com',
   entities: instagramEntities,
   requests: {

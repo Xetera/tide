@@ -45,7 +45,7 @@ export default defineConfig({
         foreground: 'var(--accent-foreground)',
       },
     },
-    borderRadius: {
+    radius: {
       lg: 'var(--radius)',
       md: 'calc(var(--radius) - 2px)',
       sm: 'calc(var(--radius) - 4px)',

@@ -14,7 +14,7 @@ const q = new PQueue()
 async function get<T>(key: string, defaultValue: T): Promise<T>
 async function get<T>(key: string, defaultValue?: T): Promise<T | undefined> {
   const store = await chrome.storage.local.get(key)
-  return store[key] ?? defaultValue
+  return (store[key] ?? defaultValue) as T | undefined
 }
 
 const set = <T>(key: string, data: T): Promise<void> =>
@@ -26,15 +26,12 @@ const push = async <T>(
   data: T,
   options: { trim: number },
 ): Promise<void> => {
-  return q.add(
-    async () => {
-      const existing = await get<T[]>(key, [])
-      existing.unshift(data)
-      const trimmed = existing.slice(0, options.trim)
-      await set(key, trimmed)
-    },
-    { throwOnTimeout: true },
-  )
+  return q.add(async () => {
+    const existing = await get<T[]>(key, [])
+    existing.unshift(data)
+    const trimmed = existing.slice(0, options.trim)
+    await set(key, trimmed)
+  })
 }
 
 export function log(
@@ -47,7 +44,7 @@ export function log(
     id,
     date: Date.now(),
     type: 'plain',
-    ...(payload.type === 'scrape'
+    ...('patches' in payload
       ? { status: 'pending' as ScrapeLogStatus }
       : {}),
     ...payload,

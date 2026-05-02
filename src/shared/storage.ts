@@ -1,10 +1,9 @@
 import PQueue from 'p-queue'
 import type { ServerDefinition } from '~/server/client'
 import type {
-  RawEntityPatch,
-  JobSource,
   ServerAutonomy,
 } from '~/site-spec/types'
+import type { ScrapeResult } from '~/sources/page-rule-runner'
 import type { Log } from '~/shared'
 import type {
   GenerationAttempt,
@@ -41,7 +40,6 @@ export class Storage<T extends Record<string, unknown>> {
         await this.set(key, out as T[K])
         return out
       },
-      { throwOnTimeout: true },
     )
   }
 
@@ -58,7 +56,6 @@ export class Storage<T extends Record<string, unknown>> {
         await this.set(key, filtered as T[K])
         return filtered
       },
-      { throwOnTimeout: true },
     )
   }
 }
@@ -92,7 +89,6 @@ export class ServerStorage {
 
         await this.#storage.set('servers', updatedServers)
       },
-      { throwOnTimeout: true },
     )
   }
 
@@ -117,18 +113,13 @@ export type BrowserStorageSchema = {
   'server:enabled'?: boolean
   'server:autonomy'?: ServerAutonomy
   'schema:local'?: string
-  'scrape:last'?: {
-    patches: RawEntityPatch[]
-    source: JobSource
-    warnings: string[]
-    loader?: string
-  }
-  'legend:position'?: { x: number; y: number }
+  'scrape:last'?: ScrapeResult
+  'legend:position'?: { x: number; y: number } | null
   'legend:opacity'?: number
   'legend:hidden'?: string[]
   'legend:collapsed'?: boolean
   'debug:visual'?: boolean
-  'resources:all'?: import('~/site-spec/types').PageSpec[]
+  'resources:all'?: import('~/site-spec/types').ResourceSpec[]
   'gemini:api-key'?: string
   'zai:api-key'?: string
   'generation:progress'?: GenerationProgress

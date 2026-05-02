@@ -49,40 +49,28 @@ function MatchResult({ result }: { result: LoaderMatchResult }) {
       <Show when={open()}>
         <div class='border-t border-border'>
           <Show when={result.matched}>
-            {() => {
-              const r = result as Extract<LoaderMatchResult, { matched: true }>
-              return (
-                <>
-                  <Show when={r.validationErrors.length > 0}>
-                    <div class='px-2 py-1.5 flex flex-col gap-0.5'>
-                      <span class='text-muted-foreground mb-0.5'>
-                        validation errors
-                      </span>
-                      <For each={r.validationErrors}>
-                        {(err) => (
-                          <span class='font-mono text-destructive'>{err}</span>
-                        )}
-                      </For>
-                    </div>
-                  </Show>
-                  <pre class='px-2 py-2 font-mono text-muted-foreground whitespace-pre-wrap overflow-auto max-h-64'>
-                    {JSON.stringify(r.patches, null, 2)}
-                  </pre>
-                </>
-              )
-            }}
+            <Show when={(result as Extract<LoaderMatchResult, { matched: true }>).validationErrors.length > 0}>
+              <div class='px-2 py-1.5 flex flex-col gap-0.5'>
+                <span class='text-muted-foreground mb-0.5'>
+                  validation errors
+                </span>
+                <For each={(result as Extract<LoaderMatchResult, { matched: true }>).validationErrors}>
+                  {(err) => (
+                    <span class='font-mono text-destructive'>{err}</span>
+                  )}
+                </For>
+              </div>
+            </Show>
+            <pre class='px-2 py-2 font-mono text-muted-foreground whitespace-pre-wrap overflow-auto max-h-64'>
+              {JSON.stringify((result as Extract<LoaderMatchResult, { matched: true }>).patches, null, 2)}
+            </pre>
           </Show>
           <Show when={!result.matched}>
-            {() => {
-              const r = result as Extract<LoaderMatchResult, { matched: false }>
-              return (
-                <Show when={r.error}>
-                  <div class='px-2 py-1.5'>
-                    <span class='font-mono text-destructive'>{r.error}</span>
-                  </div>
-                </Show>
-              )
-            }}
+            <Show when={(result as Extract<LoaderMatchResult, { matched: false }>).error}>
+              <div class='px-2 py-1.5'>
+                <span class='font-mono text-destructive'>{(result as Extract<LoaderMatchResult, { matched: false }>).error}</span>
+              </div>
+            </Show>
           </Show>
         </div>
       </Show>

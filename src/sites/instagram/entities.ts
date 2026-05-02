@@ -1,6 +1,6 @@
 import { Type } from 'typebox'
 import { EntityBuilder, Many, One } from '~/site-spec/site-builder'
-import { Image, ImageType, Video } from '~/extraction/media-types'
+import { Image, Video } from '~/extraction/media-types'
 import {
   instagram_image_identity,
   instagram_video_identity,

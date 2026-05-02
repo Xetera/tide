@@ -1,6 +1,6 @@
 import { createSignal, onMount } from 'solid-js'
 import { sendMessage } from 'webext-bridge/popup'
-import type { PageSpec } from '~/site-spec/types'
+import type { ResourceSpec } from '~/site-spec/types'
 
 export function SchemaEditor() {
   const [text, setText] = createSignal('')
@@ -18,7 +18,7 @@ export function SchemaEditor() {
   async function apply() {
     setError(null)
     setSuccess(false)
-    let parsed: PageSpec[]
+    let parsed: ResourceSpec[]
     try {
       parsed = JSON.parse(text())
     } catch (e) {

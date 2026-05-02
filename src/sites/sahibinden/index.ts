@@ -1,5 +1,5 @@
 import { defineSite } from '~/site-spec/site-builder'
-import { loaderEntries } from '~/loaders'
+import { loaderProvider } from '~/loaders'
 import type { JobParameters } from '~/site-spec/types'
 import { sahibindenEntities } from './entities'
 
@@ -15,7 +15,7 @@ export const sahibindenSmallJobs: JobParameters[] = [
 
 export const sahibindenSite = defineSite({
   dir: 'sahibinden',
-  loaderEntries,
+  loaderProvider,
   hostname: 'www.sahibinden.com',
   entities: sahibindenEntities,
   requests: {

@@ -1,69 +1,31 @@
 import { createResource, createSignal, For } from 'solid-js'
 import { render } from 'solid-js/web'
 import { sendMessage } from 'webext-bridge/content-script'
-import type { HighlightEntry } from '~/extraction/html-parser'
 import { Storage } from '~/shared/storage'
 import type { BrowserStorageSchema } from '~/shared/storage'
 
 const legendStorage = new Storage<BrowserStorageSchema>()
 
-const CANVAS_ID = 'spatula-highlight-canvas'
 const LEGEND_TAG = `x-${Math.random().toString(36).slice(2, 9)}`
-const HUE_STEP = 37
 
-function rectsOverlap(a: DOMRect, b: DOMRect): boolean {
-  return (
-    a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
-  )
-}
-
-function hueFor(entity: string, hues: Map<string, number>): number {
-  if (!entity) {
-    return 0
-  }
-  if (!hues.has(entity)) {
-    hues.set(entity, (hues.size * HUE_STEP) % 360)
-  }
-  return hues.get(entity)!
-}
-
-function isDarkMode(): boolean {
+export function isDarkMode(): boolean {
   return window.matchMedia('(prefers-color-scheme: dark)').matches
 }
 
-function strokeColor(hue: number): string {
+export function strokeColor(hue: number): string {
   return isDarkMode()
     ? `oklch(0.75 0.2 ${hue} / 0.35)`
     : `oklch(0.55 0.25 ${hue} / 0.5)`
 }
 
-function labelBg(hue: number): string {
+export function labelBg(hue: number): string {
   return isDarkMode()
     ? `oklch(0.3 0.15 ${hue} / 0.9)`
     : `oklch(0.92 0.08 ${hue} / 0.9)`
 }
 
-function labelFg(hue: number): string {
+export function labelFg(hue: number): string {
   return isDarkMode() ? `oklch(0.9 0.1 ${hue})` : `oklch(0.25 0.15 ${hue})`
-}
-
-function getComputedBorderRadii(
-  element: Element,
-  rect: DOMRect,
-): [number, number, number, number] {
-  const style = getComputedStyle(element)
-  const parse = (v: string) => {
-    if (v.endsWith('%')) {
-      return (parseFloat(v) / 100) * Math.min(rect.width, rect.height)
-    }
-    return parseFloat(v) || 0
-  }
-  return [
-    parse(style.borderTopLeftRadius),
-    parse(style.borderTopRightRadius),
-    parse(style.borderBottomRightRadius),
-    parse(style.borderBottomLeftRadius),
-  ]
 }
 
 const LEGEND_CSS = `
@@ -160,7 +122,7 @@ const LEGEND_CSS = `
   .legend.collapsed .files-dropdown { display: none; }
   .file-link {
     display: flex; align-items: center; gap: 4px; padding: 2px 2px;
-    border-radius: 3px; cursor: pointer; text-decoration: none;
+    border-radius: 3px; cursor: pointer;
     color: light-dark(oklch(0.3 0 0), oklch(0.8 0 0));
   }
   .file-link:hover { background: light-dark(oklch(0.88 0 0 / 0.6), oklch(0.28 0 0 / 0.6)); }
@@ -170,6 +132,7 @@ const LEGEND_CSS = `
   .file-count { margin-left: auto; font-size: 9px; color: oklch(0.55 0 0); }
   .file-count.empty { opacity: 0.35; }
   .file-link.unfired { opacity: 0.4; }
+  .file-link.active { background: light-dark(oklch(0.88 0.04 250 / 0.6), oklch(0.28 0.04 250 / 0.6)); font-weight: 600; }
   .opacity-row {
     display: flex;
     align-items: center;
@@ -187,11 +150,25 @@ const LEGEND_CSS = `
   }
 `
 
+export interface LoaderFile {
+  name: string
+  path: string
+  format: string
+  patchCount?: number
+  active?: boolean
+}
+
+export interface LegendEntry {
+  entity: string
+  hue: number
+  count: number
+}
+
 function LegendComponent(props: {
   host: HTMLElement
-  entries: () => Array<{ entity: string; hue: number; count: number }>
+  entries: () => LegendEntry[]
   errors: () => string[]
-  loaderFiles: () => Array<{ name: string; path: string; format: string; patchCount?: number }>
+  loaderFiles: () => LoaderFile[]
   onHiddenChange: (hidden: Set<string>) => void
   onOpacityChange: (v: number) => void
 }) {
@@ -200,32 +177,22 @@ function LegendComponent(props: {
   const [collapsed, setCollapsed] = createSignal(false)
   const [filesOpen, setFilesOpen] = createSignal(false)
 
-  const [savedPrefs] = createResource(async () => {
-    const [pos, savedOpacity, hiddenList, savedCollapsed] = await Promise.all([
-      legendStorage.get('legend:position', null as { x: number; y: number } | null),
+  createResource(async () => {
+    const [savedOpacity, hiddenList, savedCollapsed] = await Promise.all([
       legendStorage.get('legend:opacity', 1),
       legendStorage.get('legend:hidden', [] as string[]),
       legendStorage.get('legend:collapsed', false),
     ])
-    if (pos) {
-      const x = Math.min(pos.x, window.innerWidth - 24)
-      const y = Math.min(pos.y, window.innerHeight - 24)
-      props.host.style.setProperty('left', `${x}px`, 'important')
-      props.host.style.setProperty('top', `${y}px`, 'important')
-      props.host.style.setProperty('right', 'auto', 'important')
-    }
     const initialHidden = new Set(hiddenList)
     setHidden(initialHidden)
     props.onHiddenChange(initialHidden)
-    setCollapsed(savedCollapsed)
-    return { opacity: savedOpacity }
+    setCollapsed(savedCollapsed ?? false)
+    setOpacity(savedOpacity ?? 1)
+    props.onOpacityChange(savedOpacity ?? 1)
   })
   const [dragging, setDragging] = createSignal(false)
 
-  let savePosTimer = 0
   let saveOpacityTimer = 0
-
-  const resolvedOpacity = () => savedPrefs()?.opacity ?? opacity()
 
   const toggle = (entity: string) => {
     setHidden((prev) => {
@@ -251,11 +218,8 @@ function LegendComponent(props: {
   }
 
   const savePosition = () => {
-    clearTimeout(savePosTimer)
-    savePosTimer = window.setTimeout(() => {
-      const r = props.host.getBoundingClientRect()
-      void legendStorage.set('legend:position', { x: r.left, y: r.top })
-    }, 500)
+    const r = props.host.getBoundingClientRect()
+    void legendStorage.set('legend:position', { x: r.left, y: r.top })
   }
 
   const startDrag = (startX: number, startY: number) => {
@@ -360,7 +324,7 @@ function LegendComponent(props: {
               min="0"
               max="1"
               step="0.05"
-              value={resolvedOpacity()}
+              value={opacity()}
               on:input={(e: InputEvent) => changeOpacity(parseFloat((e.target as HTMLInputElement).value))}
             />
           </div>
@@ -377,14 +341,14 @@ function LegendComponent(props: {
         <div class="files-dropdown">
           <For each={props.loaderFiles()}>
             {(file) => (
-              <a
-                class={`file-link${file.patchCount === undefined ? ' unfired' : ''}`}
-                href="#"
+              <div
+                class={`file-link${file.active ? ' active' : ''}${file.patchCount === undefined ? ' unfired' : ''}`}
                 on:mousedown={(e: MouseEvent) => e.stopPropagation()}
                 on:click={(e: MouseEvent) => {
-                  e.preventDefault()
+                  e.stopPropagation()
+                  console.log('[spatula] file-link clicked', file.path)
                   const url = chrome.runtime.getURL(`playground.html?loader=${encodeURIComponent(file.path)}`)
-                  void sendMessage('open-tab', { url }, { context: 'background', tabId: 0 })
+                  sendMessage('open-tab', { url }, { context: 'background', tabId: 0 }).catch((err) => console.error('[spatula] open-tab failed', err))
                 }}
               >
                 <span class={`file-ext ${file.format === 'htmlevate' ? 'file-ext-html' : 'file-ext-json'}`}>
@@ -394,7 +358,7 @@ function LegendComponent(props: {
                 {file.patchCount !== undefined && (
                   <span class={`file-count${file.patchCount === 0 ? ' empty' : ''}`}>{file.patchCount}</span>
                 )}
-              </a>
+              </div>
             )}
           </For>
         </div>
@@ -409,23 +373,30 @@ export class LegendOverlay {
   #hidden = new Set<string>()
   #opacity = 1
   #onRedraw: (() => void) | null = null
-  #setEntries: ((v: Array<{ entity: string; hue: number; count: number }>) => void) | null = null
+  #setEntries: ((v: LegendEntry[]) => void) | null = null
   #setErrors: ((v: string[]) => void) | null = null
-  #setLoaderFiles: ((v: Array<{ name: string; path: string; format: string; patchCount?: number }>) => void) | null = null
+  #setLoaderFiles: ((v: LoaderFile[]) => void) | null = null
 
   set onRedraw(cb: () => void) {
     this.#onRedraw = cb
   }
 
-  mount() {
+  async mount() {
     if (this.#host) {
       return
     }
+    const savedPos = await legendStorage.get('legend:position', null as { x: number; y: number } | null)
+    if (this.#host) {
+      return
+    }
+    const left = savedPos ? Math.min(savedPos.x, window.innerWidth - 24) : 12
+    const top = savedPos ? Math.min(savedPos.y, window.innerHeight - 24) : 12
     const host = document.createElement(LEGEND_TAG)
     host.style.cssText = `
       position: fixed !important;
-      top: 12px !important;
-      left: 12px !important;
+      top: ${top}px !important;
+      left: ${left}px !important;
+      width: fit-content !important;
       z-index: 2147483647 !important;
       pointer-events: auto !important;
     `
@@ -436,9 +407,9 @@ export class LegendOverlay {
     const container = document.createElement('div')
     shadow.appendChild(container)
 
-    const [entries, setEntries] = createSignal<Array<{ entity: string; hue: number; count: number }>>([])
+    const [entries, setEntries] = createSignal<LegendEntry[]>([])
     const [errors, setErrors] = createSignal<string[]>([])
-    const [loaderFiles, setLoaderFiles] = createSignal<Array<{ name: string; path: string; format: string; patchCount?: number }>>([])
+    const [loaderFiles, setLoaderFiles] = createSignal<LoaderFile[]>([])
     this.#setEntries = setEntries
     this.#setErrors = setErrors
     this.#setLoaderFiles = setLoaderFiles
@@ -492,284 +463,7 @@ export class LegendOverlay {
     )
   }
 
-  setLoaderFiles(files: Array<{ name: string; path: string; format: string; patchCount?: number }>) {
+  setLoaderFiles(files: LoaderFile[]) {
     this.#setLoaderFiles?.(files)
-  }
-}
-
-export class HighlightManager {
-  #active = true
-  #entries: readonly HighlightEntry[] = []
-  #patchCounts: Map<string, number> | null = null
-  #errors: string[] = []
-  #loaderFiles: Array<{ name: string; path: string; format: string; patchCount?: number }> = []
-  #hues = new Map<string, number>()
-  #canvas: HTMLCanvasElement | null = null
-  #raf = 0
-  #observer: MutationObserver | null = null
-  #listeners: (() => void)[] = []
-  #legend = new LegendOverlay()
-
-  setLoaderFiles(files: Array<{ name: string; path: string; format: string; patchCount?: number }>) {
-    this.#loaderFiles = files
-    this.#legend.setLoaderFiles(files)
-  }
-
-  updateLoaderFileCounts(counts: Map<string, number>) {
-    const updated = this.#loaderFiles.map((file) => {
-      const parts = file.path.split('/')
-      const loadersIdx = parts.lastIndexOf('loaders')
-      if (loadersIdx === -1) {
-        return file
-      }
-      const after = parts.slice(loadersIdx + 1)
-      const networkKey = after.join('/')
-      const stemKey = after[0]?.replace(/\.[^.]+$/, '') ?? ''
-      const count = counts.get(networkKey) ?? counts.get(stemKey)
-      if (count === undefined) {
-        return file
-      }
-      return { ...file, patchCount: count }
-    })
-    this.#loaderFiles = updated
-    this.#legend.setLoaderFiles(updated)
-  }
-
-  toggle(entries: readonly HighlightEntry[]) {
-    if (this.#active) {
-      this.clear()
-    } else {
-      this.apply(entries)
-    }
-  }
-
-  applyOrMount(
-    entries: readonly HighlightEntry[],
-    patchCounts?: Map<string, number>,
-    errors?: string[],
-    loaderFiles?: Array<{ name: string; path: string; format: string; patchCount?: number }>,
-  ) {
-    if (loaderFiles) {
-      this.#loaderFiles = loaderFiles
-    }
-    if (entries.length > 0) {
-      this.apply(entries, patchCounts, errors)
-    } else {
-      this.#legend.mount()
-      this.#legend.setLoaderFiles(this.#loaderFiles)
-      this.#legend.update(new Map(), new Map(), errors ?? [])
-    }
-  }
-
-  apply(entries: readonly HighlightEntry[], patchCounts?: Map<string, number>, errors?: string[]) {
-    this.clear()
-    this.#active = true
-    this.#entries = entries
-    this.#patchCounts = patchCounts ?? null
-    this.#errors = errors ?? []
-    this.#hues = new Map()
-    for (const { label } of entries) {
-      hueFor(label.entity, this.#hues)
-    }
-    this.#ensureCanvas()
-    this.#legend.mount()
-    this.#legend.setLoaderFiles(this.#loaderFiles)
-    this.#legend.onRedraw = () => this.#scheduleDraw()
-    this.#scheduleDraw()
-    this.#observe()
-  }
-
-  clear() {
-    this.#active = false
-    this.#entries = []
-    cancelAnimationFrame(this.#raf)
-    this.#canvas?.remove()
-    this.#canvas = null
-    this.#legend.unmount()
-    this.#observer?.disconnect()
-    this.#observer = null
-    for (const off of this.#listeners) {
-      off()
-    }
-    this.#listeners = []
-  }
-
-  get active() {
-    return this.#active
-  }
-
-  #ensureCanvas() {
-    if (this.#canvas) {
-      return
-    }
-    const canvas = document.createElement('canvas')
-    canvas.id = CANVAS_ID
-    canvas.style.cssText = `
-      position: fixed !important;
-      inset: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      pointer-events: none !important;
-      z-index: 2147483647 !important;
-    `
-    document.documentElement.appendChild(canvas)
-    this.#canvas = canvas
-  }
-
-  #scheduleDraw() {
-    cancelAnimationFrame(this.#raf)
-    this.#raf = requestAnimationFrame(() => {
-      this.#draw()
-    })
-  }
-
-  #observe() {
-    const invalidate = () => this.#scheduleDraw()
-
-    window.addEventListener('scroll', invalidate, {
-      capture: true,
-      passive: true,
-    })
-    window.addEventListener('resize', invalidate)
-    this.#listeners.push(
-      () => window.removeEventListener('scroll', invalidate, { capture: true }),
-      () => window.removeEventListener('resize', invalidate),
-    )
-
-    this.#observer = new MutationObserver(invalidate)
-    this.#observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['style', 'class'],
-    })
-  }
-
-  #draw() {
-    const canvas = this.#canvas
-    if (!canvas) {
-      return
-    }
-
-    const dpr = window.devicePixelRatio || 1
-    const w = window.innerWidth
-    const h = window.innerHeight
-
-    if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
-      canvas.width = w * dpr
-      canvas.height = h * dpr
-    }
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) {
-      return
-    }
-
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    ctx.clearRect(0, 0, w, h)
-
-    const opacity = this.#legend.opacity
-    const drawn = new Map<
-      Element,
-      {
-        element: Element
-        rect: DOMRect
-        labels: { entity: string; field: string }[]
-        hue: number
-        isArrayItem: boolean
-      }
-    >()
-
-    for (const { element, label, isArrayItem } of this.#entries) {
-      if (this.#legend.isHidden(label.entity)) {
-        continue
-      }
-      const rect = element.getBoundingClientRect()
-      if (rect.width === 0 && rect.height === 0) {
-        continue
-      }
-      if (rect.bottom < 0 || rect.top > h || rect.right < 0 || rect.left > w) {
-        continue
-      }
-
-      const hue = this.#hues.get(label.entity) ?? 0
-
-      const existing = drawn.get(element)
-      if (existing) {
-        if (!existing.labels.some((l) => l.entity === label.entity && l.field === label.field)) {
-          existing.labels.push(label)
-        }
-      } else {
-        drawn.set(element, {
-          element,
-          rect,
-          labels: [label],
-          hue,
-          isArrayItem: !!isArrayItem,
-        })
-      }
-    }
-
-    const placedLabels: DOMRect[] = []
-
-    ctx.globalAlpha = opacity
-
-    for (const { element, rect, labels, hue, isArrayItem } of drawn.values()) {
-      const radii = getComputedBorderRadii(element, rect)
-
-      ctx.strokeStyle = strokeColor(hue)
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.roundRect(rect.x, rect.y, rect.width, rect.height, radii)
-      ctx.stroke()
-
-      if (!isArrayItem) {
-        const text = labels.map((l) => l.field).join(', ')
-        ctx.font = '9px monospace'
-        const metrics = ctx.measureText(text)
-        const textHeight = 10
-        const padding = 3
-        const tagW = metrics.width + padding * 2
-        const tagH = textHeight + padding * 2
-
-        const candidates = [
-          new DOMRect(rect.x, rect.y - tagH - 2, tagW, tagH),
-          new DOMRect(rect.x, rect.bottom + 2, tagW, tagH),
-          new DOMRect(rect.right + 2, rect.y, tagW, tagH),
-          new DOMRect(rect.x - tagW - 2, rect.y, tagW, tagH),
-        ]
-
-        const tagRect =
-          candidates.find(
-            (c) => !placedLabels.some((p) => rectsOverlap(p, c)),
-          ) ?? candidates[0]!
-
-        placedLabels.push(tagRect)
-
-        ctx.fillStyle = labelBg(hue)
-        ctx.fillRect(tagRect.x, tagRect.y, tagRect.width, tagRect.height)
-
-        ctx.fillStyle = labelFg(hue)
-        ctx.fillText(
-          text,
-          tagRect.x + padding,
-          tagRect.y + padding + textHeight - 1,
-        )
-      }
-    }
-
-    ctx.globalAlpha = 1
-
-    const counts = new Map<string, number>()
-    if (this.#patchCounts) {
-      for (const entity of this.#hues.keys()) {
-        counts.set(entity, this.#patchCounts.get(entity) ?? 0)
-      }
-    } else {
-      for (const entity of this.#hues.keys()) {
-        counts.set(entity, 1)
-      }
-    }
-    this.#legend.update(this.#hues, counts, this.#errors)
   }
 }

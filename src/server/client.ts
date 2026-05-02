@@ -1,22 +1,24 @@
 import dayjs from 'dayjs'
 import { onMessage, sendMessage } from 'webext-bridge/background'
 import { log, withScrapeLog } from '~/background/backend-logger'
+import { scrapeSourceLoaderKey } from '~/shared'
 import type { ScrapeSource } from '~/shared'
 import { flashError, flashSuccess } from '~/background/badge'
 import type { ContentScriptTracker } from '~/background/content-script-tracker'
 import { Job } from './job'
 import { JobQueue } from './job-queue'
 import type {
-  RawEntityPatch,
+  EntityPatch,
   JobParameters,
   JobPollParameters,
   JobPollResponse,
   JobResult,
   JobSource,
-  PageSpec,
+  ResourceSpec,
   ResourcesResponse,
 } from '~/site-spec/types'
 import { ServerAutonomy } from '~/site-spec/types'
+import type { ScrapeResult } from '~/sources/page-rule-runner'
 
 const PRECONDITION_FAILED = 412
 
@@ -51,13 +53,13 @@ export class Client {
   readonly #cst: ContentScriptTracker
   readonly #onResourcesUpdated: (
     server: ServerDefinition,
-    resources: PageSpec[],
+    resources: ResourceSpec[],
   ) => void
 
   // TODO: turn this mess into an array of stateful classes
   #timers = new WeakMap<ServerDefinition, NodeJS.Timeout>()
   #rescheduleTimers = new WeakMap<ServerDefinition, NodeJS.Timeout>()
-  #resources = new Map<ServerDefinition, PageSpec[]>()
+  #resources = new Map<ServerDefinition, ResourceSpec[]>()
   #lastResourceRequest = new Map<ServerDefinition, Date>()
   #recentSubmissions = new Map<
     string,
@@ -94,7 +96,7 @@ export class Client {
       onPatches?.(data)
       this.#submitJob(
         data.patches,
-        data.source,
+        data.source!,
         data.warnings,
         0,
         undefined,
@@ -105,7 +107,7 @@ export class Client {
     this.enabledResources = enabledResources
   }
 
-  get allResources(): PageSpec[] {
+  get allResources(): ResourceSpec[] {
     return Array.from(this.#resources.values()).flat()
   }
 
@@ -152,7 +154,7 @@ export class Client {
     this.#rescheduleTimers.delete(server)
   }
 
-  setResources(server: ServerDefinition, resources: PageSpec[]) {
+  setResources(server: ServerDefinition, resources: ResourceSpec[]) {
     this.#resources.set(server, resources)
     this.#onResourcesUpdated(server, resources)
   }
@@ -194,10 +196,10 @@ export class Client {
       const job = new Job(params, resource, server.autonomy)
       const tabId = await this.#cst.getScriptTab(resource)
       log({
-        text: `Running job: ${resource.$entity}`,
+        text: `Running job: ${resource.entity}`,
         severity: 'debug',
         scope: 'pool',
-        data: { url: job.url.toString(), resourceId: resource.$entity, tabId },
+        data: { url: job.url.toString(), resourceId: resource.entity, tabId },
       })
       try {
         await sendMessage('run-job', job.params, {
@@ -223,7 +225,7 @@ export class Client {
   }
 
   async #submitJob(
-    patches: RawEntityPatch[],
+    patches: EntityPatch[],
     source: JobSource,
     warnings: string[],
     retryCount = 0,
@@ -236,7 +238,7 @@ export class Client {
       return
     }
     console.log(
-      `[spatula] scraped${scrapeSource?.kind === 'network' ? ` ${scrapeSource.loader}/${scrapeSource.file}` : scrapeSource?.kind === 'htmlevate-loader' ? ` htmlevate/${scrapeSource.loader}` : ''}`,
+      `[spatula] scraped${scrapeSource ? ` ${scrapeSourceLoaderKey(scrapeSource) ?? scrapeSource.kind}` : ''}`,
       patches,
     )
     const body: JobResult = {
@@ -267,7 +269,7 @@ export class Client {
         severity: 'info',
         patches,
         warnings,
-        source: scrapeSource ?? { kind: 'html' },
+        source: scrapeSource,
       },
       async (scrapeLogId) => {
         const jobPostReq = this.#requestJobPost(
@@ -543,11 +545,11 @@ export class Client {
       .join('')
   }
 
-  #findResource(id: string): { server: ServerDefinition; resource: PageSpec } {
+  #findResource(id: string): { server: ServerDefinition; resource: ResourceSpec } {
     for (const server of this.servers) {
       const resources = this.#resources.get(server) ?? []
       for (const resource of resources) {
-        if (resource.$entity === id) {
+        if (resource.entity === id) {
           return { server, resource }
         }
       }
@@ -567,12 +569,8 @@ export interface ScrapeerClientOptions {
   defaultServers?: ServerDefinition[]
   cst: ContentScriptTracker
   enabledResources(server: ServerDefinition): Promise<string[]>
-  onResourcesUpdated(server: ServerDefinition, resources: PageSpec[]): void
-  onPatches?: (emission: {
-    patches: RawEntityPatch[]
-    source: JobSource
-    warnings: string[]
-  }) => void
+  onResourcesUpdated(server: ServerDefinition, resources: ResourceSpec[]): void
+  onPatches?: (result: ScrapeResult) => void
 }
 
 export interface ServerDefinition {

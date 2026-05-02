@@ -27,7 +27,7 @@ export default defineManifest({
   content_scripts: [
     {
       matches: ['<all_urls>'],
-      js: ['src/content-scripts/network-intercept.js'],
+      js: ['src/content-scripts/network-intercept.ts'],
       run_at: 'document_start',
       world: 'MAIN',
       all_frames: true,

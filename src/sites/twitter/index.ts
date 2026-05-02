@@ -1,10 +1,10 @@
 import { defineSite } from '~/site-spec/site-builder'
-import { loaderEntries } from '~/loaders'
+import { loaderProvider } from '~/loaders'
 import { twitterEntities } from './entities'
 
 export const twitterSite = defineSite({
   dir: 'twitter',
-  loaderEntries,
+  loaderProvider,
   hostname: 'x.com',
   entities: twitterEntities,
   requests: {

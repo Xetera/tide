@@ -1,0 +1,20 @@
+urlPattern = /charts
+
+// [{
+//   "_entity": "@roblox/game",
+//   "_id": "/charts",
+//   "games": await $$([data-testid='game-tile']) {
+//     "name": $([title]):attr(title) | trim,
+//     "image": $?(img) | image,
+//     "likePercentage":
+//       $([data-testid='game-tile-stats'] span:nth-child(2)):text
+//       | regex("(\d+)", 1)
+//       | number,
+//     "playingCount":
+//       $([data-testid='game-tile-stats'] span:nth-child(4)):text
+//       | regex("([\d\.]+K?|M?)", 1)
+//       | expandSuffix
+//       | number
+//   }
+// }]
+[]

@@ -8,7 +8,6 @@ async function disableChips(cookie: chrome.cookies.Cookie, origin: string) {
     name: cookie.name,
     url: originToUrl(cookie.domain),
     storeId: cookie.storeId,
-    // @ts-expect-error
     partitionKey: { topLevelSite: url },
   })
   chrome.cookies.set(
@@ -36,7 +35,6 @@ export async function addDisableChipsListener(origins: string[]) {
     chrome.cookies.getAll(
       {
         name: CF_CLEARANCE,
-        // @ts-expect-error
         partitionKey: { topLevelSite: `https://${origin}` },
       },
       (cookies) => {

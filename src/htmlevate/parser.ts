@@ -60,6 +60,7 @@ type AstResult =
   | Field
   | MatchArm
   | Source
+  | SimplePipeline
   | PipelineTail
   | PipeArg
   | string
@@ -141,9 +142,9 @@ const exprActions: HTMLevateActionDict<AstResult> = {
   Pipeline(primary, _qq, fallback) {
     return {
       kind: 'pipeline',
-      primary: toAst(primary) as SimplePipeline,
+      primary: toAst(primary) as unknown as SimplePipeline,
       fallback: fallback.children.length > 0
-        ? toAst(fallback.children[0]!) as SimplePipeline
+        ? toAst(fallback.children[0]!) as unknown as SimplePipeline
         : null,
     } satisfies Expr
   },

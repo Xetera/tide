@@ -12,11 +12,10 @@ afterEach(() => server.resetHandlers())
 
 global.chrome = {
   storage: {
-    // @ts-expect-error
     local: {
       get: async () => ({}),
       set: async () => {},
-      QUOTA_BYTES: 0,
-    },
+      QUOTA_BYTES: 10485760,
+    } as unknown as typeof chrome.storage.local,
   },
-}
+} as typeof chrome
