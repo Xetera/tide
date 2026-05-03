@@ -1,5 +1,5 @@
 import { defineSite } from '~/site-spec/site-builder'
-import { loaderProvider } from '~/loaders'
+import { funnelProvider } from '~/site-spec/funnel-loader'
 import type { JobParameters } from '~/site-spec/types'
 import { sahibindenEntities } from './entities'
 
@@ -15,19 +15,9 @@ export const sahibindenSmallJobs: JobParameters[] = [
 
 export const sahibindenSite = defineSite({
   dir: 'sahibinden',
-  loaderProvider,
+  funnelProvider,
   hostname: 'www.sahibinden.com',
   entities: sahibindenEntities,
-  requests: {
-    map: {
-      url: '/ajax/mapSearch/classified/markers',
-      method: 'GET',
-    },
-    mapHover: {
-      url: '/ajax/mapSearch/classified/markers/*',
-      method: 'GET',
-    },
-  },
 })
 
 export default sahibindenSite

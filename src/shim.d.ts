@@ -10,13 +10,13 @@ import type {
 } from './site-spec/types'
 import type { PlainLog, ScrapeLog, ScrapeSource } from './shared'
 import type { EntityPatch } from './site-spec/types'
-import type { ScrapeResult } from './sources/page-rule-runner'
+import type { ScrapeResult } from './extraction/scrape-result'
 import type {
   CaptureEntry,
   GenerationRequest,
   GenerationResult,
-  LoaderMatchResult,
-  LoaderInfo,
+  FunnelMatchResult,
+  FunnelInfo,
 } from './generation/types'
 declare module 'webext-bridge' {
   export interface ProtocolMap {
@@ -28,7 +28,7 @@ declare module 'webext-bridge' {
     'run-job': JobParameters
     'update-resources': Resource[]
     start: unknown
-    log: Omit<PlainLog, 'date' | 'id' | 'type'> | Omit<ScrapeLog, 'date' | 'id'>
+    log: Omit<PlainLog, 'date' | 'id' | 'type'> | Omit<ScrapeLog, 'date' | 'id' | 'status'>
     resources: ProtocolWithReturn<unknown, Resource[]>
     'set-schema': ProtocolWithReturn<Resource[], void>
     'entity-patches': ScrapeResult
@@ -43,16 +43,16 @@ declare module 'webext-bridge' {
       capturedAt: number
     }
     'get-captures': ProtocolWithReturn<
-      { hostname: string; request?: { method: string; url: string } },
+      { hostname: string; request?: { method: string; url: string | string[] } },
       CaptureEntry[]
     >
     'generate-spec': ProtocolWithReturn<GenerationRequest, GenerationResult>
     'match-capture': ProtocolWithReturn<
       { captureId: string },
-      LoaderMatchResult[]
+      FunnelMatchResult[]
     >
-    'get-loaders': ProtocolWithReturn<void, LoaderInfo[]>
-    'write-loader': ProtocolWithReturn<
+    'get-funnels': ProtocolWithReturn<void, FunnelInfo[]>
+    'write-funnel': ProtocolWithReturn<
       { path: string; content: string },
       { ok: boolean; error?: string }
     >

@@ -6,14 +6,14 @@ import {
   createCssVariablesTheme,
 } from 'shiki/dist/core.mjs'
 import { createJavaScriptRegexEngine } from 'shiki/dist/engine-javascript.mjs'
-import type { ScrapeLog } from '~/shared'
+import type { ScrapeLog } from '~/shared/log'
 import '@unocss/reset/tailwind-compat.css'
 import 'virtual:uno.css'
 import './app.css'
 import './scrape-viewer.css'
 
 const [highlighter] = createResource(async () => {
-  const [lang] = await Promise.all([import('shiki/dist/langs/json.mjs')])
+  const lang = await import('shiki/dist/langs/json.mjs')
   return createHighlighterCore({
     langs: [lang.default],
     themes: [
@@ -30,7 +30,9 @@ const [highlighter] = createResource(async () => {
 function HighlightedJson({ code }: { code: string }) {
   const html = () => {
     const h = highlighter()
-    if (!h) {return null}
+    if (!h) {
+      return null
+    }
     return h.codeToHtml(code, {
       lang: 'json',
       theme: 'css-vars',
@@ -49,7 +51,9 @@ function ScrapeViewer() {
   const logId = params.get('id')
 
   const [log] = createResource(async () => {
-    if (!logId) {return null}
+    if (!logId) {
+      return null
+    }
     const { events } = await chrome.storage.local.get({ events: [] })
     return (events as ScrapeLog[]).find((e) => e.id === logId) ?? null
   })
@@ -76,7 +80,9 @@ function ScrapeViewer() {
           )
           const serverResponseStr = () => {
             const raw = entry().serverResponse
-            if (!raw) {return undefined}
+            if (!raw) {
+              return undefined
+            }
             try {
               return JSON.stringify(JSON.parse(raw), null, 2)
             } catch {
@@ -91,9 +97,15 @@ function ScrapeViewer() {
                   <h1 class='text-lg font-semibold font-mono'>
                     {(() => {
                       const s = entry().source
-                      if (!s) return null
-                      if (s.kind === 'network') return `network / ${s.loader} / ${s.file}`
-                      if (s.kind === 'page') return `page / ${s.urlPattern}`
+                      if (!s) {
+                        return null
+                      }
+                      if (s.kind === 'network') {
+                        return `network / ${s.funnel} / ${s.file}`
+                      }
+                      if (s.kind === 'page') {
+                        return `page / ${s.urlPattern}`
+                      }
                     })()}
                   </h1>
                   <p class='text-sm text-muted-foreground'>

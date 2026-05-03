@@ -1,3 +1,7 @@
+---
+method: POST
+url: "/graphql/query"
+---
 [
   /* Map items to @instagram/post entities */
   data.xdt_api__v1__feed__reels_media__connection.edges.node.items.{

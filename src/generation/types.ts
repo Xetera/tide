@@ -21,7 +21,7 @@ export type GenerationResult =
       success: true
       jsonataExpression: string
       fixtureJson: string
-      suggestedLoaderName: string
+      suggestedFunnelName: string
       suggestedRequestUrl: string
       suggestedRequestMethod: string
       potentialEntities: string
@@ -45,34 +45,34 @@ export interface GenerationProgress {
   timestamp: number
 }
 
-export interface LoaderFixture {
+export interface FunnelFixture {
   path: string
   name: string
   data: unknown
 }
 
-export interface LoaderInfo {
+export interface FunnelInfo {
   site: string
-  loader: string
+  funnel: string
   file: string
   path: string
   expression: string
   format: 'jsonata' | 'htmlevate'
-  fixtures: LoaderFixture[]
-  request?: { method: string; url: string }
+  fixtures: FunnelFixture[]
+  request: { method: string; url: string | string[] }
 }
 
-export type LoaderMatchResult =
+export type FunnelMatchResult =
   | {
       matched: true
-      loader: string
+      funnel: string
       file: string
       patches: unknown[]
       validationErrors: string[]
     }
   | {
       matched: false
-      loader: string
+      funnel: string
       file: string
       error?: string
     }

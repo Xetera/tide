@@ -1,3 +1,7 @@
+---
+method: GET
+url: "/api/v1/media/*/comments/"
+---
 [
   /* Map the list of Comments */
   comments.{

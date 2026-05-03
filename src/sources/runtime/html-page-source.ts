@@ -1,19 +1,96 @@
 import { onMessage } from 'webext-bridge/content-script'
+import { compile } from '~/htmlevate/compiler'
 import { PageEvaluator } from '~/extraction/page-evaluator'
-import type { JobParameters, JobSource, PageLoader } from '~/site-spec/types'
+import type { JobParameters, JobSource, PageFunnel } from '~/site-spec/types'
 import { EntityValidator } from '~/extraction/entity-validator'
-import { Timeout, timeoutReject } from '~/shared'
-import { sendLog } from './content-script-log'
-import { iframeScrape } from './iframe-injector'
-import { PageRuleRunner } from './page-rule-runner'
-import type { ScrapeResult } from './page-rule-runner'
+import { Timeout, timeoutReject } from '~/shared/uid'
+import { sendLog } from '../debug/content-script-log'
+import { iframeScrape } from '../debug/iframe-injector'
+import type { HighlightEntry, ScrapeResult } from '~/extraction/scrape-result'
+
+export type { ScrapeResult }
 
 const JOB_FINISHED_MARKER = 'spatula:job-finished'
 const IFRAME_SCRAPE_TIMEOUT_MS = 10_000
 
+class PageRuleRunner {
+  readonly rule: PageFunnel
+  #validator: EntityValidator
+  #dispose: (() => void) | null = null
+  #highlights: HighlightEntry[] = []
+  #pendingReset = false
+  #fn: ReturnType<typeof compile>
+
+  constructor(rule: PageFunnel, validator: EntityValidator) {
+    this.rule = rule
+    this.#validator = validator
+    this.#fn = compile(rule.source, {
+      onElement: (element, label, isArrayItem) => {
+        if (this.#pendingReset) {
+          this.#highlights = []
+          this.#pendingReset = false
+        }
+        this.#highlights.push({ element, label, isArrayItem })
+      },
+    })
+  }
+
+  run(
+    doc: Document,
+    jobSource: JobSource,
+    generation: number,
+    currentGeneration: () => number,
+    onResult: (result: ScrapeResult) => void,
+  ): void {
+    this.#highlights = []
+    this.#pendingReset = false
+
+    const emit = (value: unknown) => {
+      if (currentGeneration() !== generation) {
+        return
+      }
+      const { patches, errors } = this.#validator.parsePatches(value)
+      const { patches: validated, warnings } = this.#validator.applyIdentityExprs(patches)
+
+      const patchCounts = new Map<string, number>()
+      for (const patch of validated) {
+        patchCounts.set(patch._entity, (patchCounts.get(patch._entity) ?? 0) + 1)
+      }
+
+      const urlPattern = Array.isArray(this.rule.urlPattern)
+        ? this.rule.urlPattern[0]!
+        : this.rule.urlPattern
+
+      onResult({
+        patches: validated,
+        highlights: this.#highlights,
+        patchCounts,
+        errors,
+        warnings: warnings.map((w) => w.message),
+        scrapeSource: { kind: 'page', urlPattern, funnel: this.rule.name, file: this.rule.file },
+      })
+    }
+
+    if (this.#fn.reactive) {
+      const reactive = this.#fn.reactive(doc.documentElement)
+      this.#dispose = reactive.subscribe((value) => {
+        this.#pendingReset = true
+        emit(value)
+      })
+    } else {
+      emit(this.#fn(doc.documentElement))
+    }
+  }
+
+  stop(): void {
+    this.#dispose?.()
+    this.#dispose = null
+  }
+}
+
 export class HtmlPageSource {
   #evaluator: PageEvaluator
-  #runners: Map<PageLoader, PageRuleRunner>
+  #runners: Map<PageFunnel, PageRuleRunner>
   #validator: EntityValidator
   #runGeneration = 0
   #onEmit: (result: ScrapeResult) => void
@@ -21,14 +98,14 @@ export class HtmlPageSource {
   readonly isInIframe: boolean
 
   constructor(
-    pageLoaders: PageLoader[],
+    pageFunnels: PageFunnel[],
     validator: EntityValidator,
     onEmit: (result: ScrapeResult) => void,
   ) {
     this.#validator = validator
     this.#onEmit = onEmit
-    this.#evaluator = new PageEvaluator(document, pageLoaders)
-    this.#runners = this.#buildRunners(pageLoaders)
+    this.#evaluator = new PageEvaluator(document, pageFunnels)
+    this.#runners = this.#buildRunners(pageFunnels)
     this.isInIframe = window.self !== window.top
     onMessage('run-job', ({ data: params }) => this.#scrapePage(params))
   }
@@ -43,17 +120,17 @@ export class HtmlPageSource {
     this.#runGeneration++
   }
 
-  updateRules(pageLoaders: PageLoader[]): void {
-    this.#evaluator = new PageEvaluator(document, pageLoaders)
-    this.#runners = this.#buildRunners(pageLoaders)
+  updateRules(pageFunnels: PageFunnel[]): void {
+    this.#evaluator = new PageEvaluator(document, pageFunnels)
+    this.#runners = this.#buildRunners(pageFunnels)
     this.stop()
     this.#run()
   }
 
-  #buildRunners(pageLoaders: PageLoader[]): Map<PageLoader, PageRuleRunner> {
-    const map = new Map<PageLoader, PageRuleRunner>()
-    for (const loader of pageLoaders) {
-      map.set(loader, new PageRuleRunner(loader, this.#validator))
+  #buildRunners(pageFunnels: PageFunnel[]): Map<PageFunnel, PageRuleRunner> {
+    const map = new Map<PageFunnel, PageRuleRunner>()
+    for (const funnel of pageFunnels) {
+      map.set(funnel, new PageRuleRunner(funnel, this.#validator))
     }
     return map
   }
@@ -70,12 +147,12 @@ export class HtmlPageSource {
     console.log('matching', matching)
     if (matching.kind === 'match') {
       console.log(
-        `[spatula] matched page loader: ${matching.loader.urlPattern} for ${document.URL}`,
+        `[spatula] matched page funnel: ${matching.funnel.urlPattern} for ${document.URL}`,
       )
       const jobSource: JobSource = this.isInIframe
         ? { kind: 'active', id: await this.#getJobId() }
         : { kind: 'passive' }
-      const runner = this.#runners.get(matching.loader)!
+      const runner = this.#runners.get(matching.funnel)!
       this.#activeRunner = runner
       runner.run(document, jobSource, generation, currentGeneration, (result) =>
         this.#handleResult(result, jobSource),

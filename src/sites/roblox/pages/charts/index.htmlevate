@@ -1,5 +1,6 @@
-urlPattern = /charts
-
+---
+urlPattern: "/charts"
+---
 // [{
 //   "_entity": "@roblox/game",
 //   "_id": "/charts",

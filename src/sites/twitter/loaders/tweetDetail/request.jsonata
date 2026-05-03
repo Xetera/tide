@@ -1,7 +1,11 @@
+---
+method: GET
+url: "/i/api/graphql/*/TweetDetail"
+---
 (
   /* Extract all tweet objects from the nested response structure */
   $tweets := data.threaded_conversation_with_injections_v2.instructions.entries.content.itemContent.tweet_results.result ~> $append(data.threaded_conversation_with_injections_v2.instructions.entries.content.items.item.itemContent.tweet_results.result);
-  
+
   /* Extract all user objects associated with those tweets */
   $users := $tweets.core.user_results.result;
 

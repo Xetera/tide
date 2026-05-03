@@ -192,6 +192,32 @@ describe('$$', () => {
     const result = run('{ "names": $$(ul > li) { "name": $(p):text } }', html)
     expect(result).toEqual({ names: [{ name: 'Homer' }, { name: 'Bart' }] })
   })
+
+  it('returns empty array when no elements match', () => {
+    expect(run('{ "names": $$(li) { "name": $:text } }', '<div></div>')).toEqual({ names: [] })
+  })
+
+  it('throws when + selector matches nothing', () => {
+    expect(() => run('{ "names": $$(li)+ { "name": $:text } }', '<div></div>')).toThrow()
+  })
+
+  it('does not throw when + selector matches at least one element', () => {
+    expect(() => run('{ "names": $$(li)+ { "name": $:text } }', '<ul><li>a</li></ul>')).not.toThrow()
+  })
+})
+
+describe('required single selector', () => {
+  it('throws when a required selector matches nothing', () => {
+    expect(() => run('{ "v": $(h1):text }', '<div></div>')).toThrow('$(h1) matched nothing')
+  })
+
+  it('does not throw when required selector matches', () => {
+    expect(() => run('{ "v": $(h1):text }', '<h1>hello</h1>')).not.toThrow()
+  })
+
+  it('uses fallback when required primary selector misses', () => {
+    expect(run('{ "v": $(h1):text ?? $(h2):text }', '<h2>fallback</h2>')).toEqual({ v: 'fallback' })
+  })
 })
 
 describe('merge', () => {
@@ -554,12 +580,11 @@ describe('onElement highlight callback', () => {
     expect(highlights[1]!.label).toEqual({ entity: '', field: 'name' })
   })
 
-  it('does not fire for a selector that matches nothing', () => {
-    const { highlights } = runWithHighlights(
+  it('throws when a required selector matches nothing', () => {
+    expect(() => runWithHighlights(
       '{ "v": $(#missing):text }',
       '<div>x</div>'
-    )
-    expect(highlights).toHaveLength(0)
+    )).toThrow('$(#missing) matched nothing')
   })
 
   it('fires for the fallback selector when primary misses', () => {

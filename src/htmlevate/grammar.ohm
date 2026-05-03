@@ -1,20 +1,4 @@
 HTMLevate {
-  Document = frontmatterEntry* Expr
-
-  frontmatterEntry = frontmatterKey " "+ "=" " "+ frontmatterValue newline
-
-  frontmatterValue
-    = "[" nonemptyListOf<frontmatterScalar, frontmatterSep> "]"  -- array
-    | frontmatterScalar                                          -- scalar
-
-  frontmatterKey = (letter | "_") (alnum | "_")*
-
-  frontmatterScalar = (~newline ~"[" ~"]" ~"," any)+
-
-  frontmatterSep = spaces "," spaces
-
-  newline = "\n" | "\r\n" | "\r"
-
   Expr
     = Array
     | Object
@@ -55,7 +39,7 @@ HTMLevate {
     | ContextRef
   ContextRef = "$" ~"$" ~"(" ~alnum
 
-  EachSelector   = "$$" "(" SelectorBody ")"
+  EachSelector   = "$$" "(" SelectorBody ")" "+"?
   SingleSelector = "$"  "(" SelectorBody ")" (~"??" "?")?
 
   SelectorBody = SelectorChar*

@@ -1,16 +1,50 @@
 import { describe, expect, it } from 'vitest'
-import { parse } from '~/htmlevate/parser'
+import { parse, parseFrontmatter } from '~/htmlevate/parser'
+
+describe('parseFrontmatter', () => {
+  it('parses a scalar value', () => {
+    const { frontmatter } = parseFrontmatter('---\nentity: "@instagram/profile"\n---\nbody')
+    expect(frontmatter.entity).toBe('@instagram/profile')
+  })
+
+  it('parses multiple scalar entries', () => {
+    const { frontmatter } = parseFrontmatter('---\nentity: "@instagram/profile"\nurlPattern: "/:handle/"\n---\nbody')
+    expect(frontmatter.entity).toBe('@instagram/profile')
+    expect(frontmatter.urlPattern).toBe('/:handle/')
+  })
+
+  it('parses an array value', () => {
+    const { frontmatter } = parseFrontmatter('---\nurlPattern: ["/:handle/", "/p/:id/"]\n---\nbody')
+    expect(frontmatter.urlPattern).toEqual(['/:handle/', '/p/:id/'])
+  })
+
+  it('parses a numeric value as a number', () => {
+    const { frontmatter } = parseFrontmatter('---\nversion: 2\n---\nbody')
+    expect(frontmatter.version).toBe(2)
+  })
+
+  it('returns empty frontmatter when none present', () => {
+    const { frontmatter, body } = parseFrontmatter('{ "x": 1 }')
+    expect(frontmatter).toEqual({})
+    expect(body).toBe('{ "x": 1 }')
+  })
+
+  it('returns body after frontmatter block', () => {
+    const { body } = parseFrontmatter('---\nentity: "@foo/bar"\n---\nsome content\nmore content')
+    expect(body).toBe('some content\nmore content')
+  })
+})
 
 describe('parse', () => {
   describe('frontmatter parsing', () => {
     it('parses a scalar value', () => {
-      const { frontmatter } = parse('entity = @instagram/profile\n{ "x": $(h1):text }')
+      const { frontmatter } = parse('---\nentity: "@instagram/profile"\n---\n{ "x": $(h1):text }')
       expect(frontmatter.entity).toBe('@instagram/profile')
     })
 
     it('parses multiple scalar entries', () => {
       const { frontmatter } = parse(
-        'entity = @instagram/profile\nurlPattern = /:handle/\n{ "x": $(h1):text }',
+        '---\nentity: "@instagram/profile"\nurlPattern: "/:handle/"\n---\n{ "x": $(h1):text }',
       )
       expect(frontmatter.entity).toBe('@instagram/profile')
       expect(frontmatter.urlPattern).toBe('/:handle/')
@@ -18,37 +52,20 @@ describe('parse', () => {
 
     it('parses an array value', () => {
       const { frontmatter } = parse(
-        'urlPattern = [/:handle/, /p/:id/]\n{ "x": $(h1):text }',
+        '---\nurlPattern: ["/:handle/", "/p/:id/"]\n---\n{ "x": $(h1):text }',
       )
       expect(frontmatter.urlPattern).toEqual(['/:handle/', '/p/:id/'])
-    })
-
-    it('trims whitespace from scalar values', () => {
-      const { frontmatter } = parse('entity =   @example/page  \n{ "x": $(h1):text }')
-      expect(frontmatter.entity).toBe('@example/page')
-    })
-
-    it('trims whitespace from array items', () => {
-      const { frontmatter } = parse(
-        'urlPattern = [ /a/ , /b/ ]\n{ "x": $(h1):text }',
-      )
-      expect(frontmatter.urlPattern).toEqual(['/a/', '/b/'])
     })
 
     it('returns empty frontmatter when none present', () => {
       const { frontmatter } = parse('{ "x": $(h1):text }')
       expect(frontmatter).toEqual({})
     })
-
-    it('preserves unknown keys as strings', () => {
-      const { frontmatter } = parse('version = 2\n{ "x": $(h1):text }')
-      expect(frontmatter.version).toBe('2')
-    })
   })
 
   describe('expr parsing', () => {
     it('parses the expression body after frontmatter', () => {
-      const { expr } = parse('entity = @example/page\n{ "name": $(h1):text }')
+      const { expr } = parse('---\nentity: "@example/page"\n---\n{ "name": $(h1):text }')
       expect(expr.kind).toBe('object')
     })
 
@@ -58,14 +75,14 @@ describe('parse', () => {
     })
 
     it('parses an array expression body', () => {
-      const { expr } = parse('entity = @example/page\n[ $(h1):text ]')
+      const { expr } = parse('---\nentity: "@example/page"\n---\n[ $(h1):text ]')
       expect(expr.kind).toBe('array')
     })
   })
 
   describe('error cases', () => {
     it('throws on invalid expression body', () => {
-      expect(() => parse('entity = @example/page\n!!invalid!!')).toThrow()
+      expect(() => parse('---\nentity: "@example/page"\n---\n!!invalid!!')).toThrow()
     })
   })
 })

@@ -12,7 +12,9 @@ async function fetchMedia(
 }
 
 window.addEventListener('message', (evt) => {
-  if (!evt.data?.__spatula) {return}
+  if (!evt.data?.__spatula) {
+    return
+  }
 
   if (evt.data.kind === 'download-cached-media') {
     const { refs, id } = evt.data as {

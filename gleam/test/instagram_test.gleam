@@ -29,6 +29,14 @@ pub fn instagram_video_identity_test() {
   assert identity.instagram_video_identity(media) == Ok("18581215348045263")
 }
 
+pub fn instagram_video_identity_xpids_fallback_test() {
+  let media =
+    MediaRecord(
+      url: "https://scontent-fra3-2.cdninstagram.com/v/t51.82787-15/686034203_18587398558060835_6602580425114512254_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=1&ig_cache_key=Mzg4ODQ0NTkyMDU0Nzg0MDEyNA%3D%3D.3-ccb7-5&ccb=7-5&_nc_sid=58cdad&efg=eyJ2ZW5jb2RlX3RhZyI6InhwaWRzLjEzMjB4MjM0Ni5zZHIuQzMifQ%3D%3D",
+    )
+  assert identity.instagram_video_identity(media) == Ok("3888445920547840124")
+}
+
 pub fn instagram_video_id2_test() {
   let media =
     "https://scontent-fra5-2.cdninstagram.com/o1/v/t2/f2/m86/AQP-Af1udnhBerzHhsdsN3H5verWeJd_EP7lb1aflFKXFAWvTL7JjR80HdgLzzJG_pimwlIJ1UJGHuY829E8_gXzsn3kFOnrHZuJm8w.mp4?_nc_cat=107&_nc_sid=5e9851&_nc_ht=scontent-fra5-2.cdninstagram.com&_nc_ohc=D_xyk3BtiMYQ7kNvwGeCgnD&efg=eyJ2ZW5jb2RlX3RhZyI6Inhwdl9wcm9ncmVzc2l2ZS5JTlNUQUdSQU0uQ0xJUFMuQzMuNzIwLmRhc2hfYmFzZWxpbmVfMV92MSIsInhwdl9hc3NldF9pZCI6MTg1ODA5ODg2MjYwMDExOTcsImFzc2V0X2FnZV9kYXlzIjoyOSwidmlfdXNlY2FzZV9pZCI6MTAwOTksImR1cmF0aW9uX3MiOjE3LCJ1cmxnZW5fc291cmNlIjoid3d3In0%3D&ccb=17-1&vs=8e9a4808eb8a5079"

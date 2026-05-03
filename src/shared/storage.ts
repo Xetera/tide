@@ -3,8 +3,8 @@ import type { ServerDefinition } from '~/server/client'
 import type {
   ServerAutonomy,
 } from '~/site-spec/types'
-import type { ScrapeResult } from '~/sources/page-rule-runner'
-import type { Log } from '~/shared'
+import type { ScrapeResult } from '~/extraction/scrape-result'
+import type { Log } from './log'
 import type {
   GenerationAttempt,
   GenerationProgress,

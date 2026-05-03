@@ -1,16 +1,16 @@
 import { JsonataExpression } from '~/extraction/jsonata-bindings'
 import { matchesGlob } from '~/extraction/glob'
 
-interface LoaderExpression {
+interface FunnelEntry {
   file: string
-  expression: string
+  source: string
   format: 'jsonata' | 'htmlevate'
 }
 
-interface LoaderRegistration {
+interface FunnelRegistration {
   url: string
   method: string
-  expressions: LoaderExpression[]
+  funnels: FunnelEntry[]
 }
 
 interface QueuedCapture {
@@ -31,23 +31,23 @@ declare global {
   }
 }
 
-const loaders = new Map<string, LoaderRegistration>()
-let loadersRegistered = false
+const funnels = new Map<string, FunnelRegistration>()
+let funnelsRegistered = false
 
 window.addEventListener('message', (evt) => {
   if (!evt.data?.__spatula) {
     return
   }
-  if (evt.data.kind !== 'register-loaders') {
+  if (evt.data.kind !== 'register-funnels') {
     return
   }
 
-  const incoming = evt.data.loaders as Record<string, LoaderRegistration>
-  for (const [name, loader] of Object.entries(incoming)) {
-    loaders.set(name, loader)
+  const incoming = evt.data.funnels as Record<string, FunnelRegistration>
+  for (const [name, funnel] of Object.entries(incoming)) {
+    funnels.set(name, funnel)
   }
-  if (!loadersRegistered) {
-    loadersRegistered = true
+  if (!funnelsRegistered) {
+    funnelsRegistered = true
     window.__spatulaFlush = (capture) => {
       void processCapture(capture)
     }
@@ -77,39 +77,28 @@ async function processCapture(capture: QueuedCapture) {
     return
   }
 
-  for (const [name, loader] of loaders) {
-    if (loader.method.toUpperCase() !== method.toUpperCase()) {
+  for (const [name, funnel] of funnels) {
+    if (funnel.method.toUpperCase() !== method.toUpperCase()) {
       continue
     }
-    if (!matchesGlob(loader.url, parsedUrl.pathname)) {
+    if (!matchesGlob(funnel.url, parsedUrl.pathname)) {
       continue
     }
 
-    for (const { file, expression: expr, format } of loader.expressions) {
+    for (const { file, source: expr } of funnel.funnels) {
       try {
-        let result: unknown
-        let rawBody: unknown = body
-
-        if (format === 'htmlevate') {
-          const { compile } = await import('~/htmlevate/compiler')
-          const fn = compile(expr)
-          const parser = new DOMParser()
-          const doc = parser.parseFromString(body, 'text/html')
-          result = fn(doc.documentElement)
-        } else {
-          let json: unknown
-          try {
-            json = JSON.parse(body)
-          } catch {
-            continue
-          }
-          rawBody = json
-          const expression = new JsonataExpression(expr, {
-            request: { url, method, headers: requestHeaders },
-            response: { url, status, headers: responseHeaders, body: json },
-          })
-          result = await expression.evaluate(json as Record<string, unknown>)
+        let json: unknown
+        try {
+          json = JSON.parse(body)
+        } catch {
+          continue
         }
+        const rawBody = json
+        const expression = new JsonataExpression(expr, {
+          request: { url, method, headers: requestHeaders },
+          response: { url, status, headers: responseHeaders, body: json },
+        })
+        const result = await expression.evaluate(json as Record<string, unknown>)
 
         if (result === undefined) {
           continue
@@ -117,7 +106,7 @@ async function processCapture(capture: QueuedCapture) {
         window.postMessage(
           {
             __spatula: true,
-            kind: 'loader-result',
+            kind: 'funnel-result',
             name,
             file,
             result,
@@ -128,7 +117,7 @@ async function processCapture(capture: QueuedCapture) {
         )
       } catch (err) {
         console.warn(
-          `[spatula] loader "${name}/${file}" failed for ${url}:`,
+          `[spatula] funnel "${name}/${file}" failed for ${url}:`,
           err,
         )
       }

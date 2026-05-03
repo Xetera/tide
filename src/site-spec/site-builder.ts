@@ -14,7 +14,7 @@ import {
 import { SiteDefinition } from '~/site-spec/types'
 import type { Entity } from '~/site-spec/types'
 import { MediaBuilder } from '~/extraction/media-types'
-import type { LoaderProvider } from '~/loaders'
+import type { FunnelProvider } from '~/site-spec/funnel-loader'
 
 // just a type to correlate unsafe references
 type TReference = symbol
@@ -160,8 +160,7 @@ type SiteInput = {
   dir: string
   icon?: string
   entities: EntityBuilder[]
-  requests: Record<string, import('~/site-spec/types').RequestMatcher>
-  loaderProvider: LoaderProvider
+  funnelProvider: FunnelProvider
 }
 
 export function defineSite(input: SiteInput): SiteDefinition {
@@ -170,7 +169,6 @@ export function defineSite(input: SiteInput): SiteDefinition {
     dir: input.dir,
     icon: input.icon,
     entities: input.entities.map((e) => e.build()),
-    requests: input.requests,
-    provider: input.loaderProvider,
+    provider: input.funnelProvider,
   })
 }

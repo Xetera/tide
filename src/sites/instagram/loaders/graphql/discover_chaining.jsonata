@@ -1,3 +1,7 @@
+---
+method: POST
+url: "/graphql/query"
+---
 data.xdt_api__v1__discover__chaining.users ?
 [
   data.xdt_api__v1__discover__chaining.users.{

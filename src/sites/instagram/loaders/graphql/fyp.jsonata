@@ -1,3 +1,7 @@
+---
+method: POST
+url: "/graphql/query"
+---
 $exists(data.xdt_api__v1__feed__timeline__connection) ?
 [
   data.xdt_api__v1__feed__timeline__connection.edges.node.media[$!=null].{

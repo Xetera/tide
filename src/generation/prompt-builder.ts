@@ -37,7 +37,7 @@ The expression must be formatted across multiple lines — use \`\\n\` for newli
 `.trim()
 
 export interface PromptExample {
-  loaderName: string
+  funnelName: string
   expression: string
   fixtureSnippet: string
 }
@@ -72,7 +72,7 @@ ${opts.entities.map((e) => `### ${e.entity}\n\`\`\`json\n${JSON.stringify(e.fiel
   if (opts.examples.length > 0) {
     parts.push('## Examples')
     for (const example of opts.examples.slice(0, 3)) {
-      parts.push(`### Loader: ${example.loaderName}
+      parts.push(`### Loader: ${example.funnelName}
 
 Input (truncated):
 \`\`\`json

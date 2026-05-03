@@ -1,4 +1,4 @@
-import { EVENTS_KEY } from '~/shared'
+import { EVENTS_KEY } from '~/shared/log'
 import { useBrowserStorage } from '~/shared/hooks'
 
 export function useLogs() {

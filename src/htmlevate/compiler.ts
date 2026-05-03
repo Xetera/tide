@@ -20,6 +20,39 @@ type Env = Map<string, Element>
 
 const OMIT = Symbol('omit')
 
+type SelectorErrorContext = {
+  selector: string
+  kind: 'single' | 'each'
+  field: string
+  entity: string
+  ctxTag: string
+  ctxHtml: string
+}
+
+class SelectorError extends Error {
+  context: SelectorErrorContext
+
+  constructor(ctx: SelectorErrorContext) {
+    const where = ctx.entity ? `${ctx.entity}.${ctx.field}` : ctx.field
+    const kind = ctx.kind === 'each' ? '$$' : '$'
+    const lines = [
+      `${kind}(${ctx.selector}) matched nothing`,
+      `  field:   ${where || '(unknown)'}`,
+      `  context: <${ctx.ctxTag}>`,
+      `  html:    ${ctx.ctxHtml}`,
+    ]
+    super(lines.join('\n'))
+    this.name = 'SelectorError'
+    this.context = ctx
+  }
+}
+
+function makeCtxHtml(el: Element): string {
+  const clone = el.cloneNode(false) as Element
+  const snippet = clone.outerHTML.replace(/>$/, '>')
+  return snippet.length > 200 ? snippet.slice(0, 197) + '...' : snippet
+}
+
 export type HighlightLabel = {
   entity: string
   field: string
@@ -287,15 +320,31 @@ function evalExpr(
     case 'match':
       return evalMatch(expr.arms, ctx, env, locale, label, entity, onElement)
     case 'pipeline': {
-      const primary = evalPipelineTail(
-        expr.primary,
-        ctx,
-        env,
-        locale,
-        label,
-        entity,
-        onElement,
-      )
+      let primary: unknown
+      try {
+        primary = evalPipelineTail(
+          expr.primary,
+          ctx,
+          env,
+          locale,
+          label,
+          entity,
+          onElement,
+        )
+      } catch (e) {
+        if (e instanceof SelectorError && expr.fallback) {
+          return evalPipelineTail(
+            expr.fallback,
+            ctx,
+            env,
+            locale,
+            label,
+            entity,
+            onElement,
+          )
+        }
+        throw e
+      }
       if ((primary == null || primary === OMIT) && expr.fallback) {
         return evalPipelineTail(
           expr.fallback,
@@ -427,6 +476,9 @@ function evalPipeline(
 ): unknown {
   let current: unknown
   let omitOnNull = false
+  let requiredSelector: string | null = null
+  let requiredLabel = label
+  let requiredEntity = entity
   let currentEnv = env
 
   const src =
@@ -452,16 +504,43 @@ function evalPipeline(
       }
       current = el
       omitOnNull = src.omit
+      if (!src.omit) {
+        requiredSelector = src.selector
+        requiredLabel = label
+        requiredEntity = entity
+      }
       break
     }
     case 'each': {
-      current = Array.from(ctx.querySelectorAll(src.selector))
+      const els = Array.from(ctx.querySelectorAll(src.selector))
+      if (src.requireOne && els.length === 0) {
+        throw new SelectorError({
+          selector: src.selector,
+          kind: 'each',
+          field: label.split('.').pop() ?? label,
+          entity,
+          ctxTag: ctx.tagName.toLowerCase(),
+          ctxHtml: makeCtxHtml(ctx),
+        })
+      }
+      current = els
       break
     }
     case 'alias_each': {
       currentEnv = new Map(env)
       currentEnv.set(src.name, ctx)
-      current = Array.from(ctx.querySelectorAll(src.selector))
+      const els = Array.from(ctx.querySelectorAll(src.selector))
+      if (src.requireOne && els.length === 0) {
+        throw new SelectorError({
+          selector: src.selector,
+          kind: 'each',
+          field: label.split('.').pop() ?? label,
+          entity,
+          ctxTag: ctx.tagName.toLowerCase(),
+          ctxHtml: makeCtxHtml(ctx),
+        })
+      }
+      current = els
       break
     }
     case 'alias_single': {
@@ -474,6 +553,9 @@ function evalPipeline(
       }
       current = el
       omitOnNull = src.omit
+      if (!src.omit) {
+        requiredSelector = src.selector
+      }
       break
     }
   }
@@ -573,8 +655,20 @@ function evalPipeline(
     }
   }
 
-  if (current == null && omitOnNull) {
-    return OMIT
+  if (current == null) {
+    if (omitOnNull) {
+      return OMIT
+    }
+    if (requiredSelector !== null) {
+      throw new SelectorError({
+        selector: requiredSelector,
+        kind: 'single',
+        field: requiredLabel.split('.').pop() ?? requiredLabel,
+        entity: requiredEntity,
+        ctxTag: ctx.tagName.toLowerCase(),
+        ctxHtml: makeCtxHtml(ctx),
+      })
+    }
   }
   return current
 }

@@ -10,13 +10,12 @@ export type HashSource =
 export type IdentityFn = (media: MediaRecord) => Result<string, IdentityError>
 export type IdentitySource = { fn: IdentityFn }
 
-export const kIdentityFn = Symbol('identityFn')
+export const identityRegistry = new Map<string, IdentityFn>()
 
 export type MediaBuilder = TObject & {
   'x-ephemeral'?: { ttl?: number }
   'x-offload'?: boolean
   'x-identity'?: { fn: string }
-  [kIdentityFn]?: IdentityFn
   'x-hash'?: HashSource
   ephemeral(ttl?: number): MediaBuilder
   offload(): MediaBuilder
@@ -25,18 +24,23 @@ export type MediaBuilder = TObject & {
   hash(source: HashSource): MediaBuilder
 }
 
+function mergeBuilder(base: MediaBuilder, overrides: object): TObject {
+  const merged = Object.assign({}, base, overrides)
+  return merged
+}
+
 function mediaBuilder(schema: TObject): MediaBuilder {
   const builder: MediaBuilder = {
     ...schema,
     ephemeral(ttl?: number): MediaBuilder {
-      return mediaBuilder(Object.assign({}, this, { 'x-ephemeral': { ttl } }))
+      return mediaBuilder(mergeBuilder(this, { 'x-ephemeral': { ttl } }))
     },
     offload(): MediaBuilder {
-      return mediaBuilder(Object.assign({}, this, { 'x-offload': true }))
+      return mediaBuilder(mergeBuilder(this, { 'x-offload': true }))
     },
     sized(): MediaBuilder {
       return mediaBuilder(
-        Object.assign({}, this, {
+        mergeBuilder(this, {
           properties: {
             ...this.properties,
             width: Type.Number(),
@@ -49,16 +53,15 @@ function mediaBuilder(schema: TObject): MediaBuilder {
       )
     },
     identity(source: IdentitySource): MediaBuilder {
-      const next = mediaBuilder(
-        Object.assign({}, this, {
+      identityRegistry.set(source.fn.name, source.fn)
+      return mediaBuilder(
+        mergeBuilder(this, {
           'x-identity': { fn: source.fn.name },
         }),
       )
-      next[kIdentityFn] = source.fn
-      return next
     },
     hash(source: HashSource): MediaBuilder {
-      return mediaBuilder(Object.assign({}, this, { 'x-hash': source }))
+      return mediaBuilder(mergeBuilder(this, { 'x-hash': source }))
     },
   }
   return builder

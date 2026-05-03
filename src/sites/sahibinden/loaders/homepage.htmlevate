@@ -1,5 +1,6 @@
-urlPattern = /
-
+---
+urlPattern: "/"
+---
 [
    $$(.vitrin-list > li:has(a[href*="/ilan/"]), #interestingAds > li) {
     "_entity": "@sahibinden/listing",

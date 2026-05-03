@@ -5,7 +5,7 @@ import type {
   RawEntityPatch,
   SiteDefinition,
 } from '~/site-spec/types'
-import { kIdentityFn, type IdentityFn } from '~/extraction/media-types'
+import { identityRegistry, type IdentityFn } from '~/extraction/media-types'
 import { MediaRecord$MediaRecord } from '~gleam/media/fingerprint/types.mjs'
 import { Result$isOk, Result$Ok$0, Result$Error$0 } from '~gleam/gleam.mjs'
 
@@ -33,8 +33,12 @@ function applyIdentity(
   if (value._id != null) {
     return value
   }
+  console.log(identity, resolved)
   if (!resolved) {
-    warnings.push({ message: `unknown identity function: ${identity.fn}`, patchIndex })
+    warnings.push({
+      message: `unknown identity function: ${identity.fn}`,
+      patchIndex,
+    })
     return value
   }
   const result = resolved(MediaRecord$MediaRecord(value.url))
@@ -52,7 +56,6 @@ type WalkableSchema = {
   items?: WalkableSchema
   properties?: Record<string, WalkableSchema>
   'x-identity'?: { fn: string }
-  [kIdentityFn]?: IdentityFn
 }
 
 function walkSchema(
@@ -63,7 +66,13 @@ function walkSchema(
 ): unknown {
   const identity = schema['x-identity']
   if (identity) {
-    return applyIdentity(value, identity, schema[kIdentityFn], patchIndex, warnings)
+    return applyIdentity(
+      value,
+      identity,
+      identityRegistry.get(identity.fn),
+      patchIndex,
+      warnings,
+    )
   }
 
   if (
@@ -83,7 +92,9 @@ function walkSchema(
   }
 
   if (schema.type === 'array' && schema.items && Array.isArray(value)) {
-    return value.map((item) => walkSchema(item, schema.items!, patchIndex, warnings))
+    return value.map((item) =>
+      walkSchema(item, schema.items!, patchIndex, warnings),
+    )
   }
 
   if (schema.anyOf) {
@@ -150,10 +161,10 @@ export class EntityValidator {
     return Value.Parse(entity.fields, data) as EntityPatch
   }
 
-  parsePatches(
-    result: unknown,
-    context?: { loader: string; file: string; url: string },
-  ): { patches: EntityPatch[]; errors: EntityValidationError[] } {
+  parsePatches(result: unknown): {
+    patches: EntityPatch[]
+    errors: EntityValidationError[]
+  } {
     if (result === undefined) {
       throw new Error('parsePatches received undefined result')
     }
@@ -169,7 +180,12 @@ export class EntityValidator {
         patches.push(this.parse(entityName, item))
       } catch {
         const errs = this.validate(entityName, item)
-        console.warn('[spatula] validation failed for', entityName, JSON.stringify(item), JSON.stringify(errs))
+        console.warn(
+          '[spatula] validation failed for',
+          entityName,
+          JSON.stringify(item),
+          JSON.stringify(errs),
+        )
         errors.push(...errs)
       }
     }

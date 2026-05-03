@@ -1,9 +1,9 @@
 import { onMessage } from 'webext-bridge/background'
 import { Client } from '~/server/client'
-import { ServerAutonomy, type ResourceSpec, type Entity } from '~/site-spec/types'
+import { ServerAutonomy, type ResourceSpec } from '~/site-spec/types'
 import { instagramSite } from '~/sites/instagram'
 import { allSites } from '~/sites'
-import { generateUID } from '~/shared'
+import { generateUID } from '~/shared/uid'
 import { type BrowserStorageSchema, Storage } from '~/shared/storage'
 import { log } from './backend-logger'
 import { ContentScriptTracker } from './content-script-tracker'
@@ -13,32 +13,36 @@ import {
   disableIframeSecurity,
 } from './iframe-security'
 import { StorageListener } from './storage-listener'
+import {
+  getCaptureById,
+  getCapturesForHostname,
+  storeCaptureEntry,
+} from './capture'
 import { EntityValidator } from '~/extraction/entity-validator'
 import { JsonataExpression } from '~/extraction/jsonata-bindings'
-import { buildPrompt } from '~/generation/prompt-builder'
-import type {
-  CaptureEntry,
-  GenerationAttempt,
-  GenerationResult,
-  LoaderMatchResult,
-} from '~/generation/types'
+import type { CaptureEntry, FunnelMatchResult } from '~/generation/types'
+import { runGenerationLoop } from '~/generation/llm'
 import {
-  loaderProvider,
+  funnelProvider,
   matchesGlob,
-  captureMatchesKnownLoader,
-} from '~/loaders'
+  captureMatchesKnownFunnel,
+} from '~/site-spec/funnel-loader'
 
 const storage = new Storage<BrowserStorageSchema>()
 
-const CAPTURE_RING_MAX = 10
-
 console.log(
-  '[spatula] loaderEntries:',
-  loaderProvider.getEntries().map((e) => `${e.site}/${e.loader}/${e.file}`),
+  '[spatula] funnelEntries:',
+  funnelProvider.getEntries().map((e) => `${e.site}/${e.funnel}/${e.file}`),
 )
 console.log(
   '[spatula] allSites requests:',
-  allSites.map((s) => `${s.hostname}: ${s.getNetworkLoaders().map((l) => l.name).join(', ')}`),
+  allSites.map(
+    (s) =>
+      `${s.hostname}: ${s
+        .getNetworkFunnels()
+        .map((l) => l.name)
+        .join(', ')}`,
+  ),
 )
 
 function hostnameFromUrl(url: string): string {
@@ -49,346 +53,9 @@ function hostnameFromUrl(url: string): string {
   }
 }
 
-async function getCaptureIndex(hostname: string): Promise<string[]> {
-  const result = await chrome.storage.session.get({
-    [`capture-index:${hostname}`]: [],
-  })
-  return result[`capture-index:${hostname}`] as string[]
-}
-
-async function getCaptureById(id: string): Promise<CaptureEntry | undefined> {
-  const result = await chrome.storage.session.get(`capture:${id}`)
-  return result[`capture:${id}`] as CaptureEntry | undefined
-}
-
-async function getCapturesForHostname(
-  hostname: string,
-): Promise<CaptureEntry[]> {
-  const ids = await getCaptureIndex(hostname)
-  const entries = await Promise.all(ids.map(getCaptureById))
-  return entries.filter((e): e is CaptureEntry => e !== undefined)
-}
-
-async function storeCaptureEntry(entry: CaptureEntry) {
-  const ids = await getCaptureIndex(entry.hostname)
-  const next = [entry.id, ...ids.filter((id) => id !== entry.id)].slice(
-    0,
-    CAPTURE_RING_MAX,
-  )
-  const evicted = ids.filter((id) => !next.includes(id))
-  await chrome.storage.session.set({
-    [`capture:${entry.id}`]: entry,
-    [`capture-index:${entry.hostname}`]: next,
-  })
-  if (evicted.length > 0) {
-    await chrome.storage.session.remove(evicted.map((id) => `capture:${id}`))
-  }
-}
-
-const BUILTIN_EXAMPLES = loaderProvider.buildBuiltinExamples()
+const BUILTIN_EXAMPLES = funnelProvider.buildBuiltinExamples()
 
 let validator: EntityValidator | null = null
-
-interface LLMOutput {
-  jsonataExpression: string
-  suggestedLoaderName: string
-  suggestedRequestUrl: string
-  suggestedRequestMethod: string
-  potentialEntities: string
-}
-
-const LLM_RESPONSE_SCHEMA = {
-  type: 'object',
-  properties: {
-    jsonataExpression: { type: 'string' },
-    suggestedLoaderName: { type: 'string' },
-    suggestedRequestUrl: { type: 'string' },
-    suggestedRequestMethod: { type: 'string' },
-    potentialEntities: { type: 'string' },
-  },
-  required: [
-    'jsonataExpression',
-    'suggestedLoaderName',
-    'suggestedRequestUrl',
-    'suggestedRequestMethod',
-    'potentialEntities',
-  ],
-}
-
-async function callGemini(apiKey: string, prompt: string): Promise<LLMOutput> {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 25_000)
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.2,
-            responseMimeType: 'application/json',
-            responseSchema: LLM_RESPONSE_SCHEMA,
-          },
-        }),
-        signal: controller.signal,
-      },
-    )
-    if (!response.ok) {
-      throw new Error(
-        `Gemini API returned ${response.status}: ${await response.text()}`,
-      )
-    }
-    const data = (await response.json()) as {
-      candidates: { content: { parts: { text: string }[] } }[]
-    }
-    const output = JSON.parse(
-      data.candidates[0]!.content.parts[0]!.text,
-    ) as LLMOutput
-    output.jsonataExpression = output.jsonataExpression
-      .replace(/\\n/g, '\n')
-      .replace(/\\t/g, '\t')
-    return output
-  } finally {
-    clearTimeout(timeout)
-  }
-}
-
-async function callZai(apiKey: string, prompt: string): Promise<LLMOutput> {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 25_000)
-  try {
-    const response = await fetch(
-      'https://api.z.ai/api/paas/v4/chat/completions',
-      {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'glm-4.1v-flash',
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.2,
-          response_format: {
-            type: 'json_schema',
-            json_schema: {
-              name: 'LLMOutput',
-              schema: LLM_RESPONSE_SCHEMA,
-              strict: true,
-            },
-          },
-        }),
-        signal: controller.signal,
-      },
-    )
-    if (!response.ok) {
-      throw new Error(
-        `z.ai API returned ${response.status}: ${await response.text()}`,
-      )
-    }
-    const data = (await response.json()) as {
-      choices: { message: { content: string } }[]
-    }
-    const output = JSON.parse(data.choices[0]!.message.content) as LLMOutput
-    output.jsonataExpression = output.jsonataExpression
-      .replace(/\\n/g, '\n')
-      .replace(/\\t/g, '\t')
-    return output
-  } finally {
-    clearTimeout(timeout)
-  }
-}
-
-async function callLLM(
-  prompt: string,
-  geminiKey: string,
-  zaiKey: string,
-): Promise<LLMOutput> {
-  if (zaiKey) {
-    return callZai(zaiKey, prompt)
-  }
-  return callGemini(geminiKey, prompt)
-}
-
-async function validateExpression(
-  expression: string,
-  capture: CaptureEntry,
-): Promise<string[]> {
-  if (!validator) {
-    return []
-  }
-  let json: unknown
-  try {
-    json = JSON.parse(capture.responseBody)
-  } catch {
-    return ['Response body is not valid JSON']
-  }
-  try {
-    const expr = new JsonataExpression(expression, {
-      request: {
-        url: capture.url,
-        method: capture.method,
-        headers: capture.requestHeaders,
-      },
-      response: {
-        url: capture.url,
-        status: capture.status,
-        headers: capture.responseHeaders,
-        body: json,
-      },
-    })
-    const result = await expr.evaluate(json)
-    const errors: string[] = []
-    const raw =
-      result === undefined ? [] : Array.isArray(result) ? result : [result]
-    if (raw.length === 0) {
-      return [
-        'Expression evaluated successfully but produced no patches — check field mappings and that the expression returns a non-empty array',
-      ]
-    }
-    for (const item of raw) {
-      if (item === null || typeof item !== 'object' || !('_entity' in item)) {
-        continue
-      }
-      const entityName = (item as Record<string, unknown>)._entity as string
-      const validationErrors = validator.validate(entityName, item)
-      for (const e of validationErrors) {
-        errors.push(`${entityName}${e.path}: ${e.message}`)
-      }
-    }
-    return errors
-  } catch (err) {
-    if (err instanceof Error) {
-      return [err.message]
-    }
-    if (err !== null && typeof err === 'object' && 'message' in err) {
-      return [String((err as { message: unknown }).message)]
-    }
-    return [String(err)]
-  }
-}
-
-const MAX_ATTEMPTS = 3
-
-async function runGenerationLoop(
-  captures: CaptureEntry[],
-  geminiKey: string,
-  zaiKey: string,
-  entities: Entity[],
-  initialExpression?: string,
-  userNote?: string,
-): Promise<GenerationResult> {
-  let previousErrors: string[] = []
-  let previousExpression: string | undefined = initialExpression
-  const attempts: GenerationAttempt[] = []
-  await storage.set('generation:attempts', [])
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    await storage.set('generation:progress', {
-      stage: attempt === 1 ? 'assembling' : 'retrying',
-      attempt,
-      timestamp: Date.now(),
-    })
-
-    const prompt = buildPrompt({
-      captures,
-      previousErrors,
-      examples: BUILTIN_EXAMPLES,
-      entities,
-      currentExpression: previousExpression,
-      userNote: attempt === 1 ? userNote : undefined,
-    })
-
-    await storage.set('generation:progress', {
-      stage: 'calling-api',
-      attempt,
-      timestamp: Date.now(),
-    })
-
-    let llmOutput: LLMOutput
-    try {
-      llmOutput = await callLLM(prompt, geminiKey, zaiKey)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      if (attempt === MAX_ATTEMPTS) {
-        return { success: false, error: `Gemini API error: ${msg}` }
-      }
-      previousErrors = [`API call failed: ${msg}`]
-      continue
-    }
-
-    await storage.set('generation:progress', {
-      stage: 'validating',
-      attempt,
-      timestamp: Date.now(),
-    })
-
-    const validationErrors = await validateExpression(
-      llmOutput.jsonataExpression,
-      captures[0]!,
-    )
-
-    attempts.push({
-      attempt,
-      jsonataExpression: llmOutput.jsonataExpression,
-      validationErrors,
-    })
-    await storage.set('generation:attempts', [...attempts])
-
-    if (validationErrors.length === 0) {
-      await storage.set('generation:progress', {
-        stage: 'done',
-        attempt,
-        timestamp: Date.now(),
-      })
-      const result: GenerationResult = {
-        success: true,
-        jsonataExpression: llmOutput.jsonataExpression,
-        fixtureJson: JSON.stringify(
-          {
-            request: {
-              url: captures[0]!.url,
-              method: captures[0]!.method,
-              headers: captures[0]!.requestHeaders,
-            },
-            response: {
-              status: captures[0]!.status,
-              headers: captures[0]!.responseHeaders,
-              body: JSON.parse(captures[0]!.responseBody),
-            },
-          },
-          null,
-          2,
-        ),
-        suggestedLoaderName: llmOutput.suggestedLoaderName,
-        suggestedRequestUrl: llmOutput.suggestedRequestUrl,
-        suggestedRequestMethod: llmOutput.suggestedRequestMethod,
-        potentialEntities: llmOutput.potentialEntities,
-      }
-      await storage.set('generation:last-result', {
-        result,
-        timestamp: Date.now(),
-      })
-      return result
-    }
-
-    previousErrors = validationErrors
-    previousExpression = llmOutput.jsonataExpression
-    await storage.set('generation:progress', {
-      stage: 'retrying',
-      attempt,
-      validationErrors,
-      timestamp: Date.now(),
-    })
-  }
-
-  return {
-    success: false,
-    error: `Validation failed after ${MAX_ATTEMPTS} attempts`,
-  }
-}
 
 function emitUrlUpdate(
   details: chrome.webNavigation.WebNavigationTransitionCallbackDetails,
@@ -497,13 +164,20 @@ function emitUrlUpdate(
             return false
           }
         })
-        .map((t) => ({ tabId: t.id!, title: t.title ?? t.url ?? '', url: t.url! }))
+        .map((t) => ({
+          tabId: t.id!,
+          title: t.title ?? t.url ?? '',
+          url: t.url!,
+        }))
     })
     onMessage('get-tab-html', async ({ data }) => {
       try {
         const results = await chrome.scripting.executeScript({
           target: { tabId: data.tabId },
-          func: () => ({ html: document.documentElement.outerHTML, url: location.href }),
+          func: () => ({
+            html: document.documentElement.outerHTML,
+            url: location.href,
+          }),
         })
         const result = results[0]?.result
         if (!result) {
@@ -526,7 +200,7 @@ function emitUrlUpdate(
         data.url,
         `body=${data.responseBody.length}b`,
       )
-      if (!captureMatchesKnownLoader(allSites, data.url, data.method)) {
+      if (!captureMatchesKnownFunnel(allSites, data.url, data.method)) {
         return
       }
       try {
@@ -553,10 +227,11 @@ function emitUrlUpdate(
         return captures
       }
       const { method, url } = data.request
+      const urls = Array.isArray(url) ? url : [url]
       return captures.filter(
         (c) =>
           c.method.toUpperCase() === method.toUpperCase() &&
-          matchesGlob(url, new URL(c.url).pathname),
+          urls.some((u) => matchesGlob(u, new URL(c.url).pathname)),
       )
     })
     onMessage('match-capture', async ({ data }) => {
@@ -570,8 +245,8 @@ function emitUrlUpdate(
       } catch {
         return []
       }
-      const results: LoaderMatchResult[] = []
-      for (const entry of loaderProvider.getEntries()) {
+      const results: FunnelMatchResult[] = []
+      for (const entry of funnelProvider.getEntries()) {
         const expr = new JsonataExpression(entry.expression, {
           request: {
             url: capture.url,
@@ -591,7 +266,7 @@ function emitUrlUpdate(
         } catch (err) {
           results.push({
             matched: false,
-            loader: entry.loader,
+            funnel: entry.funnel,
             file: entry.file,
             error: err instanceof Error ? err.message : String(err),
           })
@@ -600,7 +275,7 @@ function emitUrlUpdate(
         if (result === undefined) {
           results.push({
             matched: false,
-            loader: entry.loader,
+            funnel: entry.funnel,
             file: entry.file,
           })
           continue
@@ -612,7 +287,7 @@ function emitUrlUpdate(
         if (patches.length === 0) {
           results.push({
             matched: false,
-            loader: entry.loader,
+            funnel: entry.funnel,
             file: entry.file,
           })
           continue
@@ -629,7 +304,7 @@ function emitUrlUpdate(
         }
         console.log(
           '[spatula] match-capture result',
-          entry.loader,
+          entry.funnel,
           entry.file,
           'patches:',
           patches.length,
@@ -638,7 +313,7 @@ function emitUrlUpdate(
         )
         results.push({
           matched: true,
-          loader: entry.loader,
+          funnel: entry.funnel,
           file: entry.file,
           patches,
           validationErrors,
@@ -647,15 +322,15 @@ function emitUrlUpdate(
       return results
     })
 
-    onMessage('get-loaders', () => {
-      return loaderProvider.buildLoaderInfos(allSites)
+    onMessage('get-funnels', () => {
+      return funnelProvider.buildFunnelInfos(allSites)
     })
 
-    onMessage('write-loader', async ({ data }) => {
+    onMessage('write-funnel', async ({ data }) => {
       if (import.meta.env.PROD) {
         return {
           ok: false,
-          error: 'write-loader is only available in development',
+          error: 'write-funnel is only available in development',
         }
       }
       try {
@@ -691,17 +366,34 @@ function emitUrlUpdate(
       }
       const site = allSites.find((s) => capture.hostname.endsWith(s.hostname))
       const entities = site?.entities ?? instagramSite.entities
-      const result = await runGenerationLoop(
-        [capture],
-        geminiKey ?? '',
-        zaiKey ?? '',
+      const result = await runGenerationLoop({
+        captures: [capture],
+        geminiKey: geminiKey ?? '',
+        zaiKey: zaiKey ?? '',
         entities,
-        data.currentExpression || undefined,
-        data.userNote || undefined,
-      )
+        validator: validator!,
+        examples: BUILTIN_EXAMPLES,
+        initialExpression: data.currentExpression || undefined,
+        userNote: data.userNote || undefined,
+        onProgress: async ({ stage, attempt, validationErrors }) => {
+          await storage.set('generation:progress', {
+            stage: stage as never,
+            attempt,
+            validationErrors,
+            timestamp: Date.now(),
+          })
+        },
+        onAttempts: async (attempts) => {
+          await storage.set('generation:attempts', attempts)
+        },
+      })
       if (!result.success) {
         return { ok: false, error: result.error } as const
       }
+      await storage.set('generation:last-result', {
+        result,
+        timestamp: Date.now(),
+      })
       return {
         ok: true,
         expression: result.jsonataExpression,
@@ -731,12 +423,25 @@ function emitUrlUpdate(
         (s) => captures[0] && captures[0].hostname.endsWith(s.hostname),
       )
       const entities = site?.entities ?? instagramSite.entities
-      return runGenerationLoop(
+      return runGenerationLoop({
         captures,
-        geminiKey ?? '',
-        zaiKey ?? '',
+        geminiKey: geminiKey ?? '',
+        zaiKey: zaiKey ?? '',
         entities,
-      )
+        validator: validator!,
+        examples: BUILTIN_EXAMPLES,
+        onProgress: async ({ stage, attempt, validationErrors }) => {
+          await storage.set('generation:progress', {
+            stage: stage as never,
+            attempt,
+            validationErrors,
+            timestamp: Date.now(),
+          })
+        },
+        onAttempts: async (attempts) => {
+          await storage.set('generation:attempts', attempts)
+        },
+      })
     })
 
     const storageListener = new StorageListener()

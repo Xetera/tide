@@ -1,22 +1,47 @@
 import { matchesGlob } from '~/extraction/glob'
 import { normalizePath } from '~/site-spec/resource'
-import type { LoaderEntry } from '~/site-spec/loader-entry'
-import type { LoaderProvider } from '~/loaders'
+import type { FunnelProvider } from '~/site-spec/funnel-loader'
+
+export interface PageFunnelEntry {
+  site: string
+  funnel: string
+  file: string
+  path: string
+  expression: string
+}
+
+export interface NetworkFunnelEntry {
+  site: string
+  funnel: string
+  file: string
+  path: string
+  expression: string
+}
+
+export interface FixtureEntry {
+  site: string
+  funnel: string
+  path: string
+  name: string
+  data: unknown
+}
 
 export interface RequestMatcher {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-  url: string
+  url: string | string[]
 }
 
-export interface SiteLoader {
+export interface Funnel {
   readonly name: string
   readonly file: string
   readonly path: string
   readonly format: 'htmlevate' | 'jsonata'
   readonly key: string
+  readonly source: string
+  matchesUrl(pathname: string): boolean
 }
 
-export class PageLoader implements SiteLoader {
+export class PageFunnel implements Funnel {
   readonly name: string
   readonly file: string
   readonly path: string
@@ -24,9 +49,16 @@ export class PageLoader implements SiteLoader {
   readonly key: string
   readonly urlPattern: string | string[]
   readonly hostname: string | undefined
-  #entry: LoaderEntry
+  #entry: PageFunnelEntry
 
-  constructor(init: { name: string; file: string; path: string; urlPattern: string | string[]; hostname: string | undefined; entry: LoaderEntry }) {
+  constructor(init: {
+    name: string
+    file: string
+    path: string
+    urlPattern: string | string[]
+    hostname: string | undefined
+    entry: PageFunnelEntry
+  }) {
     this.name = init.name
     this.file = init.file
     this.path = init.path
@@ -42,51 +74,68 @@ export class PageLoader implements SiteLoader {
 
   matchesUrl(pathname: string): boolean {
     const normalized = normalizePath(pathname)
-    const patterns = Array.isArray(this.urlPattern) ? this.urlPattern : [this.urlPattern]
+    const patterns = Array.isArray(this.urlPattern)
+      ? this.urlPattern
+      : [this.urlPattern]
     return patterns.some((p) => matchesGlob(normalizePath(p), normalized))
   }
 }
 
-export class NetworkLoader implements SiteLoader {
+export class NetworkFunnel implements Funnel {
   readonly name: string
   readonly file: string
   readonly path: string
-  readonly format: 'htmlevate' | 'jsonata'
+  readonly format = 'jsonata' as const
   readonly key: string
-  readonly hostname: string
-  readonly urlPattern: string
-  readonly url: string
-  readonly method: string
-  readonly expressions: LoaderExpression[]
-  readonly source: string
+  #entry: NetworkFunnelEntry
+  #request: RequestMatcher
 
   constructor(init: {
     name: string
     file: string
     path: string
-    format: 'htmlevate' | 'jsonata'
-    hostname: string
-    urlPattern: string
-    url: string
-    method: string
-    expressions: LoaderExpression[]
-    source: string
+    request: RequestMatcher
+    entry: NetworkFunnelEntry
   }) {
     this.name = init.name
     this.file = init.file
     this.path = init.path
-    this.format = init.format
-    this.hostname = init.hostname
-    this.urlPattern = init.urlPattern
-    this.url = init.url
-    this.method = init.method
-    this.expressions = init.expressions
-    this.source = init.source
+    this.#entry = init.entry
+    this.#request = init.request
     this.key = `${init.name}/${init.file}`
+  }
+
+  get source(): string {
+    return this.#entry.expression
+  }
+
+  matchesUrl(pathname: string): boolean {
+    const normalized = normalizePath(pathname)
+    const urls = Array.isArray(this.#request.url)
+      ? this.#request.url
+      : [this.#request.url]
+    return urls.some((u) => matchesGlob(normalizePath(u), normalized))
   }
 }
 
-export type Loader = PageLoader | NetworkLoader
+export class NetworkFunnelGroup {
+  readonly name: string
+  readonly hostname: string
+  readonly request: RequestMatcher
+  readonly funnels: NetworkFunnel[]
+
+  constructor(init: {
+    name: string
+    hostname: string
+    request: RequestMatcher
+    funnels: NetworkFunnel[]
+  }) {
+    this.name = init.name
+    this.hostname = init.hostname
+    this.request = init.request
+    this.funnels = init.funnels
+  }
+}
 
 export class SiteDefinition {
   readonly hostname: string
@@ -94,53 +143,54 @@ export class SiteDefinition {
   readonly icon?: string
   readonly entities: Entity[]
 
-  #requests: Record<string, RequestMatcher>
-  #provider: LoaderProvider
+  #provider: FunnelProvider
 
   constructor(init: {
     hostname: string
     dir: string
     icon?: string
     entities: Entity[]
-    requests: Record<string, RequestMatcher>
-    provider: LoaderProvider
+    provider: FunnelProvider
   }) {
     this.hostname = init.hostname
     this.dir = init.dir
     this.icon = init.icon
     this.entities = init.entities
-    this.#requests = init.requests
     this.#provider = init.provider
   }
 
-  getPageLoaders(): PageLoader[] {
-    return this.#provider.getPageLoadersForSite(this.dir, this.hostname)
+  getPageFunnels(): PageFunnel[] {
+    return this.#provider.getPageFunnelsForSite(this.dir, this.hostname)
   }
 
   matchesCapture(url: URL, method: string): boolean {
     const upperMethod = method.toUpperCase()
-    for (const matcher of Object.values(this.#requests)) {
-      if (matcher.method.toUpperCase() !== upperMethod) {
+    for (const group of this.getNetworkFunnels()) {
+      if (group.request.method.toUpperCase() !== upperMethod) {
         continue
       }
-      if (matchesGlob(matcher.url, url.pathname)) {
+      const urls = Array.isArray(group.request.url)
+        ? group.request.url
+        : [group.request.url]
+      if (urls.some((u) => matchesGlob(u, url.pathname))) {
         return true
       }
     }
     return false
   }
 
-
-  getLoaderRequest(loaderName: string): RequestMatcher | undefined {
-    return this.#requests[loaderName]
+  hasFunnel(funnelName: string): boolean {
+    return this.#provider
+      .getForSite(this.dir)
+      .some((e) => e.funnel === funnelName)
   }
 
-  hasLoader(loaderName: string): boolean {
-    return this.#provider.getForSite(this.dir).some((e) => e.loader === loaderName)
+  getNetworkFunnels(): NetworkFunnelGroup[] {
+    return this.#provider.buildNetworkFunnels(this.dir, this.hostname)
   }
 
-  getNetworkLoaders(): NetworkLoader[] {
-    return this.#provider.buildNetworkLoaders(this.dir, this.hostname, this.#requests)
+  matchesHostname(url: URL): boolean {
+    return url.hostname === this.hostname
   }
 }
 
@@ -186,10 +236,6 @@ export type AssetReference = {
       url: string
     }
 )
-
-export type LoaderExpression =
-  | { format: 'jsonata'; file: string; expression: string }
-  | { format: 'htmlevate'; file: string; expression: string }
 
 export interface ResourceSpec {
   entity: string

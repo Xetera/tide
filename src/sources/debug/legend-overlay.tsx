@@ -3,6 +3,7 @@ import { render } from 'solid-js/web'
 import { sendMessage } from 'webext-bridge/content-script'
 import { Storage } from '~/shared/storage'
 import type { BrowserStorageSchema } from '~/shared/storage'
+import type { Funnel } from '~/site-spec/types'
 
 const legendStorage = new Storage<BrowserStorageSchema>()
 
@@ -32,7 +33,7 @@ const LEGEND_CSS = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :host { display: block; font: 10px monospace; }
   .legend {
-    background: light-dark(oklch(0.97 0 0 / 0.95), oklch(0.18 0 0 / 0.9));
+    background: light-dark(oklch(0.97 0 0), oklch(0.18 0 0));
     border: 1px solid light-dark(oklch(0.75 0 0 / 0.5), oklch(0.4 0 0 / 0.5));
     border-radius: 6px;
     overflow: hidden;
@@ -88,14 +89,14 @@ const LEGEND_CSS = `
     border-radius: 50%;
     background: light-dark(oklch(0.3 0 0), oklch(0.8 0 0));
   }
-  .rows { padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+  .rows { padding: 4px 0; display: flex; flex-direction: column; gap: 2px; }
   .legend.collapsed .rows { display: none; }
   .row {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 2px 4px;
-    border-radius: 3px;
+    padding: 2px 8px;
+    border-radius: 0;
     cursor: pointer;
     user-select: none;
     transition: background 0.1s;
@@ -117,22 +118,22 @@ const LEGEND_CSS = `
   .files-btn:hover { color: light-dark(oklch(0.2 0 0), oklch(0.9 0 0)); }
   .files-dropdown {
     border-top: 1px solid light-dark(oklch(0.75 0 0 / 0.4), oklch(0.4 0 0 / 0.4));
-    padding: 4px 6px; display: flex; flex-direction: column; gap: 2px;
+    padding: 0 0 4px; display: flex; flex-direction: column; gap: 2px;
   }
   .legend.collapsed .files-dropdown { display: none; }
   .file-link {
-    display: flex; align-items: center; gap: 4px; padding: 2px 2px;
-    border-radius: 3px; cursor: pointer;
+    display: flex; align-items: center; gap: 4px; padding: 2px 6px;
+    border-radius: 0; cursor: pointer;
     color: light-dark(oklch(0.3 0 0), oklch(0.8 0 0));
   }
-  .file-link:hover { background: light-dark(oklch(0.88 0 0 / 0.6), oklch(0.28 0 0 / 0.6)); }
+  .file-link:hover { background: light-dark(oklch(0.88 0 0 / 0.6), oklch(0.28 0 0 / 0.6)); border-radius: 0; }
   .file-ext { font-size: 8px; font-weight: 600; }
   .file-ext-html { color: oklch(0.65 0.15 50); }
   .file-ext-json { color: oklch(0.6 0.15 250); }
   .file-count { margin-left: auto; font-size: 9px; color: oklch(0.55 0 0); }
   .file-count.empty { opacity: 0.35; }
   .file-link.unfired { opacity: 0.4; }
-  .file-link.active { background: light-dark(oklch(0.88 0.04 250 / 0.6), oklch(0.28 0.04 250 / 0.6)); font-weight: 600; }
+  .file-link.active { font-weight: 600; }
   .opacity-row {
     display: flex;
     align-items: center;
@@ -150,12 +151,11 @@ const LEGEND_CSS = `
   }
 `
 
-export interface LoaderFile {
-  name: string
-  path: string
-  format: string
-  patchCount?: number
-  active?: boolean
+export function openInPlayground(loader: Funnel): void {
+  const url = chrome.runtime.getURL(`playground.html?funnel=${encodeURIComponent(loader.path)}`)
+  sendMessage('open-tab', { url }, { context: 'background', tabId: 0 }).catch((err) =>
+    console.error('[spatula] open-tab failed', err),
+  )
 }
 
 export interface LegendEntry {
@@ -164,11 +164,41 @@ export interface LegendEntry {
   count: number
 }
 
+function FunnelRow(props: {
+  file: Funnel
+  patchCount: () => number | undefined
+  activeOpacity: () => number | null
+}) {
+  return (
+    <div
+      class={`file-link${props.activeOpacity() !== null ? ' active' : ''}${props.patchCount() === undefined ? ' unfired' : ''}`}
+      style={props.activeOpacity() !== null ? { background: `light-dark(oklch(0.88 0.04 250 / ${props.activeOpacity()! * 0.6}), oklch(0.28 0.04 250 / ${props.activeOpacity()! * 0.6}))` } : {}}
+      on:mousedown={(e: MouseEvent) => e.stopPropagation()}
+      on:click={(e: MouseEvent) => { e.stopPropagation(); openInPlayground(props.file) }}
+    >
+      <span class={`file-ext ${props.file.format === 'htmlevate' ? 'file-ext-html' : 'file-ext-json'}`}>
+        {props.file.format === 'htmlevate' ? '</>' : '{}'}
+      </span>
+      <span style={props.activeOpacity() !== null ? { opacity: String(0.4 + props.activeOpacity()! * 0.6) } : {}}>{props.file.file}</span>
+      {props.patchCount() !== undefined && (
+        <span class={`file-count${props.patchCount() === 0 ? ' empty' : ''}`}>{props.patchCount()}</span>
+      )}
+    </div>
+  )
+}
+
+interface FileSignals {
+  patchCount: () => number | undefined
+  activeOpacity: () => number | null
+}
+
 function LegendComponent(props: {
   host: HTMLElement
   entries: () => LegendEntry[]
   errors: () => string[]
-  loaderFiles: () => LoaderFile[]
+  networkFunnels: () => Funnel[]
+  fileSignals: (key: string) => FileSignals
+  onOpenNetworkFiles: (setter: (v: boolean) => void) => void
   onHiddenChange: (hidden: Set<string>) => void
   onOpacityChange: (v: number) => void
 }) {
@@ -176,6 +206,12 @@ function LegendComponent(props: {
   const [opacity, setOpacity] = createSignal(1)
   const [collapsed, setCollapsed] = createSignal(false)
   const [filesOpen, setFilesOpen] = createSignal(false)
+  let userClosed = false
+  props.onOpenNetworkFiles((v) => {
+    if (!userClosed) {
+      setFilesOpen(v)
+    }
+  })
 
   createResource(async () => {
     const [savedOpacity, hiddenList, savedCollapsed] = await Promise.all([
@@ -246,18 +282,13 @@ function LegendComponent(props: {
     }
     e.preventDefault()
     const { offsetX, offsetY, width, height } = startDrag(e.clientX, e.clientY)
-
-    const onMouseMove = (e: MouseEvent) => {
-      moveDrag(e.clientX, e.clientY, offsetX, offsetY, width, height)
-    }
-
+    const onMouseMove = (e: MouseEvent) => { moveDrag(e.clientX, e.clientY, offsetX, offsetY, width, height) }
     const onMouseUp = () => {
       setDragging(false)
       document.removeEventListener('mousemove', onMouseMove)
       document.removeEventListener('mouseup', onMouseUp)
       savePosition()
     }
-
     document.addEventListener('mousemove', onMouseMove)
     document.addEventListener('mouseup', onMouseUp)
   }
@@ -268,103 +299,119 @@ function LegendComponent(props: {
     }
     const touch = e.touches[0]!
     const { offsetX, offsetY, width, height } = startDrag(touch.clientX, touch.clientY)
-
     const onTouchMove = (e: TouchEvent) => {
       const t = e.touches[0]!
       moveDrag(t.clientX, t.clientY, offsetX, offsetY, width, height)
     }
-
     const onTouchEnd = () => {
       setDragging(false)
       document.removeEventListener('touchmove', onTouchMove)
       document.removeEventListener('touchend', onTouchEnd)
       savePosition()
     }
-
     document.addEventListener('touchmove', onTouchMove, { passive: false })
     document.addEventListener('touchend', onTouchEnd)
   }
 
   return (
     <div class={`legend${collapsed() ? ' collapsed' : ''}${dragging() ? ' dragging' : ''}`}>
-      <div class="handle" on:mousedown={onDragStart} on:touchstart={onTouchStart}>
-        <span class="handle-title">Spatula</span>
-        <div class="handle-dots">
+      <div class='handle' on:mousedown={onDragStart} on:touchstart={onTouchStart}>
+        <span class='handle-title'>Spatula</span>
+        <div class='handle-dots'>
           <span><i /><i /><i /></span>
           <span><i /><i /><i /></span>
         </div>
-        {props.loaderFiles().length > 0 && (
-          <button class="files-btn" on:mousedown={(e: MouseEvent) => e.stopPropagation()} on:click={(e: MouseEvent) => { e.stopPropagation(); setFilesOpen(v => !v) }} title="Matching loaders">
+        {props.networkFunnels().length > 0 && (
+          <button
+            class='files-btn'
+            on:mousedown={(e: MouseEvent) => e.stopPropagation()}
+            on:click={(e: MouseEvent) => {
+              e.stopPropagation()
+              setFilesOpen((v) => {
+                userClosed = v
+                return !v
+              })
+            }}
+            title='Matching network funnels'
+          >
             {'{ }'}
           </button>
         )}
-        <button class="collapse-btn" on:click={(e: MouseEvent) => { e.stopPropagation(); setCollapsed(c => { void legendStorage.set('legend:collapsed', !c); return !c }) }}>
+        <button
+          class='collapse-btn'
+          on:click={(e: MouseEvent) => {
+            e.stopPropagation()
+            setCollapsed((c) => {
+              void legendStorage.set('legend:collapsed', !c)
+              return !c
+            })
+          }}
+        >
           {collapsed() ? '▾' : '▴'}
         </button>
       </div>
-      <div class="rows">
+      <div class='rows'>
         <For each={props.entries()}>
           {({ entity, hue, count }) => (
             <div
               class={`row${hidden().has(entity) ? ' hidden' : ''}`}
               on:click={(e: MouseEvent) => { e.stopPropagation(); toggle(entity) }}
             >
-              <div class="swatch" style={{ background: strokeColor(hue) }} />
-              <span class="entity">{entity}</span>
-              <span class="count">{count}</span>
+              <div class='swatch' style={{ background: strokeColor(hue) }} />
+              <span class='entity'>{entity}</span>
+              <span class='count'>{count}</span>
             </div>
           )}
         </For>
         {props.entries().length > 0 && (
-          <div class="opacity-row">
-            <span class="opacity-label">opacity</span>
+          <div class='opacity-row'>
+            <span class='opacity-label'>opacity</span>
             <input
-              type="range"
-              class="opacity-slider"
-              min="0"
-              max="1"
-              step="0.05"
+              type='range'
+              class='opacity-slider'
+              min='0'
+              max='1'
+              step='0.05'
               value={opacity()}
-              on:input={(e: InputEvent) => changeOpacity(parseFloat((e.target as HTMLInputElement).value))}
+              on:input={(e: InputEvent) =>
+                changeOpacity(parseFloat((e.target as HTMLInputElement).value))
+              }
             />
           </div>
         )}
       </div>
       {props.errors().length > 0 && (
-        <div class="errors">
+        <div class='errors'>
           <For each={props.errors()}>
-            {(err) => <div class="error">{err}</div>}
+            {(err) => <div class='error'>{err}</div>}
           </For>
         </div>
       )}
-      {filesOpen() && props.loaderFiles().length > 0 && (
-        <div class="files-dropdown">
-          <For each={props.loaderFiles()}>
-            {(file) => (
-              <div
-                class={`file-link${file.active ? ' active' : ''}${file.patchCount === undefined ? ' unfired' : ''}`}
-                on:mousedown={(e: MouseEvent) => e.stopPropagation()}
-                on:click={(e: MouseEvent) => {
-                  e.stopPropagation()
-                  console.log('[spatula] file-link clicked', file.path)
-                  const url = chrome.runtime.getURL(`playground.html?loader=${encodeURIComponent(file.path)}`)
-                  sendMessage('open-tab', { url }, { context: 'background', tabId: 0 }).catch((err) => console.error('[spatula] open-tab failed', err))
-                }}
-              >
-                <span class={`file-ext ${file.format === 'htmlevate' ? 'file-ext-html' : 'file-ext-json'}`}>
-                  {file.format === 'htmlevate' ? '</>' : '{}'}
-                </span>
-                <span>{file.name}</span>
-                {file.patchCount !== undefined && (
-                  <span class={`file-count${file.patchCount === 0 ? ' empty' : ''}`}>{file.patchCount}</span>
-                )}
-              </div>
-            )}
+      {filesOpen() && props.networkFunnels().length > 0 && (
+        <div class='files-dropdown'>
+          <For each={props.networkFunnels()}>
+            {(file) => {
+              const signals = props.fileSignals(file.key)
+              return (
+                <FunnelRow
+                  file={file}
+                  patchCount={signals.patchCount}
+                  activeOpacity={signals.activeOpacity}
+                />
+              )
+            }}
           </For>
         </div>
       )}
     </div>
   )
+}
+
+interface FileState {
+  patchCount: () => number | undefined
+  setPatchCount: (v: number | undefined) => void
+  activeOpacity: () => number | null
+  setActiveOpacity: (v: number | null) => void
 }
 
 export class LegendOverlay {
@@ -375,7 +422,12 @@ export class LegendOverlay {
   #onRedraw: (() => void) | null = null
   #setEntries: ((v: LegendEntry[]) => void) | null = null
   #setErrors: ((v: string[]) => void) | null = null
-  #setLoaderFiles: ((v: LoaderFile[]) => void) | null = null
+  #setNetworkFunnels: ((v: Funnel[]) => void) | null = null
+  #openNetworkFiles: ((v: boolean) => void) | null = null
+  #networkFunnels: Funnel[] = []
+  #fileStates = new Map<string, FileState>()
+  #recentFunnels: string[] = []
+  static readonly #BUFFER_SIZE = 3
 
   set onRedraw(cb: () => void) {
     this.#onRedraw = cb
@@ -409,10 +461,10 @@ export class LegendOverlay {
 
     const [entries, setEntries] = createSignal<LegendEntry[]>([])
     const [errors, setErrors] = createSignal<string[]>([])
-    const [loaderFiles, setLoaderFiles] = createSignal<LoaderFile[]>([])
+    const [networkFunnels, setNetworkFunnels] = createSignal<Funnel[]>(this.#networkFunnels)
     this.#setEntries = setEntries
     this.#setErrors = setErrors
-    this.#setLoaderFiles = setLoaderFiles
+    this.#setNetworkFunnels = setNetworkFunnels
 
     this.#dispose = render(
       () => (
@@ -420,7 +472,9 @@ export class LegendOverlay {
           host={host}
           entries={entries}
           errors={errors}
-          loaderFiles={loaderFiles}
+          networkFunnels={networkFunnels}
+          fileSignals={(key) => this.#getOrCreateFileState(key)}
+          onOpenNetworkFiles={(setter) => { this.#openNetworkFiles = setter }}
           onHiddenChange={(hidden) => { this.#hidden = hidden; this.#onRedraw?.() }}
           onOpacityChange={(v) => { this.#opacity = v; this.#onRedraw?.() }}
         />
@@ -432,6 +486,20 @@ export class LegendOverlay {
     document.documentElement.appendChild(host)
   }
 
+  #getOrCreateFileState(key: string): FileState {
+    const existing = this.#fileStates.get(key)
+    if (existing) {
+      return existing
+    }
+    const [patchCount, setPatchCount] = createSignal<number | undefined>(undefined)
+    const idx = this.#recentFunnels.indexOf(key)
+    const initialOpacity = idx === -1 ? null : Math.pow(0.55, idx)
+    const [activeOpacity, setActiveOpacity] = createSignal<number | null>(initialOpacity)
+    const state: FileState = { patchCount, setPatchCount, activeOpacity, setActiveOpacity }
+    this.#fileStates.set(key, state)
+    return state
+  }
+
   unmount() {
     this.#dispose?.()
     this.#host?.remove()
@@ -439,9 +507,57 @@ export class LegendOverlay {
     this.#dispose = null
     this.#setEntries = null
     this.#setErrors = null
-    this.#setLoaderFiles = null
+    this.#setNetworkFunnels = null
+    this.#openNetworkFiles = null
     this.#hidden = new Set()
     this.#opacity = 1
+    this.#fileStates = new Map()
+    this.#recentFunnels = []
+  }
+
+  setNetworkFunnels(files: Funnel[]): void {
+    this.#networkFunnels = files
+    this.#setNetworkFunnels?.(files)
+  }
+
+  recordResult(key: string, count: number): void {
+    const state = this.#fileStates.get(key)
+    if (!state) {
+      return
+    }
+    const prev = state.patchCount() ?? 0
+    state.setPatchCount(prev + count)
+  }
+
+  setActiveFunnel(key: string | null): void {
+    if (key === null) {
+      return
+    }
+    if (this.#recentFunnels[0] === key) {
+      return
+    }
+    this.#recentFunnels = [key, ...this.#recentFunnels.filter((k) => k !== key)].slice(0, LegendOverlay.#BUFFER_SIZE)
+    this.#applyFunnelOpacities()
+  }
+
+  #applyFunnelOpacities(): void {
+    for (const [k, state] of this.#fileStates) {
+      const idx = this.#recentFunnels.indexOf(k)
+      if (idx === -1) {
+        state.setActiveOpacity(null)
+      } else {
+        const opacity = Math.pow(0.55, idx)
+        state.setActiveOpacity(opacity)
+      }
+    }
+  }
+
+  resetFileStates(): void {
+    this.#recentFunnels = []
+    for (const state of this.#fileStates.values()) {
+      state.setPatchCount(undefined)
+      state.setActiveOpacity(null)
+    }
   }
 
   isHidden(entity: string) {
@@ -463,7 +579,7 @@ export class LegendOverlay {
     )
   }
 
-  setLoaderFiles(files: LoaderFile[]) {
-    this.#setLoaderFiles?.(files)
+  openNetworkFiles() {
+    this.#openNetworkFiles?.(true)
   }
 }

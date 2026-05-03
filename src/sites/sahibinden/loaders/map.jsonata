@@ -1,3 +1,7 @@
+---
+method: GET
+url: "/ajax/mapSearch/classified/markers"
+---
 [
   classifiedMarkers.{
     "_entity": "@sahibinden/listing",

@@ -1,5 +1,9 @@
+---
+method: GET
+url: "/i/api/graphql/*/UserTweets"
+---
 /* Extract all timeline entries, flattening both standard tweets and nested modules */
-$$.data.user.result.timeline.timeline.instructions.entries.content.( 
+$$.data.user.result.timeline.timeline.instructions.entries.content.(
   $tweet := itemContent.tweet_results.result ? itemContent.tweet_results.result : items.item.itemContent.tweet_results.result;
   $user := itemContent.tweet_results.result ? itemContent.tweet_results.result.core.user_results.result : items.item.core.user_results.result;
 

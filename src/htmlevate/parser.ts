@@ -1,3 +1,4 @@
+import { parse as parseYaml } from 'yaml'
 import * as ohm from 'ohm-js'
 import type { NonterminalNode, IterationNode, TerminalNode } from 'ohm-js'
 import type {
@@ -6,7 +7,9 @@ import type {
 } from './grammar.ohm-bundle'
 import grammarSrc from './grammar.ohm?raw'
 
-const grammar = ohm.grammar(grammarSrc) as unknown as import('./grammar.ohm-bundle').HTMLevateGrammar
+const grammar = ohm.grammar(
+  grammarSrc,
+) as unknown as import('./grammar.ohm-bundle').HTMLevateGrammar
 
 export type SimplePipeline = { source: Source; tail: PipelineTail[] }
 
@@ -14,7 +17,11 @@ export type Expr =
   | { kind: 'array'; items: Expr[] }
   | { kind: 'object'; fields: Field[] }
   | { kind: 'match'; arms: MatchArm[] }
-  | { kind: 'pipeline'; primary: SimplePipeline; fallback: SimplePipeline | null }
+  | {
+      kind: 'pipeline'
+      primary: SimplePipeline
+      fallback: SimplePipeline | null
+    }
   | { kind: 'literal'; value: unknown }
 
 export type Field =
@@ -29,9 +36,9 @@ export type MatchArm =
 
 export type Source =
   | { kind: 'alias_ref'; name: string }
-  | { kind: 'alias_each'; name: string; selector: string }
+  | { kind: 'alias_each'; name: string; selector: string; requireOne: boolean }
   | { kind: 'alias_single'; name: string; selector: string; omit: boolean }
-  | { kind: 'each'; selector: string }
+  | { kind: 'each'; selector: string; requireOne: boolean }
   | { kind: 'single'; selector: string; omit: boolean }
   | { kind: 'context' }
   | { kind: 'root_ref' }
@@ -143,9 +150,10 @@ const exprActions: HTMLevateActionDict<AstResult> = {
     return {
       kind: 'pipeline',
       primary: toAst(primary) as unknown as SimplePipeline,
-      fallback: fallback.children.length > 0
-        ? toAst(fallback.children[0]!) as unknown as SimplePipeline
-        : null,
+      fallback:
+        fallback.children.length > 0
+          ? (toAst(fallback.children[0]!) as unknown as SimplePipeline)
+          : null,
     } satisfies Expr
   },
 
@@ -180,6 +188,7 @@ const exprActions: HTMLevateActionDict<AstResult> = {
       kind: 'alias_each',
       name: name.sourceString,
       selector: s.selector,
+      requireOne: s.requireOne,
     } satisfies Source
   },
   Source_aliasSingle(_at, name, sel) {
@@ -201,8 +210,12 @@ const exprActions: HTMLevateActionDict<AstResult> = {
   ContextRef(_dollar) {
     return { kind: 'context' } satisfies Source
   },
-  EachSelector(_dd, _l, body, _r) {
-    return { kind: 'each', selector: body.sourceString.trim() } satisfies Source
+  EachSelector(_dd, _l, body, _r, plus) {
+    return {
+      kind: 'each',
+      selector: body.sourceString.trim(),
+      requireOne: plus.children.length > 0,
+    } satisfies Source
   },
   SingleSelector(_d, _l, body, _r, omit) {
     return {
@@ -215,7 +228,6 @@ const exprActions: HTMLevateActionDict<AstResult> = {
   PipelineTail(t) {
     return t.toAst()
   },
-
 
   ColonTransform_text(_colon, _kw) {
     return {
@@ -358,39 +370,6 @@ const exprActions: HTMLevateActionDict<AstResult> = {
     return parseInt(this.sourceString, 10)
   },
 
-  Document(_entries, _expr) {
-    throw new Error(
-      'Document node reached toAst — use parse instead',
-    )
-  },
-  frontmatterEntry(_key, _sp1, _eq, _sp2, _value, _nl) {
-    throw new Error(
-      'frontmatterEntry node reached toAst — use parse instead',
-    )
-  },
-  frontmatterValue_array(_l, _items, _r) {
-    throw new Error(
-      'frontmatterValue node reached toAst — use parse instead',
-    )
-  },
-  frontmatterValue_scalar(_chars) {
-    throw new Error(
-      'frontmatterValue node reached toAst — use parse instead',
-    )
-  },
-  frontmatterKey(_first, _rest) {
-    return this.sourceString
-  },
-  frontmatterScalar(_chars) {
-    return this.sourceString
-  },
-  frontmatterSep(_sp1, _comma, _sp2) {
-    return this.sourceString
-  },
-  newline(_) {
-    return this.sourceString
-  },
-
   _iter(...children) {
     return children.map((c) => toAst(c)) as unknown as AstResult
   },
@@ -402,7 +381,6 @@ const exprActions: HTMLevateActionDict<AstResult> = {
 semantics.addOperation<AstResult>('toAst', exprActions)
 
 export interface Frontmatter {
-  entity?: string
   urlPattern?: string | string[]
   [key: string]: unknown
 }
@@ -412,53 +390,27 @@ export interface ParseResult {
   expr: Expr
 }
 
-type FrontmatterEntry = { key: string; value: string | string[] }
-type DocResult = ParseResult | FrontmatterEntry | string | string[]
+const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/
 
-const docSemantics: HTMLevateSemantics = grammar.createSemantics()
-
-docSemantics.addOperation<DocResult>('toDocAst', {
-  Document(entries, expr) {
-    const fm: Frontmatter = {}
-    for (const entry of entries.children.map(
-      (c) => c.toDocAst() as FrontmatterEntry,
-    )) {
-      fm[entry.key] = entry.value
-    }
-    const exprMatch = grammar.match(expr.sourceString, 'Expr')
-    if (exprMatch.failed()) {
-      throw new Error(exprMatch.message ?? 'Parse failed')
-    }
-    return { frontmatter: fm, expr: semantics(exprMatch).toAst() as Expr }
-  },
-
-  frontmatterEntry(key, _sp1, _eq, _sp2, value, _nl) {
-    return {
-      key: key.sourceString,
-      value: value.toDocAst() as string | string[],
-    }
-  },
-
-  frontmatterValue_array(_l, items, _r) {
-    return items.asIteration().children.map((c) => c.sourceString.trim())
-  },
-
-  frontmatterValue_scalar(chars) {
-    return chars.sourceString.trim()
-  },
-
-  _iter(...children) {
-    return children.map((c) => c.toDocAst()) as unknown as DocResult
-  },
-  _terminal() {
-    return this.sourceString
-  },
-})
+export function parseFrontmatter(src: string): {
+  frontmatter: Frontmatter
+  body: string
+} {
+  const m = src.match(FRONTMATTER_RE)
+  if (!m) {
+    return { frontmatter: {}, body: src }
+  }
+  const parsed = parseYaml(m[1]!)
+  const frontmatter: Frontmatter =
+    parsed != null && typeof parsed === 'object' ? parsed : {}
+  return { frontmatter, body: m[2]! }
+}
 
 export function parse(src: string): ParseResult {
-  const match = grammar.match(src, 'Document')
+  const { frontmatter, body } = parseFrontmatter(src)
+  const match = grammar.match(body, 'Expr')
   if (match.failed()) {
     throw new Error(match.message ?? 'Parse failed')
   }
-  return docSemantics(match).toDocAst() as ParseResult
+  return { frontmatter, expr: semantics(match).toAst() as Expr }
 }

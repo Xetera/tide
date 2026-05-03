@@ -1,13 +1,12 @@
 import { defineSite } from '~/site-spec/site-builder'
-import { loaderProvider } from '~/loaders'
+import { funnelProvider } from '~/site-spec/funnel-loader'
 import { robloxEntities } from './entities'
 
 export const robloxSite = defineSite({
   dir: 'roblox',
-  loaderProvider,
+  funnelProvider,
   hostname: 'www.roblox.com',
   entities: robloxEntities,
-  requests: {},
 })
 
 export default robloxSite

@@ -8,12 +8,10 @@ import { toOrigin } from '~/site-spec/resource'
 import type { ResourceSpec } from '~/site-spec/types'
 import { type BrowserStorageSchema, Storage } from '~/shared/storage'
 import { useBrowserStorage } from '~/shared/hooks'
-import type { Log, PlainLog, ScrapeLog } from '~/shared'
+import type { Log, PlainLog, ScrapeLog } from '~/shared/log'
 import { AddServer } from './add-server'
 import { useLogs } from './hooks'
-import { SchemaEditor } from './schema-editor'
 import { Pool } from './pool'
-import { SpecGenerator } from './spec-generator'
 
 const formatter = createDateFormatter({
   timeStyle: 'medium',
@@ -56,7 +54,7 @@ function ScrapeLogEntry({ log }: { log: ScrapeLog }) {
   const time = formatter.format(new Date(log.date))
   const title =
     log.source?.kind === 'network'
-      ? `${log.source.loader} / ${log.source.file}`
+      ? `${log.source.funnel} / ${log.source.file}`
       : [...new Set(log.patches.map((p) => p._entity))].join(', ')
   const patchesByEntity = Object.entries(
     log.patches.reduce<Record<string, number>>((acc, p) => {
@@ -235,7 +233,7 @@ function Page() {
   const [tab, setTab] = createSignal('dashboard')
 
   return (
-    <div class='w-[400px] bg-background text-foreground'>
+    <div class='w-[400px] bg-background text-foreground overflow-y-scroll'>
       <Tabs value={tab()} onChange={setTab}>
         <TabsList class='w-full rounded-none border-b border-border bg-background h-10 p-0 gap-0'>
           <TabsTrigger
@@ -245,22 +243,10 @@ function Page() {
             Dashboard
           </TabsTrigger>
           <TabsTrigger
-            value='schema'
-            class='flex-1 h-full rounded-none border-b-2 border-transparent data-[selected]:(border-foreground bg-transparent) text-muted-foreground data-[selected]:text-foreground'
-          >
-            Schema
-          </TabsTrigger>
-          <TabsTrigger
             value='pool'
             class='flex-1 h-full rounded-none border-b-2 border-transparent data-[selected]:(border-foreground bg-transparent) text-muted-foreground data-[selected]:text-foreground'
           >
             Pool
-          </TabsTrigger>
-          <TabsTrigger
-            value='generate'
-            class='flex-1 h-full rounded-none border-b-2 border-transparent data-[selected]:(border-foreground bg-transparent) text-muted-foreground data-[selected]:text-foreground'
-          >
-            Requests
           </TabsTrigger>
           <TabsTrigger
             value='settings'
@@ -276,9 +262,16 @@ function Page() {
               <For
                 each={state()}
                 fallback={
-                  <p class='px-3 py-6 text-sm text-muted-foreground text-center'>
-                    No resources configured
-                  </p>
+                  <div class='px-3 py-6 flex flex-col items-center gap-3'>
+                    <p class='text-sm text-muted-foreground text-center'>No resources configured</p>
+                    <button
+                      type='button'
+                      onClick={() => chrome.tabs.create({ url: chrome.runtime.getURL('playground.html') })}
+                      class='px-4 py-2 text-sm rounded border border-border hover:bg-accent transition-colors'
+                    >
+                      Open Playground
+                    </button>
+                  </div>
                 }
               >
                 {({ resource, hostAllowed }) => (
@@ -296,7 +289,7 @@ function Page() {
                 <div class='border-b border-border'>
                   <details class='group'>
                     <summary class='cursor-pointer flex items-center justify-between px-3 py-2 text-sm font-medium select-none hover:bg-accent'>
-                      <span>Last scrape{scrape().scrapeSource ? ` · ${scrape().scrapeSource?.loader}` : ''}</span>
+                      <span>Last scrape{scrape().scrapeSource ? ` · ${scrape().scrapeSource?.funnel}` : ''}</span>
                       <Badge variant='outline'>
                         {scrape().patches.length} patches
                       </Badge>
@@ -325,16 +318,8 @@ function Page() {
           </div>
         </TabsContent>
 
-        <TabsContent value='schema' class='mt-0'>
-          <SchemaEditor />
-        </TabsContent>
-
         <TabsContent value='pool' class='mt-0'>
           <Pool />
-        </TabsContent>
-
-        <TabsContent value='generate' class='mt-0'>
-          <SpecGenerator />
         </TabsContent>
 
         <TabsContent value='settings' class='mt-0'>

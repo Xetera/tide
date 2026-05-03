@@ -1,4 +1,4 @@
-import { createMemo, createSignal } from 'solid-js'
+import { createMemo, createResource, createSignal } from 'solid-js'
 import {
   TextField,
   TextFieldDescription,
@@ -78,18 +78,40 @@ export function Pool() {
     }
   }
 
-  const isConnected = createMemo(
+  const hasCredentials = createMemo(
     () => !!(serverUrl() && poolId() && workerSecret()),
   )
+
+  const [reachable] = createResource(
+    () => (hasCredentials() ? `${serverUrl()}/api/health` : null),
+    async (url) => {
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(3000) })
+        return res.ok
+      } catch {
+        return false
+      }
+    },
+  )
+
+  const statusLabel = () => {
+    if (!hasCredentials()) return 'Not connected'
+    if (reachable.loading) return 'Checking...'
+    return reachable() ? 'Connected' : 'Unreachable'
+  }
+
+  const statusClass = () => {
+    if (!hasCredentials() || !reachable()) return 'bg-muted text-muted-foreground'
+    if (reachable.loading) return 'bg-muted text-muted-foreground'
+    return 'bg-green-500/15 text-green-600 dark:text-green-400'
+  }
 
   return (
     <div class='p-4 flex flex-col gap-4'>
       <div class='flex items-center justify-between'>
         <span class='text-sm font-medium'>Status</span>
-        <span
-          class={`text-xs px-2 py-0.5 rounded-full font-medium ${isConnected() ? 'bg-green-500/15 text-green-600 dark:text-green-400' : 'bg-muted text-muted-foreground'}`}
-        >
-          {isConnected() ? 'Connected' : 'Not connected'}
+        <span class={`text-xs px-2 py-0.5 rounded-full font-medium ${statusClass()}`}>
+          {statusLabel()}
         </span>
       </div>
 

@@ -3,17 +3,19 @@ import { render } from 'solid-js/web'
 import {
   For,
   Show,
+  createContext,
   createEffect,
   createSignal,
   onCleanup,
   onMount,
+  useContext,
 } from 'solid-js'
 import { sendMessage } from 'webext-bridge/popup'
 import { allSites } from '~/sites'
 import { matchesGlob } from '~/extraction/glob'
 import type {
-  LoaderInfo,
-  LoaderFixture,
+  FunnelInfo,
+  FunnelFixture,
   CaptureEntry,
   GenerationAttempt,
 } from '~/generation/types'
@@ -33,6 +35,72 @@ import './scrape-viewer.css'
 
 const IS_DEV = import.meta.env.DEV
 
+type FunnelInfoGroup = [string, FunnelInfo[]]
+type SiteGroup = { site: string; hostname: string; groups: FunnelInfoGroup[] }
+
+interface PlaygroundState {
+  funnels: () => FunnelInfo[]
+  funnelsLoading: () => boolean
+  selectedFunnel: () => FunnelInfo | null
+  selectFunnel: (f: FunnelInfo) => void
+  sites: () => SiteGroup[]
+  expression: () => string
+  setExpression: (v: string) => void
+  isDirty: () => boolean
+  writeStatus: () => 'idle' | 'saving' | 'saved' | 'error'
+  writeError: () => string | null
+  writeBack: () => void
+  llmStatus: () => 'idle' | 'loading' | 'done' | 'error'
+  llmNote: () => string
+  setLlmNote: (v: string) => void
+  generationAttempts: () => GenerationAttempt[]
+  dismissGeneration: () => void
+  canGenerate: () => boolean
+  generateJsonata: () => void
+  evalResult: () => EvalResult | null
+  inputTab: () => 'fixture' | 'capture'
+  setInputTab: (v: 'fixture' | 'capture') => void
+  selectedFixture: () => FunnelFixture | null
+  setSelectedFixture: (f: FunnelFixture | null) => void
+  selectedCapture: () => CaptureEntry | null
+  setSelectedCapture: (c: CaptureEntry | null) => void
+  captures: () => CaptureEntry[]
+  captureStatuses: () => Record<string, 'empty' | 'has-entities' | 'error'>
+  captureMatchedFiles: () => Record<string, string[]>
+  newCaptureIds: () => Set<string>
+  siblingFunnels: () => FunnelInfo[]
+  fixtureJson: () => string | null
+  captureJson: () => string | null
+  resultJson: () => string | null
+  isHtmlevate: () => boolean
+  htmlInputTab: () => 'html' | 'url' | 'tab'
+  setHtmlInputTab: (v: 'html' | 'url' | 'tab') => void
+  htmlInput: () => string
+  setHtmlInput: (v: string) => void
+  urlInput: () => string
+  setUrlInput: (v: string) => void
+  urlFetchStatus: () => 'idle' | 'loading' | 'error'
+  loadUrl: () => void
+  iframeBody: () => HTMLElement | null
+  setIframeBody: (el: HTMLElement | null) => void
+  setIframeRef: (el: HTMLIFrameElement) => void
+  onIframeLoad: (body: HTMLElement | null, tab: 'html' | 'url' | 'tab') => void
+  liveTabs: () => Array<{ tabId: number; title: string; url: string }>
+  selectedLiveTab: () => number | null
+  liveTabStatus: () => 'idle' | 'loading' | 'error'
+  selectLiveTab: (tabId: number) => void
+}
+
+const PlaygroundContext = createContext<PlaygroundState>()
+
+function usePlayground(): PlaygroundState {
+  const ctx = useContext(PlaygroundContext)
+  if (!ctx) {
+    throw new Error('usePlayground must be used inside Playground')
+  }
+  return ctx
+}
+
 function WarningsPanelResizer({
   warningCount,
 }: {
@@ -50,20 +118,16 @@ function WarningsPanelResizer({
   return null
 }
 
-type LoaderGroup = [string, LoaderInfo[]]
-type SiteGroup = { site: string; hostname: string; groups: LoaderGroup[] }
-
-function LoaderGroupRow({
+function FunnelGroupRow({
   group,
   files,
-  selectedPath,
-  onSelect,
 }: {
   group: string
-  files: LoaderInfo[]
-  selectedPath: () => string | undefined
-  onSelect: (loader: LoaderInfo) => void
+  files: FunnelInfo[]
 }) {
+  const { selectedFunnel, selectFunnel } = usePlayground()
+  const selectedPath = () => selectedFunnel()?.path
+
   const formatBadge = (format: 'jsonata' | 'htmlevate') =>
     format === 'htmlevate' ? (
       <span
@@ -81,13 +145,13 @@ function LoaderGroupRow({
       </span>
     )
 
-  const urlGlob = (req: { method: string; url: string } | undefined) =>
+  const urlGlob = (req: { method: string; url: string | string[] } | undefined) =>
     req ? (
       <span
         class='text-muted-foreground/40 truncate font-mono'
         style='font-size: 0.6rem'
       >
-        {req.url}
+        {Array.isArray(req.url) ? req.url[0] : req.url}
       </span>
     ) : null
 
@@ -98,7 +162,7 @@ function LoaderGroupRow({
       <div class='mb-1'>
         <button
           type='button'
-          onClick={() => onSelect(loader)}
+          onClick={() => selectFunnel(loader)}
           class={`w-full text-left px-3 py-1 text-xs font-mono truncate transition-colors hover:bg-accent flex items-center gap-1.5 min-w-0 ${isSelected() ? 'bg-accent text-foreground' : 'text-muted-foreground'}`}
         >
           {formatBadge(loader.format)}
@@ -123,7 +187,7 @@ function LoaderGroupRow({
           return (
             <button
               type='button'
-              onClick={() => onSelect(loader)}
+              onClick={() => selectFunnel(loader)}
               class={`w-full text-left px-3 py-1 text-xs font-mono truncate transition-colors hover:bg-accent flex items-center gap-1.5 min-w-0 ${isSelected() ? 'bg-accent text-foreground' : 'text-muted-foreground'}`}
             >
               {formatBadge(loader.format)}
@@ -136,24 +200,15 @@ function LoaderGroupRow({
   )
 }
 
-function LoaderSidebar({
-  loading,
-  sites,
-  selectedPath,
-  onSelect,
-}: {
-  loading: () => boolean
-  sites: () => SiteGroup[]
-  selectedPath: () => string | undefined
-  onSelect: (loader: LoaderInfo) => void
-}) {
+function FunnelSidebar() {
+  const { funnelsLoading, sites } = usePlayground()
   return (
     <Resizable.Panel
       initialSize={0.15}
       minSize={0.1}
       class='border-r border-border overflow-y-auto flex flex-col'
     >
-      <Show when={loading()}>
+      <Show when={funnelsLoading()}>
         <p class='text-xs text-muted-foreground p-3'>Loading...</p>
       </Show>
       <For each={sites()}>
@@ -173,12 +228,7 @@ function LoaderSidebar({
             </div>
             <For each={groups}>
               {([group, files]) => (
-                <LoaderGroupRow
-                  group={group}
-                  files={files}
-                  selectedPath={selectedPath}
-                  onSelect={onSelect}
-                />
+                <FunnelGroupRow group={group} files={files} />
               )}
             </For>
           </div>
@@ -265,39 +315,26 @@ function GenerationAttemptList({
   )
 }
 
-function EditorPanel({
-  loaderPath,
-  expression,
-  onExpressionChange,
-  writeStatus,
-  writeError,
-  onWriteBack,
-  llmStatus,
-  llmNote,
-  onLlmNoteChange,
-  generationAttempts,
-  onDismissGeneration,
-  canGenerate,
-  onGenerate,
-  evalError,
-  errorPosition,
-}: {
-  loaderPath: () => string
-  expression: () => string
-  onExpressionChange: (v: string) => void
-  writeStatus: () => 'idle' | 'saving' | 'saved' | 'error'
-  writeError: () => string | null
-  onWriteBack: () => void
-  llmStatus: () => 'idle' | 'loading' | 'done' | 'error'
-  llmNote: () => string
-  onLlmNoteChange: (v: string) => void
-  generationAttempts: () => GenerationAttempt[]
-  onDismissGeneration: () => void
-  canGenerate: () => boolean
-  onGenerate: () => void
-  evalError: () => string | undefined
-  errorPosition: () => import('./jsonata-editor').ErrorPosition | null
-}) {
+function EditorPanel() {
+  const {
+    selectedFunnel,
+    expression,
+    setExpression,
+    writeStatus,
+    writeError,
+    isDirty,
+    writeBack,
+    llmStatus,
+    llmNote,
+    setLlmNote,
+    generationAttempts,
+    dismissGeneration,
+    canGenerate,
+    generateJsonata,
+    evalResult,
+  } = usePlayground()
+  const evalError = () => evalResult()?.error
+  const errorPosition = () => parseErrorPosition(evalResult()?.error ?? '')
   return (
     <Resizable.Panel
       initialSize={0.333}
@@ -306,14 +343,14 @@ function EditorPanel({
     >
       <div class='border-b border-border px-3 py-1.5 flex items-center justify-between shrink-0'>
         <span class='text-xs font-mono text-muted-foreground'>
-          {loaderPath()}
+          {selectedFunnel()?.path}
         </span>
         <Show when={IS_DEV}>
           <button
             type='button'
-            onClick={onWriteBack}
+            onClick={writeBack}
             disabled={writeStatus() === 'saving'}
-            class={`text-xs px-2 py-1 rounded border transition-colors disabled:opacity-50 ${
+            class={`text-xs px-2 py-1 rounded border transition-colors disabled:opacity-50 flex items-center gap-1.5 ${
               writeStatus() === 'saved'
                 ? 'border-green-500 text-green-500'
                 : writeStatus() === 'error'
@@ -321,6 +358,9 @@ function EditorPanel({
                   : 'border-border hover:bg-accent'
             }`}
           >
+            <Show when={isDirty() && writeStatus() === 'idle'}>
+              <span class='w-1.5 h-1.5 rounded-full bg-current opacity-70' />
+            </Show>
             {writeStatus() === 'saving'
               ? 'Saving...'
               : writeStatus() === 'saved'
@@ -338,7 +378,7 @@ function EditorPanel({
       </Show>
       <JsonataEditor
         value={expression}
-        onInput={onExpressionChange}
+        onInput={setExpression}
         entityNames={allSites.flatMap((s) => s.entities.map((e) => e.entity))}
         errorPosition={errorPosition}
       />
@@ -346,13 +386,13 @@ function EditorPanel({
         <GenerationAttemptList
           status={llmStatus}
           attempts={generationAttempts}
-          onDismiss={onDismissGeneration}
+          onDismiss={dismissGeneration}
         />
       </Show>
       <div class='border-t border-border shrink-0 flex flex-col'>
         <textarea
           value={llmNote()}
-          onInput={(e) => onLlmNoteChange(e.currentTarget.value)}
+          onInput={(e) => setLlmNote(e.currentTarget.value)}
           placeholder='Additional instructions...'
           rows={2}
           class='w-full px-3 py-2 text-xs bg-transparent resize-none outline-none text-foreground placeholder:text-muted-foreground border-b border-border'
@@ -368,7 +408,7 @@ function EditorPanel({
           >
             <button
               type='button'
-              onClick={onGenerate}
+              onClick={generateJsonata}
               disabled={llmStatus() === 'loading'}
               class='text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors disabled:opacity-50'
             >
@@ -389,25 +429,23 @@ function EditorPanel({
   )
 }
 
-function CaptureItem({
-  capture,
-  isSelected,
-  status,
-  isNew,
-  matchedFiles,
-  siblings,
-  onSelect,
-  onSelectWithLoader,
-}: {
-  capture: CaptureEntry
-  isSelected: () => boolean
-  status: () => 'empty' | 'has-entities' | 'error' | undefined
-  isNew: () => boolean
-  matchedFiles: () => string[] | undefined
-  siblings: () => LoaderInfo[]
-  onSelect: () => void
-  onSelectWithLoader: (loader: LoaderInfo) => void
-}) {
+function CaptureItem({ capture }: { capture: CaptureEntry }) {
+  const {
+    selectedCapture,
+    setSelectedCapture,
+    setSelectedFixture,
+    captureStatuses,
+    captureMatchedFiles,
+    newCaptureIds,
+    siblingFunnels,
+    selectFunnel,
+  } = usePlayground()
+
+  const isSelected = () => selectedCapture()?.id === capture.id
+  const status = () => captureStatuses()[capture.id]
+  const isNew = () => newCaptureIds().has(capture.id)
+  const matchedFiles = () => captureMatchedFiles()[capture.id]
+
   const isEmpty = () => status() === 'empty'
   const hasError = () => status() === 'error'
   const hasMatches = () => {
@@ -418,7 +456,10 @@ function CaptureItem({
   return (
     <button
       type='button'
-      onClick={onSelect}
+      onClick={() => {
+        setSelectedCapture(capture)
+        setSelectedFixture(null)
+      }}
       class={`text-left px-2 py-1 rounded text-xs font-mono transition-all duration-700 flex items-center gap-1.5 min-w-0 ${isSelected() ? 'bg-accent text-foreground' : isNew() ? 'text-blue-400 hover:bg-accent/50' : isEmpty() ? 'text-muted-foreground/40 hover:bg-accent/50 hover:text-muted-foreground' : 'text-muted-foreground hover:bg-accent/50'}`}
     >
       <span class='uppercase shrink-0'>{capture.method}</span>
@@ -430,14 +471,16 @@ function CaptureItem({
         >
           <For each={matchedFiles()}>
             {(file) => {
-              const target = siblings().find((l) => l.file === file)
+              const target = siblingFunnels().find((l) => l.file === file)
               return (
                 <span
                   class='text-muted-foreground/60 hover:text-foreground transition-colors cursor-pointer underline underline-offset-2 decoration-dotted'
                   onClick={(e) => {
                     e.stopPropagation()
                     if (target) {
-                      onSelectWithLoader(target)
+                      selectFunnel(target)
+                      setSelectedCapture(capture)
+                      setSelectedFixture(null)
                     }
                   }}
                 >
@@ -463,71 +506,36 @@ function CaptureItem({
   )
 }
 
-function InputPanel({
-  isHtmlevate,
-  inputTab,
-  onInputTabChange,
-  htmlInputTab,
-  onHtmlInputTabChange,
-  htmlInput,
-  onHtmlInputChange,
-  urlInput,
-  onUrlInputChange,
-  onLoadUrl,
-  urlFetchStatus,
-  iframeBody,
-  iframeRef,
-  onIframeLoad,
-  liveTabs,
-  selectedLiveTab,
-  liveTabStatus,
-  onSelectLiveTab,
-  fixtures,
-  selectedFixture,
-  onSelectFixture,
-  fixtureJson,
-  captures,
-  selectedCapture,
-  onSelectCapture,
-  onSelectCaptureWithLoader,
-  captureJson,
-  captureStatuses,
-  captureMatchedFiles,
-  newCaptureIds,
-  siblings,
-}: {
-  isHtmlevate: () => boolean
-  inputTab: () => 'fixture' | 'capture'
-  onInputTabChange: (tab: 'fixture' | 'capture') => void
-  htmlInputTab: () => 'html' | 'url' | 'tab'
-  onHtmlInputTabChange: (tab: 'html' | 'url' | 'tab') => void
-  htmlInput: () => string
-  onHtmlInputChange: (v: string) => void
-  urlInput: () => string
-  onUrlInputChange: (v: string) => void
-  onLoadUrl: () => void
-  urlFetchStatus: () => 'idle' | 'loading' | 'error'
-  iframeBody: () => HTMLElement | null
-  iframeRef: (el: HTMLIFrameElement) => void
-  onIframeLoad: (body: HTMLElement | null, tab: 'html' | 'url' | 'tab') => void
-  liveTabs: () => Array<{ tabId: number; title: string; url: string }>
-  selectedLiveTab: () => number | null
-  liveTabStatus: () => 'idle' | 'loading' | 'error'
-  onSelectLiveTab: (tabId: number) => void
-  fixtures: () => LoaderFixture[]
-  selectedFixture: () => LoaderFixture | null
-  onSelectFixture: (f: LoaderFixture) => void
-  fixtureJson: () => string | null
-  captures: () => CaptureEntry[]
-  selectedCapture: () => CaptureEntry | null
-  onSelectCapture: (c: CaptureEntry) => void
-  onSelectCaptureWithLoader: (c: CaptureEntry, loader: LoaderInfo) => void
-  captureJson: () => string | null
-  captureStatuses: () => Record<string, 'empty' | 'has-entities' | 'error'>
-  captureMatchedFiles: () => Record<string, string[]>
-  newCaptureIds: () => Set<string>
-  siblings: () => LoaderInfo[]
-}) {
+function InputPanel() {
+  const {
+    selectedFunnel,
+    isHtmlevate,
+    inputTab,
+    setInputTab,
+    htmlInputTab,
+    setHtmlInputTab,
+    htmlInput,
+    setHtmlInput,
+    urlInput,
+    setUrlInput,
+    loadUrl,
+    urlFetchStatus,
+    iframeBody,
+    setIframeBody,
+    setIframeRef,
+    onIframeLoad,
+    liveTabs,
+    selectedLiveTab,
+    liveTabStatus,
+    selectLiveTab,
+    selectedFixture,
+    setSelectedFixture,
+    setSelectedCapture,
+    fixtureJson,
+    captures,
+    captureJson,
+  } = usePlayground()
+
   return (
     <Resizable.Panel
       initialSize={0.333}
@@ -536,13 +544,13 @@ function InputPanel({
     >
       <Show when={isHtmlevate() && htmlInputTab() !== 'tab'}>
         <iframe
-          ref={iframeRef}
+          ref={setIframeRef}
           sandbox={htmlInputTab() === 'url' ? undefined : 'allow-same-origin'}
           srcdoc={htmlInputTab() === 'html' ? htmlInput() : undefined}
           style='display:none'
           onLoad={(e) => {
             const frame = e.currentTarget
-            iframeRef(frame)
+            setIframeRef(frame)
             try {
               onIframeLoad(frame.contentDocument?.body ?? null, htmlInputTab())
             } catch {
@@ -557,14 +565,14 @@ function InputPanel({
           <div class='border-b border-border flex shrink-0'>
             <button
               type='button'
-              onClick={() => onInputTabChange('capture')}
+              onClick={() => setInputTab('capture')}
               class={`flex-1 px-3 py-1.5 text-xs transition-colors ${inputTab() === 'capture' ? 'text-foreground border-b-2 border-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
               Captures ({captures().length})
             </button>
             <button
               type='button'
-              onClick={() => onInputTabChange('fixture')}
+              onClick={() => setInputTab('fixture')}
               class={`flex-1 px-3 py-1.5 text-xs transition-colors ${inputTab() === 'fixture' ? 'text-foreground border-b-2 border-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
               Fixtures
@@ -575,21 +583,32 @@ function InputPanel({
         <div class='border-b border-border flex shrink-0'>
           <button
             type='button'
-            onClick={() => onHtmlInputTabChange('tab')}
+            onClick={() => {
+              setHtmlInputTab('tab')
+              setIframeBody(null)
+            }}
             class={`flex-1 px-3 py-1.5 text-xs transition-colors ${htmlInputTab() === 'tab' ? 'text-foreground border-b-2 border-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Live
           </button>
           <button
             type='button'
-            onClick={() => onHtmlInputTabChange('url')}
+            onClick={() => {
+              setHtmlInputTab('url')
+              setIframeBody(null)
+              setHtmlInput('')
+            }}
             class={`flex-1 px-3 py-1.5 text-xs transition-colors ${htmlInputTab() === 'url' ? 'text-foreground border-b-2 border-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           >
             URL
           </button>
           <button
             type='button'
-            onClick={() => onHtmlInputTabChange('html')}
+            onClick={() => {
+              setHtmlInputTab('html')
+              setIframeBody(null)
+              setHtmlInput('')
+            }}
             class={`flex-1 px-3 py-1.5 text-xs transition-colors ${htmlInputTab() === 'html' ? 'text-foreground border-b-2 border-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           >
             HTML
@@ -597,8 +616,12 @@ function InputPanel({
         </div>
         <Show when={htmlInputTab() === 'tab'}>
           <div class='flex flex-col flex-1 overflow-hidden min-h-0'>
-            <Show when={liveTabs().length === 0 && liveTabStatus() !== 'loading'}>
-              <p class='text-xs text-muted-foreground p-3'>No matching tabs open</p>
+            <Show
+              when={liveTabs().length === 0 && liveTabStatus() !== 'loading'}
+            >
+              <p class='text-xs text-muted-foreground p-3'>
+                No matching tabs open
+              </p>
             </Show>
             <Show when={liveTabs().length > 1}>
               <div class='border-b border-border flex gap-0 overflow-x-auto shrink-0'>
@@ -606,7 +629,7 @@ function InputPanel({
                   {(t) => (
                     <button
                       type='button'
-                      onClick={() => onSelectLiveTab(t.tabId)}
+                      onClick={() => selectLiveTab(t.tabId)}
                       class={`px-3 py-1.5 text-xs font-mono shrink-0 truncate max-w-[160px] transition-colors ${selectedLiveTab() === t.tabId ? 'text-foreground border-b-2 border-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                       title={t.url}
                     >
@@ -617,10 +640,12 @@ function InputPanel({
               </div>
             </Show>
             <Show when={liveTabStatus() === 'error'}>
-              <p class='text-xs text-destructive px-3 py-2 shrink-0'>Failed to fetch tab HTML</p>
+              <p class='text-xs text-destructive px-3 py-2 shrink-0'>
+                Failed to fetch tab HTML
+              </p>
             </Show>
             <iframe
-              ref={iframeRef}
+              ref={setIframeRef}
               sandbox='allow-same-origin'
               srcdoc={htmlInput() || ' '}
               class='flex-1 w-full min-h-0 border-0'
@@ -630,7 +655,7 @@ function InputPanel({
                   return
                 }
                 const frame = e.currentTarget
-                iframeRef(frame)
+                setIframeRef(frame)
                 try {
                   onIframeLoad(frame.contentDocument?.body ?? null, 'tab')
                 } catch {
@@ -646,14 +671,14 @@ function InputPanel({
               <input
                 type='url'
                 value={urlInput()}
-                onInput={(e) => onUrlInputChange(e.currentTarget.value)}
-                onKeyDown={(e) => e.key === 'Enter' && onLoadUrl()}
+                onInput={(e) => setUrlInput(e.currentTarget.value)}
+                onKeyDown={(e) => e.key === 'Enter' && loadUrl()}
                 placeholder='https://...'
                 class='flex-1 px-2 py-1 text-xs font-mono bg-transparent border border-border rounded outline-none text-foreground placeholder:text-muted-foreground focus:border-foreground/50'
               />
               <button
                 type='button'
-                onClick={onLoadUrl}
+                onClick={loadUrl}
                 disabled={urlFetchStatus() === 'loading' || !urlInput().trim()}
                 class='px-2 py-1 text-xs border border-border rounded hover:bg-accent transition-colors disabled:opacity-50 shrink-0'
               >
@@ -673,7 +698,7 @@ function InputPanel({
         <Show when={htmlInputTab() === 'html'}>
           <textarea
             value={htmlInput()}
-            onInput={(e) => onHtmlInputChange(e.currentTarget.value)}
+            onInput={(e) => setHtmlInput(e.currentTarget.value)}
             placeholder='Paste HTML here...'
             class='flex-1 w-full px-3 py-2 text-xs font-mono bg-transparent resize-none outline-none text-foreground placeholder:text-muted-foreground'
           />
@@ -684,7 +709,7 @@ function InputPanel({
         <div class='flex flex-col overflow-hidden flex-1'>
           <div class='border-b border-border flex flex-col gap-0.5 p-1.5 shrink-0'>
             <For
-              each={fixtures()}
+              each={selectedFunnel()?.fixtures ?? []}
               fallback={
                 <p class='text-xs text-muted-foreground px-1.5 py-1'>
                   No fixtures
@@ -697,7 +722,10 @@ function InputPanel({
                 return (
                   <button
                     type='button'
-                    onClick={() => onSelectFixture(fixture)}
+                    onClick={() => {
+                      setSelectedFixture(fixture)
+                      setSelectedCapture(null)
+                    }}
                     class={`text-left px-2 py-1 rounded text-xs font-mono transition-colors ${isSelected() ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/50'}`}
                   >
                     {fixture.name}
@@ -725,20 +753,7 @@ function InputPanel({
                 </p>
               }
             >
-              {(capture) => (
-                <CaptureItem
-                  capture={capture}
-                  isSelected={() => selectedCapture()?.id === capture.id}
-                  status={() => captureStatuses()[capture.id]}
-                  isNew={() => newCaptureIds().has(capture.id)}
-                  matchedFiles={() => captureMatchedFiles()[capture.id]}
-                  siblings={siblings}
-                  onSelect={() => onSelectCapture(capture)}
-                  onSelectWithLoader={(loader) =>
-                    onSelectCaptureWithLoader(capture, loader)
-                  }
-                />
-              )}
+              {(capture) => <CaptureItem capture={capture} />}
             </For>
           </div>
           <div class='flex-1 overflow-hidden'>
@@ -750,19 +765,14 @@ function InputPanel({
   )
 }
 
-function ResultPanel({
-  evalResult,
-  resultJson,
-  expression,
-  selectedFixture,
-  selectedCapture,
-}: {
-  evalResult: () => EvalResult | null
-  resultJson: () => string | null
-  expression: () => string
-  selectedFixture: () => LoaderFixture | null
-  selectedCapture: () => CaptureEntry | null
-}) {
+function ResultPanel() {
+  const {
+    evalResult,
+    resultJson,
+    expression,
+    selectedFixture,
+    selectedCapture,
+  } = usePlayground()
   return (
     <Resizable.Panel
       initialSize={0.333}
@@ -792,9 +802,9 @@ function ResultPanel({
         </Show>
       </div>
       <Show when={evalResult()?.error}>
-        <div class='px-3 py-2 text-xs text-destructive font-mono shrink-0'>
+        <pre class='px-3 py-2 text-xs text-destructive font-mono shrink-0 whitespace-pre-wrap break-all'>
           {evalResult()?.error}
-        </div>
+        </pre>
       </Show>
       <Show when={(evalResult()?.validationErrors.length ?? 0) > 0}>
         <div
@@ -889,15 +899,14 @@ function ResultPanel({
 }
 
 function Playground() {
-  const [loaders, setLoaders] = createSignal<LoaderInfo[]>([])
-  const [loadersLoading, setLoadersLoading] = createSignal(true)
-
-  const [selectedLoader, setSelectedLoader] = createSignal<LoaderInfo | null>(
+  const [funnels, setFunnels] = createSignal<FunnelInfo[]>([])
+  const [funnelsLoading, setFunnelsLoading] = createSignal(true)
+  const [selectedFunnel, setSelectedFunnel] = createSignal<FunnelInfo | null>(
     null,
   )
   const [expression, setExpression] = createSignal('')
   const [selectedFixture, setSelectedFixture] =
-    createSignal<LoaderFixture | null>(null)
+    createSignal<FunnelFixture | null>(null)
   const [selectedCapture, setSelectedCapture] =
     createSignal<CaptureEntry | null>(null)
   const [captures, setCaptures] = createSignal<CaptureEntry[]>([])
@@ -926,23 +935,35 @@ function Playground() {
   const [newCaptureIds, setNewCaptureIds] = createSignal<Set<string>>(new Set())
   const [htmlInput, setHtmlInput] = createSignal('')
   const [urlInput, setUrlInput] = createSignal('')
-  const [htmlInputTab, setHtmlInputTab] = createSignal<'html' | 'url' | 'tab'>('tab')
+  const [htmlInputTab, setHtmlInputTab] = createSignal<'html' | 'url' | 'tab'>(
+    'tab',
+  )
   const [urlFetchStatus, setUrlFetchStatus] = createSignal<
     'idle' | 'loading' | 'error'
   >('idle')
   const [iframeBody, setIframeBody] = createSignal<HTMLElement | null>(null)
-  const [liveTabs, setLiveTabs] = createSignal<Array<{ tabId: number; title: string; url: string }>>([])
-  const [selectedLiveTab, setSelectedLiveTab] = createSignal<number | null>(null)
-  const [liveTabStatus, setLiveTabStatus] = createSignal<'idle' | 'loading' | 'error'>('idle')
+  const [liveTabs, setLiveTabs] = createSignal<
+    Array<{ tabId: number; title: string; url: string }>
+  >([])
+  const [selectedLiveTab, setSelectedLiveTab] = createSignal<number | null>(
+    null,
+  )
+  const [liveTabStatus, setLiveTabStatus] = createSignal<
+    'idle' | 'loading' | 'error'
+  >('idle')
   let iframeRef: HTMLIFrameElement | undefined
 
-  const isHtmlevate = () => selectedLoader()?.format === 'htmlevate'
+  const isHtmlevate = () => selectedFunnel()?.format === 'htmlevate'
 
   async function loadLiveTabHtml(tabId: number) {
     setLiveTabStatus('loading')
     setIframeBody(null)
     try {
-      const result = await sendMessage('get-tab-html', { tabId }, { context: 'background', tabId: 0 })
+      const result = await sendMessage(
+        'get-tab-html',
+        { tabId },
+        { context: 'background', tabId: 0 },
+      )
       if (!result) {
         setLiveTabStatus('error')
         return
@@ -973,7 +994,7 @@ function Playground() {
 
   async function refreshCaptures(
     hostname: string,
-    request?: { method: string; url: string },
+    request?: { method: string; url: string | string[] },
     flash = true,
   ) {
     try {
@@ -1006,13 +1027,13 @@ function Playground() {
     }
   }
 
-  async function refreshLoaders() {
+  async function refreshFunnels() {
     try {
-      const fresh = await sendMessage('get-loaders', undefined, {
+      const fresh = await sendMessage('get-funnels', undefined, {
         context: 'background',
         tabId: 0,
       })
-      setLoaders((prev) => {
+      setFunnels((prev) => {
         if (
           prev.length === fresh.length &&
           prev.every(
@@ -1025,8 +1046,8 @@ function Playground() {
         }
         return fresh
       })
-      setLoadersLoading(false)
-      setSelectedLoader((prev) => {
+      setFunnelsLoading(false)
+      setSelectedFunnel((prev) => {
         if (!prev) {
           return null
         }
@@ -1043,15 +1064,18 @@ function Playground() {
   }
 
   onMount(async () => {
-    refreshLoaders()
-    const interval = setInterval(refreshLoaders, 2000)
+    refreshFunnels()
+    const interval = setInterval(refreshFunnels, 2000)
     onCleanup(() => clearInterval(interval))
 
     const onStorageChanged = (
       changes: Record<string, chrome.storage.StorageChange>,
     ) => {
       if (changes['generation:attempts']) {
-        setGenerationAttempts(changes['generation:attempts'].newValue as GenerationAttempt[] ?? [])
+        setGenerationAttempts(
+          (changes['generation:attempts'].newValue as GenerationAttempt[]) ??
+            [],
+        )
       }
     }
     chrome.storage.local.onChanged.addListener(onStorageChanged)
@@ -1076,9 +1100,9 @@ function Playground() {
   })
 
   const effectiveHostname = () => {
-    const loader = selectedLoader()
-    if (loader) {
-      const site = allSites.find((s) => s.dir === loader.site)
+    const funnel = selectedFunnel()
+    if (funnel) {
+      const site = allSites.find((s) => s.dir === funnel.site)
       if (site) {
         return site.hostname
       }
@@ -1088,13 +1112,13 @@ function Playground() {
 
   createEffect(() => {
     const hostname = effectiveHostname()
-    const request = selectedLoader()?.request
+    const request = selectedFunnel()?.request
     if (!hostname) {
       return
     }
     refreshCaptures(hostname, request, false)
     const interval = setInterval(
-      () => refreshCaptures(hostname, selectedLoader()?.request),
+      () => refreshCaptures(hostname, selectedFunnel()?.request),
       2000,
     )
     onCleanup(() => clearInterval(interval))
@@ -1104,21 +1128,37 @@ function Playground() {
     if (!isHtmlevate() || htmlInputTab() !== 'tab') {
       return
     }
-    const loader = selectedLoader()
-    if (!loader) {
+    const funnel = selectedFunnel()
+    if (!funnel) {
       return
     }
-    const site = allSites.find((s) => s.dir === loader.site)
+    const site = allSites.find((s) => s.dir === funnel.site)
     if (!site) {
       return
     }
     void (async () => {
-      const tabs = await sendMessage('get-tabs-for-hostname', { hostname: site.hostname }, { context: 'background', tabId: 0 })
+      const tabs = await sendMessage(
+        'get-tabs-for-hostname',
+        { hostname: site.hostname },
+        { context: 'background', tabId: 0 },
+      )
       setLiveTabs(tabs)
       if (tabs.length > 0) {
-        const urlPattern = site.getLoaderRequest(loader.loader)?.url
-        const best = urlPattern
-          ? (tabs.find((t) => { try { return matchesGlob(urlPattern, new URL(t.url).pathname) } catch { return false } }) ?? tabs[0]!)
+        const urlPattern = funnel.request?.url
+        const urlPatterns = urlPattern
+          ? Array.isArray(urlPattern)
+            ? urlPattern
+            : [urlPattern]
+          : null
+        const best = urlPatterns
+          ? (tabs.find((t) => {
+              try {
+                const pathname = new URL(t.url).pathname
+                return urlPatterns.some((p) => matchesGlob(p, pathname))
+              } catch {
+                return false
+              }
+            }) ?? tabs[0]!)
           : tabs[0]!
         setSelectedLiveTab(best.tabId)
         await loadLiveTabHtml(best.tabId)
@@ -1126,32 +1166,32 @@ function Playground() {
     })()
   })
 
-  const loaderParam = new URLSearchParams(location.search).get('loader')
-  let loaderParamApplied = false
+  const funnelParam = new URLSearchParams(location.search).get('funnel')
+  let funnelParamApplied = false
   createEffect(() => {
-    if (loaderParam && !loaderParamApplied && loaders().length > 0) {
-      const match = loaders().find((l) => l.path === loaderParam)
+    if (funnelParam && !funnelParamApplied && funnels().length > 0) {
+      const match = funnels().find((l) => l.path === funnelParam)
       if (match) {
-        loaderParamApplied = true
-        selectLoader(match)
+        funnelParamApplied = true
+        selectFunnel(match)
       }
     }
   })
 
   createEffect(() => {
-    const loader = selectedLoader()
-    if (loader) {
-      setExpression(loader.expression)
+    const funnel = selectedFunnel()
+    if (funnel) {
+      setExpression(funnel.expression)
     }
   })
 
-  function selectLoader(loader: LoaderInfo) {
-    setSelectedLoader(loader)
+  function selectFunnel(funnel: FunnelInfo) {
+    setSelectedFunnel(funnel)
     setEvalResult(null)
     setWriteStatus('idle')
     setSelectedFixture(null)
     setSelectedCapture(null)
-    if (loader.format === 'htmlevate') {
+    if (funnel.format === 'htmlevate') {
       setHtmlInputTab('tab')
       setLiveTabs([])
       setSelectedLiveTab(null)
@@ -1206,7 +1246,7 @@ function Playground() {
     if (isHtmlevate()) {
       const html = htmlInput()
       const root = iframeBody()
-      const entity = selectedLoader()?.loader ?? ''
+      const entity = selectedFunnel()?.funnel ?? ''
       if (!expr || (!root && !html)) {
         setEvalResult(null)
         return
@@ -1242,7 +1282,7 @@ function Playground() {
   createEffect(() => {
     const expr = expression()
     const currentCaptures = captures()
-    const siblings = siblingLoaders()
+    const siblings = siblingFunnels()
     if (!expr || currentCaptures.length === 0) {
       return
     }
@@ -1296,20 +1336,23 @@ function Playground() {
     return () => clearTimeout(timer)
   })
 
+  const isDirty = () => expression() !== (selectedFunnel()?.expression ?? '')
+
   async function writeBack() {
-    const loader = selectedLoader()
-    if (!loader) {
+    const funnel = selectedFunnel()
+    if (!funnel) {
       return
     }
     setWriteStatus('saving')
     setWriteError(null)
     const res = await sendMessage(
-      'write-loader',
-      { path: loader.path, content: expression() },
+      'write-funnel',
+      { path: funnel.path, content: expression() },
       { context: 'background', tabId: 0 },
     )
     if (res.ok) {
       setWriteStatus('saved')
+      setSelectedFunnel({ ...funnel, expression: expression() })
       setTimeout(() => setWriteStatus('idle'), 2000)
     } else {
       setWriteStatus('error')
@@ -1341,28 +1384,30 @@ function Playground() {
     }
   }
 
-  const loadersBySite = (): SiteGroup[] => {
-    const all = loaders() ?? []
-    const sites: Record<string, Record<string, LoaderInfo[]>> = {}
+  const sites = (): SiteGroup[] => {
+    const all = funnels() ?? []
+    const siteMap: Record<string, Record<string, FunnelInfo[]>> = {}
     for (const l of all) {
-      sites[l.site] ??= {}
-      sites[l.site]![l.loader] ??= []
-      sites[l.site]![l.loader]!.push(l)
+      siteMap[l.site] ??= {}
+      siteMap[l.site]![l.funnel] ??= []
+      siteMap[l.site]![l.funnel]!.push(l)
     }
-    return Object.entries(sites).map(([site, groups]) => ({
+    return Object.entries(siteMap).map(([site, groups]) => ({
       site,
       hostname: allSites.find((s) => s.dir === site)?.hostname ?? site,
-      groups: Object.entries(groups),
+      groups: Object.entries(groups).sort(
+        ([, a], [, b]) => a.length - b.length,
+      ),
     }))
   }
 
-  const siblingLoaders = () => {
-    const loader = selectedLoader()
-    if (!loader) {
+  const siblingFunnels = () => {
+    const funnel = selectedFunnel()
+    if (!funnel) {
       return []
     }
-    return loaders().filter(
-      (l) => l.site === loader.site && l.loader === loader.loader,
+    return funnels().filter(
+      (l) => l.site === funnel.site && l.funnel === funnel.funnel,
     )
   }
 
@@ -1398,137 +1443,115 @@ function Playground() {
     )
   }
 
+  const ctx: PlaygroundState = {
+    funnels,
+    funnelsLoading,
+    selectedFunnel,
+    selectFunnel,
+    sites,
+    expression,
+    setExpression,
+    isDirty,
+    writeStatus,
+    writeError,
+    writeBack,
+    llmStatus,
+    llmNote,
+    setLlmNote,
+    generationAttempts,
+    dismissGeneration: () => {
+      setLlmStatus('idle')
+      setGenerationAttempts([])
+    },
+    canGenerate: () => selectedCapture() !== null,
+    generateJsonata,
+    evalResult,
+    inputTab,
+    setInputTab,
+    selectedFixture,
+    setSelectedFixture,
+    selectedCapture,
+    setSelectedCapture,
+    captures,
+    captureStatuses,
+    captureMatchedFiles,
+    newCaptureIds,
+    siblingFunnels,
+    fixtureJson,
+    captureJson,
+    resultJson,
+    isHtmlevate,
+    htmlInputTab,
+    setHtmlInputTab,
+    htmlInput,
+    setHtmlInput,
+    urlInput,
+    setUrlInput,
+    urlFetchStatus,
+    loadUrl,
+    iframeBody,
+    setIframeBody,
+    setIframeRef: (el) => {
+      iframeRef = el
+    },
+    onIframeLoad: (body, tab) => {
+      setIframeBody(body)
+      if (tab === 'url') {
+        setUrlFetchStatus(body ? 'idle' : 'error')
+      }
+    },
+    liveTabs,
+    selectedLiveTab,
+    liveTabStatus,
+    selectLiveTab,
+  }
+
   return (
-    <div class='h-screen overflow-hidden bg-background text-foreground font-sans flex flex-col'>
-      <div class='border-b border-border px-4 py-2 flex items-center gap-3'>
-        <span class='font-semibold text-sm'>Spatula Playground</span>
-        <Show when={IS_DEV}>
-          <span class='text-xs px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-600 dark:text-yellow-400'>
-            dev
-          </span>
-        </Show>
-      </div>
-
-      <Resizable class='flex flex-1 overflow-hidden min-h-0'>
-        <LoaderSidebar
-          loading={loadersLoading}
-          sites={loadersBySite}
-          selectedPath={() => selectedLoader()?.path}
-          onSelect={selectLoader}
-        />
-
-        <Resizable.Handle class='w-1 bg-border hover:bg-foreground/30 transition-colors cursor-col-resize' />
-
-        <Resizable.Panel
-          initialSize={0.85}
-          minSize={0.1}
-          class='flex overflow-hidden'
-        >
-          <Show
-            when={selectedLoader()}
-            fallback={
-              <div class='flex-1 flex items-center justify-center text-sm text-muted-foreground'>
-                Select a loader to get started
-              </div>
-            }
-          >
-            {(loader) => (
-              <Resizable class='flex-1 flex overflow-hidden'>
-                <EditorPanel
-                  loaderPath={() => loader().path}
-                  expression={expression}
-                  onExpressionChange={setExpression}
-                  writeStatus={writeStatus}
-                  writeError={writeError}
-                  onWriteBack={writeBack}
-                  llmStatus={llmStatus}
-                  llmNote={llmNote}
-                  onLlmNoteChange={setLlmNote}
-                  generationAttempts={generationAttempts}
-                  onDismissGeneration={() => {
-                    setLlmStatus('idle')
-                    setGenerationAttempts([])
-                  }}
-                  canGenerate={() => selectedCapture() !== null}
-                  onGenerate={generateJsonata}
-                  evalError={() => evalResult()?.error}
-                  errorPosition={() => parseErrorPosition(evalResult()?.error ?? '')}
-                />
-
-                <Resizable.Handle class='w-1 bg-border hover:bg-foreground/30 transition-colors cursor-col-resize' />
-
-                <InputPanel
-                  isHtmlevate={isHtmlevate}
-                  inputTab={inputTab}
-                  onInputTabChange={setInputTab}
-                  htmlInputTab={htmlInputTab}
-                  onHtmlInputTabChange={(tab) => {
-                    setHtmlInputTab(tab)
-                    setIframeBody(null)
-                    if (tab !== 'tab') {
-                      setHtmlInput('')
-                    }
-                  }}
-                  htmlInput={htmlInput}
-                  onHtmlInputChange={setHtmlInput}
-                  urlInput={urlInput}
-                  onUrlInputChange={setUrlInput}
-                  onLoadUrl={loadUrl}
-                  urlFetchStatus={urlFetchStatus}
-                  iframeBody={iframeBody}
-                  iframeRef={(el) => {
-                    iframeRef = el
-                  }}
-                  onIframeLoad={(body, tab) => {
-                    setIframeBody(body)
-                    if (tab === 'url') {
-                      setUrlFetchStatus(body ? 'idle' : 'error')
-                    }
-                  }}
-                  liveTabs={liveTabs}
-                  selectedLiveTab={selectedLiveTab}
-                  liveTabStatus={liveTabStatus}
-                  onSelectLiveTab={selectLiveTab}
-                  fixtures={() => loader().fixtures}
-                  selectedFixture={selectedFixture}
-                  onSelectFixture={(f) => {
-                    setSelectedFixture(f)
-                    setSelectedCapture(null)
-                  }}
-                  fixtureJson={fixtureJson}
-                  captures={captures}
-                  selectedCapture={selectedCapture}
-                  onSelectCapture={(c) => {
-                    setSelectedCapture(c)
-                    setSelectedFixture(null)
-                  }}
-                  onSelectCaptureWithLoader={(c, l) => {
-                    selectLoader(l)
-                    setSelectedCapture(c)
-                    setSelectedFixture(null)
-                  }}
-                  captureJson={captureJson}
-                  captureStatuses={captureStatuses}
-                  captureMatchedFiles={captureMatchedFiles}
-                  newCaptureIds={newCaptureIds}
-                  siblings={siblingLoaders}
-                />
-
-                <Resizable.Handle class='w-1 bg-border hover:bg-foreground/30 transition-colors cursor-col-resize' />
-
-                <ResultPanel
-                  evalResult={evalResult}
-                  resultJson={resultJson}
-                  expression={expression}
-                  selectedFixture={selectedFixture}
-                  selectedCapture={selectedCapture}
-                />
-              </Resizable>
-            )}
+    <PlaygroundContext.Provider value={ctx}>
+      <div class='h-screen overflow-hidden bg-background text-foreground font-sans flex flex-col'>
+        <div class='border-b border-border px-4 py-2 flex items-center gap-3'>
+          <span class='font-semibold text-sm'>Spatula Playground</span>
+          <Show when={IS_DEV}>
+            <span class='text-xs px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-600 dark:text-yellow-400'>
+              dev
+            </span>
           </Show>
-        </Resizable.Panel>
-      </Resizable>
-    </div>
+        </div>
+
+        <Resizable class='flex flex-1 overflow-hidden min-h-0'>
+          <FunnelSidebar />
+
+          <Resizable.Handle class='w-1 bg-border hover:bg-foreground/30 transition-colors cursor-col-resize' />
+
+          <Resizable.Panel
+            initialSize={0.85}
+            minSize={0.1}
+            class='flex overflow-hidden'
+          >
+            <Show
+              when={selectedFunnel()}
+              fallback={
+                <div class='flex-1 flex items-center justify-center text-sm text-muted-foreground'>
+                  Select a funnel to get started
+                </div>
+              }
+            >
+              <Resizable class='flex-1 flex overflow-hidden'>
+                <EditorPanel />
+
+                <Resizable.Handle class='w-1 bg-border hover:bg-foreground/30 transition-colors cursor-col-resize' />
+
+                <InputPanel />
+
+                <Resizable.Handle class='w-1 bg-border hover:bg-foreground/30 transition-colors cursor-col-resize' />
+
+                <ResultPanel />
+              </Resizable>
+            </Show>
+          </Resizable.Panel>
+        </Resizable>
+      </div>
+    </PlaygroundContext.Provider>
   )
 }
 

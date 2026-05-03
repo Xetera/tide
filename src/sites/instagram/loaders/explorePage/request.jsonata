@@ -1,3 +1,7 @@
+---
+method: GET
+url: "/api/v1/discover/web/explore_grid/"
+---
 sectional_items.layout_content.*.**.items.media.{
   /* Map media items to @instagram/post entities */
   "_entity": "@instagram/post",

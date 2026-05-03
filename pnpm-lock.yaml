@@ -82,20 +82,23 @@ importers:
         version: 1.1.15
       unocss:
         specifier: ^66.6.6
-        version: 66.6.6(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4))
+        version: 66.6.6(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))
       unocss-preset-animations:
         specifier: ^1.3.0
-        version: 1.3.0(@unocss/preset-wind3@66.6.6)(unocss@66.6.6(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)))
+        version: 1.3.0(@unocss/preset-wind3@66.6.6)(unocss@66.6.6(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)))
       webext-bridge:
         specifier: ^6.0.1
         version: 6.0.1
       webextension-polyfill:
         specifier: ^0.12.0
         version: 0.12.0
+      yaml:
+        specifier: ^2.8.4
+        version: 2.8.4
     devDependencies:
       '@crxjs/vite-plugin':
         specifier: 2.4.0
-        version: 2.4.0(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4))
+        version: 2.4.0(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))
       '@ohm-js/cli':
         specifier: ^2.0.1
         version: 2.0.1(ohm-js@17.5.0)
@@ -149,19 +152,19 @@ importers:
         version: 2.0.0(typescript@5.9.3)
       solid-devtools:
         specifier: ^0.34.5
-        version: 0.34.5(solid-js@1.9.11)(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4))
+        version: 0.34.5(solid-js@1.9.11)(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
       vite:
         specifier: ^8.0.0
-        version: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)
+        version: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)
       vite-plugin-solid:
         specifier: ^2.11.11
-        version: 2.11.11(solid-js@1.9.11)(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4))
+        version: 2.11.11(solid-js@1.9.11)(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))
       vitest:
         specifier: ^4.1.0
-        version: 4.1.0(@types/node@25.5.0)(@vitest/ui@4.1.0)(happy-dom@20.8.4)(jsdom@29.0.0)(msw@2.12.12(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4))
+        version: 4.1.0(@types/node@25.5.0)(@vitest/ui@4.1.0)(happy-dom@20.8.4)(jsdom@29.0.0)(msw@2.12.12(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))
       web-ext:
         specifier: ^10.0.0
         version: 10.0.0(jiti@2.6.1)
@@ -3502,6 +3505,11 @@ packages:
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
 
+  yaml@2.8.4:
+    resolution: {integrity: sha512-ml/JPOj9fOQK8RNnWojA67GbZ0ApXAUlN2UQclwv2eVgTgn7O9gg9o7paZWKMp4g0H3nTLtS9LVzhkpOFIKzog==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
+
   yargs-parser@21.1.1:
     resolution: {integrity: sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw==}
     engines: {node: '>=12'}
@@ -3724,7 +3732,7 @@ snapshots:
       '@floating-ui/dom': 1.7.6
       solid-js: 1.9.11
 
-  '@crxjs/vite-plugin@2.4.0(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4))':
+  '@crxjs/vite-plugin@2.4.0(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))':
     dependencies:
       '@rollup/pluginutils': 4.2.1
       '@webcomponents/custom-elements': 1.6.0
@@ -3742,7 +3750,7 @@ snapshots:
       react-refresh: 0.13.0
       rollup: 2.79.2
       rxjs: 7.5.7
-      vite: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)
+      vite: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)
     transitivePeerDependencies:
       - supports-color
 
@@ -4654,7 +4662,7 @@ snapshots:
     dependencies:
       '@unocss/core': 66.6.6
 
-  '@unocss/vite@66.6.6(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4))':
+  '@unocss/vite@66.6.6(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))':
     dependencies:
       '@jridgewell/remapping': 2.3.5
       '@unocss/config': 66.6.6
@@ -4665,7 +4673,7 @@ snapshots:
       pathe: 2.0.3
       tinyglobby: 0.2.15
       unplugin-utils: 0.3.1
-      vite: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)
+      vite: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)
 
   '@vitest/expect@4.1.0':
     dependencies:
@@ -4676,14 +4684,14 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.0
 
-  '@vitest/mocker@4.1.0(msw@2.12.12(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4))':
+  '@vitest/mocker@4.1.0(msw@2.12.12(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))':
     dependencies:
       '@vitest/spy': 4.1.0
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
       msw: 2.12.12(@types/node@25.5.0)(typescript@5.9.3)
-      vite: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)
+      vite: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)
 
   '@vitest/pretty-format@4.1.0':
     dependencies:
@@ -4712,7 +4720,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.1.0
-      vitest: 4.1.0(@types/node@25.5.0)(@vitest/ui@4.1.0)(happy-dom@20.8.4)(jsdom@29.0.0)(msw@2.12.12(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4))
+      vitest: 4.1.0(@types/node@25.5.0)(@vitest/ui@4.1.0)(happy-dom@20.8.4)(jsdom@29.0.0)(msw@2.12.12(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))
 
   '@vitest/utils@4.1.0':
     dependencies:
@@ -6289,7 +6297,7 @@ snapshots:
       mrmime: 2.0.1
       totalist: 3.0.1
 
-  solid-devtools@0.34.5(solid-js@1.9.11)(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)):
+  solid-devtools@0.34.5(solid-js@1.9.11)(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)):
     dependencies:
       '@babel/core': 7.29.0
       '@babel/plugin-syntax-typescript': 7.28.6(@babel/core@7.29.0)
@@ -6298,7 +6306,7 @@ snapshots:
       '@solid-devtools/shared': 0.20.0(solid-js@1.9.11)
       solid-js: 1.9.11
     optionalDependencies:
-      vite: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)
+      vite: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)
     transitivePeerDependencies:
       - supports-color
 
@@ -6548,13 +6556,13 @@ snapshots:
 
   universalify@2.0.1: {}
 
-  unocss-preset-animations@1.3.0(@unocss/preset-wind3@66.6.6)(unocss@66.6.6(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4))):
+  unocss-preset-animations@1.3.0(@unocss/preset-wind3@66.6.6)(unocss@66.6.6(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))):
     dependencies:
-      unocss: 66.6.6(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4))
+      unocss: 66.6.6(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))
     optionalDependencies:
       '@unocss/preset-wind3': 66.6.6
 
-  unocss@66.6.6(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)):
+  unocss@66.6.6(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)):
     dependencies:
       '@unocss/cli': 66.6.6
       '@unocss/core': 66.6.6
@@ -6572,7 +6580,7 @@ snapshots:
       '@unocss/transformer-compile-class': 66.6.6
       '@unocss/transformer-directives': 66.6.6
       '@unocss/transformer-variant-group': 66.6.6
-      '@unocss/vite': 66.6.6(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4))
+      '@unocss/vite': 66.6.6(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))
     transitivePeerDependencies:
       - vite
 
@@ -6629,7 +6637,7 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vite-plugin-solid@2.11.11(solid-js@1.9.11)(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)):
+  vite-plugin-solid@2.11.11(solid-js@1.9.11)(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)):
     dependencies:
       '@babel/core': 7.29.0
       '@types/babel__core': 7.20.5
@@ -6637,12 +6645,12 @@ snapshots:
       merge-anything: 5.1.7
       solid-js: 1.9.11
       solid-refresh: 0.6.3(solid-js@1.9.11)
-      vite: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)
-      vitefu: 1.1.2(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4))
+      vite: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)
+      vitefu: 1.1.2(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))
     transitivePeerDependencies:
       - supports-color
 
-  vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4):
+  vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4):
     dependencies:
       '@oxc-project/runtime': 0.115.0
       lightningcss: 1.32.0
@@ -6655,15 +6663,16 @@ snapshots:
       fsevents: 2.3.3
       jiti: 2.6.1
       terser: 5.30.4
+      yaml: 2.8.4
 
-  vitefu@1.1.2(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)):
+  vitefu@1.1.2(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)):
     optionalDependencies:
-      vite: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)
+      vite: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)
 
-  vitest@4.1.0(@types/node@25.5.0)(@vitest/ui@4.1.0)(happy-dom@20.8.4)(jsdom@29.0.0)(msw@2.12.12(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)):
+  vitest@4.1.0(@types/node@25.5.0)(@vitest/ui@4.1.0)(happy-dom@20.8.4)(jsdom@29.0.0)(msw@2.12.12(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)):
     dependencies:
       '@vitest/expect': 4.1.0
-      '@vitest/mocker': 4.1.0(msw@2.12.12(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4))
+      '@vitest/mocker': 4.1.0(msw@2.12.12(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))
       '@vitest/pretty-format': 4.1.0
       '@vitest/runner': 4.1.0
       '@vitest/snapshot': 4.1.0
@@ -6680,7 +6689,7 @@ snapshots:
       tinyexec: 1.0.4
       tinyglobby: 0.2.15
       tinyrainbow: 3.1.0
-      vite: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)
+      vite: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 25.5.0
@@ -6842,6 +6851,8 @@ snapshots:
   y18n@5.0.8: {}
 
   yallist@3.1.1: {}
+
+  yaml@2.8.4: {}
 
   yargs-parser@21.1.1: {}
 

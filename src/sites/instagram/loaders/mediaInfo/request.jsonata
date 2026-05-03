@@ -1,3 +1,7 @@
+---
+method: GET
+url: "/api/v1/media/*/info/"
+---
 [
   items.{
     "_entity": "@instagram/post",

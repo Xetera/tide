@@ -1,30 +1,44 @@
 import { sendMessage } from 'webext-bridge/content-script'
 import { EntityValidator } from '~/extraction/entity-validator'
 import type { SiteDefinition } from '~/site-spec/types'
+import type { ScrapeResult } from '~/extraction/scrape-result'
 
 let validator: EntityValidator | null = null
+let onNetworkResult: ((result: ScrapeResult) => void) | null = null
 
-export function registerLoaders(sites: SiteDefinition[]) {
+export function registerFunnels(
+  sites: SiteDefinition[],
+  onResult: (result: ScrapeResult) => void,
+) {
+  onNetworkResult = onResult
   validator = new EntityValidator(sites)
-  const loaders: Record<
+  const funnels: Record<
     string,
     {
-      url: string
+      url: string | string[]
       method: string
-      expressions: {
+      funnels: {
         file: string
-        expression: string
+        source: string
         format: 'jsonata' | 'htmlevate'
       }[]
     }
   > = {}
   for (const site of sites) {
-    for (const { name, url, method, expressions } of site.getNetworkLoaders()) {
-      loaders[name] = { url, method, expressions }
+    for (const group of site.getNetworkFunnels()) {
+      funnels[group.name] = {
+        url: group.request.url,
+        method: group.request.method,
+        funnels: group.funnels.map((l) => ({
+          file: l.file,
+          source: l.source,
+          format: l.format,
+        })),
+      }
     }
   }
   window.postMessage(
-    { __spatula: true, kind: 'register-loaders', loaders },
+    { __spatula: true, kind: 'register-funnels', funnels },
     '*',
   )
 }
@@ -34,8 +48,8 @@ window.addEventListener('message', (evt) => {
     return
   }
 
-  if (evt.data.kind === 'loader-result') {
-    const { name, file, result, url, body } = evt.data as {
+  if (evt.data.kind === 'funnel-result') {
+    const { name, file, result, body } = evt.data as {
       name: string
       file: string
       result: unknown
@@ -43,15 +57,11 @@ window.addEventListener('message', (evt) => {
       body: unknown
     }
     if (!validator) {
-      console.error(`loader-result was called before validator was assigned`)
+      console.error(`funnel-result was called before validator was assigned`)
       return
     }
 
-    const { patches: rawPatches, errors } = validator.parsePatches(result, {
-      loader: name,
-      file,
-      url,
-    })
+    const { patches: rawPatches, errors } = validator.parsePatches(result)
     const { patches, warnings } = validator.applyIdentityExprs(rawPatches)
 
     if (errors.length > 0) {
@@ -66,13 +76,20 @@ window.addEventListener('message', (evt) => {
       console.warn(`[spatula] identity warnings from ${name}/${file}`, warnings)
     }
     if (patches.length > 0) {
-      sendMessage('entity-patches', {
+      const patchCounts = new Map<string, number>()
+      for (const patch of patches) {
+        patchCounts.set(
+          patch._entity,
+          (patchCounts.get(patch._entity) ?? 0) + 1,
+        )
+      }
+      onNetworkResult?.({
         patches,
         source: { kind: 'passive' },
         warnings: [],
-        scrapeSource: { kind: 'network', loader: name, file },
+        scrapeSource: { kind: 'network', funnel: name, file },
         highlights: [],
-        patchCounts: new Map(),
+        patchCounts,
         errors: [],
       })
     }

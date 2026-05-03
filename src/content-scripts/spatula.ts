@@ -1,11 +1,11 @@
 import { sendMessage } from 'webext-bridge/content-script'
 import { allSites } from '~/sites'
-import { loaderProvider } from '~/loaders'
-import { DebugUIManager } from '~/sources/debug-ui-manager'
-import { HtmlPageSource } from '~/sources/html-page-source'
-import { registerLoaders } from '~/sources/network-source'
+import { funnelProvider } from '~/site-spec/funnel-loader'
+import { DebugUIManager } from '~/sources/debug/debug-ui-manager'
+import { HtmlPageSource } from '~/sources/runtime/html-page-source'
+import { registerFunnels } from '~/sources/runtime/network-source'
 import { EntityValidator } from '~/extraction/entity-validator'
-import type { ScrapeResult } from '~/sources/page-rule-runner'
+import type { ScrapeResult } from '~/extraction/scrape-result'
 import './stream-capture'
 
 ;(async () => {
@@ -16,17 +16,17 @@ import './stream-capture'
       'debug:visual': false,
     })
 
-    const networkLoaders = allSites.flatMap((s) => {
-      const loaders = s.getNetworkLoaders()
-      for (const l of loaders) {
+    const networkFunnels = allSites.flatMap((s) => {
+      const funnels = s.getNetworkFunnels()
+      for (const f of funnels) {
         console.log(
-          `[spatula] network loader: ${s.hostname} "${l.name}" → ${l.urlPattern}`,
+          `[spatula] network funnel: ${s.hostname} "${f.name}" → ${f.request.url}`,
         )
       }
-      return loaders
+      return funnels
     })
 
-    const debugUI = new DebugUIManager(networkLoaders)
+    const debugUI = new DebugUIManager(networkFunnels)
     debugUI.setEnabled(visualDebug as boolean)
 
     chrome.storage.local.onChanged.addListener((changes) => {
@@ -44,6 +44,7 @@ import './stream-capture'
 
     chrome.runtime.onMessage.addListener((message) => {
       if (message?.type === 'url-update') {
+        debugUI.clear()
         source.stop()
         source.start()
       }
@@ -54,32 +55,34 @@ import './stream-capture'
 
     console.group('[spatula] running')
     console.log('[spatula] injecting page source')
-    console.log('allsides', allSites)
-    const pageLoaders = allSites.flatMap((s) => s.getPageLoaders())
+    const pageFunnels = allSites.flatMap((s) => s.getPageFunnels())
     console.log(
       '[spatula] loaded sites',
       allSites.map((s) => s.hostname),
     )
     console.log(
-      '[spatula] loaded page loaders',
-      pageLoaders.map((p) => p.urlPattern),
+      '[spatula] loaded page funnels',
+      pageFunnels.map((p) => p.urlPattern),
     )
 
-    registerLoaders(allSites)
+    registerFunnels(allSites, (result) => {
+      sendMessage('entity-patches', result)
+      debugUI.onScrapeResult(result)
+    })
     const validator = new EntityValidator(allSites)
-    const source = new HtmlPageSource(pageLoaders, validator, onEmit)
+    const source = new HtmlPageSource(pageFunnels, validator, onEmit)
     source.start()
 
     if (import.meta.hot) {
       import.meta.hot.on(
         'spatula:source-update',
         ({ path, content }: { path: string; content: string }) => {
-          const changed = loaderProvider.patchEntry(path, content)
+          const changed = funnelProvider.patchEntry(path, content)
           if (!changed) {
             return
           }
-          const updatedPageLoaders = allSites.flatMap((s) => s.getPageLoaders())
-          source.updateRules(updatedPageLoaders)
+          const updatedPageFunnels = allSites.flatMap((s) => s.getPageFunnels())
+          source.updateRules(updatedPageFunnels)
           console.log(`[spatula] hot-reloaded: ${path}`)
         },
       )

@@ -72,6 +72,7 @@ export default defineConfig({
     },
     {
       name: 'spatula-source-hmr',
+      enforce: 'pre',
       configureServer(server) {
         server.watcher.add('src/**/*.jsonata')
         server.watcher.add('src/**/*.htmlevate')
@@ -91,13 +92,7 @@ export default defineConfig({
           event: 'spatula:source-update',
           data: { path: relPath, content },
         })
-        const mods = server.moduleGraph.getModulesByFile(file)
-        if (!mods) {
-          return
-        }
-        for (const mod of mods) {
-          await server.moduleGraph.invalidateModule(mod)
-        }
+        return []
       },
     },
     crx({

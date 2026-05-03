@@ -1,10 +1,10 @@
 import { isCloudflareChallengePage } from './detection'
-import type { PageLoader } from '~/site-spec/types'
+import type { PageFunnel } from '~/site-spec/types'
 
 export class PageEvaluator {
   constructor(
     private document: Document,
-    private readonly pageLoaders: PageLoader[],
+    private readonly pageFunnels: PageFunnel[],
   ) {}
 
   updateDocument(document: Document) {
@@ -22,12 +22,9 @@ export class PageEvaluator {
 
     const url = new URL(this.document.URL)
 
-    for (const loader of this.pageLoaders) {
-      if (loader.hostname && url.hostname !== loader.hostname) {
-        continue
-      }
-      if (loader.matchesUrl(url.pathname)) {
-        return { kind: 'match', loader }
+    for (const funnel of this.pageFunnels) {
+      if (funnel.matchesUrl(url.pathname)) {
+        return { kind: 'match', funnel }
       }
     }
 
@@ -35,14 +32,20 @@ export class PageEvaluator {
   }
 }
 
-export type PageCheckResult = MatchingPageLoader | NoMatchFailure
+export type PageCheckResult = MatchingPageFunnel | NoMatchFailure
 
-export type MatchingPageLoader = {
+export type MatchingPageFunnel = {
   kind: 'match'
-  loader: PageLoader
+  funnel: PageFunnel
 }
+
+export type WellKnownFailureProvider = 'cloudflare'
 
 export type NoMatchFailure =
   | { kind: 'fail'; reason: 'no-matching-rule' }
   | { kind: 'fail'; reason: 'not-found' }
-  | { kind: 'fail'; reason: 'well-known-response'; response: 'cloudflare' }
+  | {
+      kind: 'fail'
+      reason: 'well-known-response'
+      response: WellKnownFailureProvider
+    }

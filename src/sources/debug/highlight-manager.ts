@@ -1,6 +1,5 @@
-import type { HighlightEntry } from './page-rule-runner'
-import { LegendOverlay, strokeColor, labelBg, labelFg } from './legend-overlay'
-import type { LoaderFile } from './legend-overlay'
+import type { HighlightEntry } from '~/extraction/scrape-result'
+import { strokeColor, labelBg, labelFg } from './legend-overlay'
 
 const CANVAS_ID = 'spatula-highlight-canvas'
 const HUE_STEP = 37
@@ -40,37 +39,34 @@ function getComputedBorderRadii(
   ]
 }
 
+export interface HighlightManagerCallbacks {
+  opacity(): number
+  isHidden(entity: string): boolean
+  onDraw(
+    hues: Map<string, number>,
+    counts: Map<string, number>,
+    errors: string[],
+  ): void
+}
+
 export class HighlightManager {
   #active = true
   #entries: readonly HighlightEntry[] = []
   #patchCounts: Map<string, number> | null = null
   #errors: string[] = []
-  #loaderFiles: Array<LoaderFile & { key: string }> = []
-  #activeLoaderKey: string | null = null
   #hues = new Map<string, number>()
   #canvas: HTMLCanvasElement | null = null
   #raf = 0
   #observer: MutationObserver | null = null
   #listeners: (() => void)[] = []
-  #legend = new LegendOverlay()
+  #callbacks: HighlightManagerCallbacks
 
-  setLoaderFiles(files: Array<{ name: string; path: string; key: string; format: string; patchCount?: number }>) {
-    this.#loaderFiles = files.map((f) => ({ ...f, active: f.key === this.#activeLoaderKey }))
-    this.#legend.setLoaderFiles(this.#loaderFiles)
+  constructor(callbacks: HighlightManagerCallbacks) {
+    this.#callbacks = callbacks
   }
 
-  setActiveLoader(loaderKey: string | null) {
-    this.#activeLoaderKey = loaderKey
-    this.#loaderFiles = this.#loaderFiles.map((f) => ({ ...f, active: f.key === loaderKey }))
-    this.#legend.setLoaderFiles(this.#loaderFiles)
-  }
-
-  updateLoaderFileCounts(counts: Map<string, number>) {
-    this.#loaderFiles = this.#loaderFiles.map((f) => {
-      const count = counts.get(f.key)
-      return count !== undefined ? { ...f, patchCount: count } : f
-    })
-    this.#legend.setLoaderFiles(this.#loaderFiles)
+  scheduleRedraw() {
+    this.#scheduleDraw()
   }
 
   toggle(entries: readonly HighlightEntry[]) {
@@ -81,22 +77,11 @@ export class HighlightManager {
     }
   }
 
-  applyOrMount(
+  apply(
     entries: readonly HighlightEntry[],
     patchCounts?: Map<string, number>,
     errors?: string[],
   ) {
-    if (entries.length > 0) {
-      void this.apply(entries, patchCounts, errors)
-    } else {
-      void this.#legend.mount().then(() => {
-        this.#legend.setLoaderFiles(this.#loaderFiles)
-        this.#legend.update(new Map(), new Map(), errors ?? [])
-      })
-    }
-  }
-
-  async apply(entries: readonly HighlightEntry[], patchCounts?: Map<string, number>, errors?: string[]) {
     this.clear()
     this.#active = true
     this.#entries = entries
@@ -107,9 +92,6 @@ export class HighlightManager {
       hueFor(label.entity, this.#hues)
     }
     this.#ensureCanvas()
-    await this.#legend.mount()
-    this.#legend.setLoaderFiles(this.#loaderFiles)
-    this.#legend.onRedraw = () => this.#scheduleDraw()
     this.#scheduleDraw()
     this.#observe()
   }
@@ -120,7 +102,6 @@ export class HighlightManager {
     cancelAnimationFrame(this.#raf)
     this.#canvas?.remove()
     this.#canvas = null
-    this.#legend.unmount()
     this.#observer?.disconnect()
     this.#observer = null
     for (const off of this.#listeners) {
@@ -203,7 +184,7 @@ export class HighlightManager {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
 
-    const opacity = this.#legend.opacity
+    const opacity = this.#callbacks.opacity()
     const drawn = new Map<
       Element,
       {
@@ -216,7 +197,7 @@ export class HighlightManager {
     >()
 
     for (const { element, label, isArrayItem } of this.#entries) {
-      if (this.#legend.isHidden(label.entity)) {
+      if (this.#callbacks.isHidden(label.entity)) {
         continue
       }
       const rect = element.getBoundingClientRect()
@@ -231,7 +212,11 @@ export class HighlightManager {
 
       const existing = drawn.get(element)
       if (existing) {
-        if (!existing.labels.some((l) => l.entity === label.entity && l.field === label.field)) {
+        if (
+          !existing.labels.some(
+            (l) => l.entity === label.entity && l.field === label.field,
+          )
+        ) {
           existing.labels.push(label)
         }
       } else {
@@ -305,6 +290,6 @@ export class HighlightManager {
         counts.set(entity, 1)
       }
     }
-    this.#legend.update(this.#hues, counts, this.#errors)
+    this.#callbacks.onDraw(this.#hues, counts, this.#errors)
   }
 }

@@ -12,15 +12,6 @@ import {
 } from 'ohm-js';
 
 export interface HTMLevateActionDict<T> extends BaseActionDict<T> {
-  Document?: (this: NonterminalNode, arg0: IterationNode, arg1: NonterminalNode) => T;
-  frontmatterEntry?: (this: NonterminalNode, arg0: NonterminalNode, arg1: IterationNode, arg2: TerminalNode, arg3: IterationNode, arg4: NonterminalNode, arg5: NonterminalNode) => T;
-  frontmatterValue_array?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode) => T;
-  frontmatterValue_scalar?: (this: NonterminalNode, arg0: NonterminalNode) => T;
-  frontmatterValue?: (this: NonterminalNode, arg0: NonterminalNode) => T;
-  frontmatterKey?: (this: NonterminalNode, arg0: NonterminalNode | TerminalNode, arg1: IterationNode) => T;
-  frontmatterScalar?: (this: NonterminalNode, arg0: IterationNode) => T;
-  frontmatterSep?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
-  newline?: (this: NonterminalNode, arg0: TerminalNode) => T;
   Expr?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   Array?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode) => T;
   Object?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode) => T;
@@ -44,7 +35,7 @@ export interface HTMLevateActionDict<T> extends BaseActionDict<T> {
   Source_rootRef?: (this: NonterminalNode, arg0: TerminalNode) => T;
   Source?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   ContextRef?: (this: NonterminalNode, arg0: TerminalNode) => T;
-  EachSelector?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: TerminalNode) => T;
+  EachSelector?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: TerminalNode, arg4: IterationNode) => T;
   SingleSelector?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: TerminalNode, arg4: IterationNode) => T;
   SelectorBody?: (this: NonterminalNode, arg0: IterationNode) => T;
   SelectorChar_nested?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode) => T;

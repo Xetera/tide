@@ -49,9 +49,9 @@ pub fn image_identity(media: MediaRecord) -> Result(String, IdentityError) {
   })
 }
 
-pub fn video_identity(media: MediaRecord) -> Result(String, IdentityError) {
+fn video_identity_from_efg(url: String) -> Result(String, IdentityError) {
   use efg <- result.try(
-    shared.get_query_param(media.url, "efg")
+    shared.get_query_param(url, "efg")
     |> result.map_error(types.err("missing efg query param")),
   )
   use decoded <- result.try(
@@ -62,4 +62,10 @@ pub fn video_identity(media: MediaRecord) -> Result(String, IdentityError) {
   json.parse(decoded, decoder)
   |> result.map(int.to_string)
   |> result.map_error(types.err("xpv_asset_id not found in efg"))
+}
+
+pub fn video_identity(media: MediaRecord) -> Result(String, IdentityError) {
+  result.lazy_or(video_identity_from_efg(media.url), fn() {
+    image_identity(media)
+  })
 }

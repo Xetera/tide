@@ -1,8 +1,7 @@
 import dayjs from 'dayjs'
 import { onMessage, sendMessage } from 'webext-bridge/background'
 import { log, withScrapeLog } from '~/background/backend-logger'
-import { scrapeSourceLoaderKey } from '~/shared'
-import type { ScrapeSource } from '~/shared'
+import { scrapeSourceFunnelKey, type ScrapeSource } from '~/shared/log'
 import { flashError, flashSuccess } from '~/background/badge'
 import type { ContentScriptTracker } from '~/background/content-script-tracker'
 import { Job } from './job'
@@ -18,7 +17,7 @@ import type {
   ResourcesResponse,
 } from '~/site-spec/types'
 import { ServerAutonomy } from '~/site-spec/types'
-import type { ScrapeResult } from '~/sources/page-rule-runner'
+import type { ScrapeResult } from '~/extraction/scrape-result'
 
 const PRECONDITION_FAILED = 412
 
@@ -238,7 +237,7 @@ export class Client {
       return
     }
     console.log(
-      `[spatula] scraped${scrapeSource ? ` ${scrapeSourceLoaderKey(scrapeSource) ?? scrapeSource.kind}` : ''}`,
+      `[spatula] scraped${scrapeSource ? ` ${scrapeSourceFunnelKey(scrapeSource) ?? scrapeSource.kind}` : ''}`,
       patches,
     )
     const body: JobResult = {

@@ -1,12 +1,12 @@
 import PQueue from 'p-queue'
 import {
   EVENTS_KEY,
-  generateUID,
   type Log,
   type PlainLog,
   type ScrapeLog,
   type ScrapeLogStatus,
-} from '~/shared'
+} from '~/shared/log'
+import { generateUID } from '~/shared/uid'
 
 const MAX_LOG_RETENTION = 200
 const q = new PQueue()

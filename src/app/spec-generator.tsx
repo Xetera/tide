@@ -1,6 +1,6 @@
 import { For, Show, createSignal, onMount } from 'solid-js'
 import { sendMessage } from 'webext-bridge/popup'
-import type { CaptureEntry, LoaderMatchResult } from '~/generation/types'
+import type { CaptureEntry, FunnelMatchResult } from '~/generation/types'
 
 function relativeTime(ts: number): string {
   const diff = Date.now() - ts
@@ -13,8 +13,8 @@ function relativeTime(ts: number): string {
   return `${Math.floor(diff / 3_600_000)}h ago`
 }
 
-function MatchResult({ result }: { result: LoaderMatchResult }) {
-  const label = `${result.loader} / ${result.file}`
+function MatchResult({ result }: { result: FunnelMatchResult }) {
+  const label = `${result.funnel} / ${result.file}`
   const [open, setOpen] = createSignal(false)
 
   return (
@@ -31,7 +31,7 @@ function MatchResult({ result }: { result: LoaderMatchResult }) {
         <Show when={result.matched}>
           <span class='text-muted-foreground shrink-0'>
             {
-              (result as Extract<LoaderMatchResult, { matched: true }>).patches
+              (result as Extract<FunnelMatchResult, { matched: true }>).patches
                 .length
             }{' '}
             patches
@@ -40,7 +40,7 @@ function MatchResult({ result }: { result: LoaderMatchResult }) {
         <Show
           when={
             !result.matched &&
-            (result as Extract<LoaderMatchResult, { matched: false }>).error
+            (result as Extract<FunnelMatchResult, { matched: false }>).error
           }
         >
           <span class='text-destructive shrink-0'>error</span>
@@ -49,12 +49,12 @@ function MatchResult({ result }: { result: LoaderMatchResult }) {
       <Show when={open()}>
         <div class='border-t border-border'>
           <Show when={result.matched}>
-            <Show when={(result as Extract<LoaderMatchResult, { matched: true }>).validationErrors.length > 0}>
+            <Show when={(result as Extract<FunnelMatchResult, { matched: true }>).validationErrors.length > 0}>
               <div class='px-2 py-1.5 flex flex-col gap-0.5'>
                 <span class='text-muted-foreground mb-0.5'>
                   validation errors
                 </span>
-                <For each={(result as Extract<LoaderMatchResult, { matched: true }>).validationErrors}>
+                <For each={(result as Extract<FunnelMatchResult, { matched: true }>).validationErrors}>
                   {(err) => (
                     <span class='font-mono text-destructive'>{err}</span>
                   )}
@@ -62,13 +62,13 @@ function MatchResult({ result }: { result: LoaderMatchResult }) {
               </div>
             </Show>
             <pre class='px-2 py-2 font-mono text-muted-foreground whitespace-pre-wrap overflow-auto max-h-64'>
-              {JSON.stringify((result as Extract<LoaderMatchResult, { matched: true }>).patches, null, 2)}
+              {JSON.stringify((result as Extract<FunnelMatchResult, { matched: true }>).patches, null, 2)}
             </pre>
           </Show>
           <Show when={!result.matched}>
-            <Show when={(result as Extract<LoaderMatchResult, { matched: false }>).error}>
+            <Show when={(result as Extract<FunnelMatchResult, { matched: false }>).error}>
               <div class='px-2 py-1.5'>
-                <span class='font-mono text-destructive'>{(result as Extract<LoaderMatchResult, { matched: false }>).error}</span>
+                <span class='font-mono text-destructive'>{(result as Extract<FunnelMatchResult, { matched: false }>).error}</span>
               </div>
             </Show>
           </Show>
@@ -87,7 +87,7 @@ function CaptureRow({
   selected: boolean
   onSelect: () => void
 }) {
-  const [matches, setMatches] = createSignal<LoaderMatchResult[] | null>(null)
+  const [matches, setMatches] = createSignal<FunnelMatchResult[] | null>(null)
   const [loading, setLoading] = createSignal(false)
   const [expanded, setExpanded] = createSignal(false)
 
@@ -147,7 +147,7 @@ function CaptureRow({
             when={matches()!.some(
               (r) =>
                 r.matched &&
-                (r as Extract<LoaderMatchResult, { matched: true }>)
+                (r as Extract<FunnelMatchResult, { matched: true }>)
                   .validationErrors.length > 0,
             )}
           >
@@ -186,19 +186,19 @@ function CaptureRow({
           </For>
           <Show when={matches()!.every((r) => !r.matched)}>
             <p class='text-muted-foreground px-1 py-0.5'>
-              No loaders matched this request.
+              No funnels matched this request.
             </p>
           </Show>
           <Show
             when={matches()!.some(
               (r) =>
                 !r.matched &&
-                (r as Extract<LoaderMatchResult, { matched: false }>).error,
+                (r as Extract<FunnelMatchResult, { matched: false }>).error,
             )}
           >
             <details class='mt-0.5'>
               <summary class='cursor-pointer text-muted-foreground select-none px-1 py-0.5 hover:text-foreground'>
-                {matches()!.filter((r) => !r.matched).length} unmatched loaders
+                {matches()!.filter((r) => !r.matched).length} unmatched funnels
               </summary>
               <div class='flex flex-col gap-1.5 mt-1.5'>
                 <For each={matches()!.filter((r) => !r.matched)}>

@@ -1,3 +1,7 @@
+---
+method: GET
+url: "/ajax/mapSearch/classified/markers/*"
+---
 [
   /* Map the main listing entity */
   {
