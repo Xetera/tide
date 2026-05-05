@@ -107,7 +107,7 @@ function parseAllEntries(): {
       const { frontmatter } = parseFrontmatter(expression)
       const url = frontmatter.url
       if (typeof url !== 'string' && !(Array.isArray(url) && url.every((u) => typeof u === 'string'))) {
-        console.warn(`[spatula] ${path}: missing required frontmatter field "url"`)
+        console.warn(`[tide] ${path}: missing required frontmatter field "url"`)
         return []
       }
       return [entry]
@@ -325,7 +325,7 @@ export const funnelProvider = new FunnelProvider(
 
 if (import.meta.hot) {
   import.meta.hot.on(
-    'spatula:source-update',
+    'tide:source-update',
     ({ path, content }: { path: string; content: string }) => {
       funnelProvider.patchEntry(path, content)
     },

@@ -4,7 +4,7 @@ const isFirefox = process.env.BROWSER === 'firefox'
 
 export default defineManifest({
   manifest_version: 3,
-  name: 'Spatula',
+  name: 'Tide',
   version: '1.0.0',
   action: { default_popup: 'index.html' },
   browser_specific_settings: {
@@ -50,7 +50,7 @@ export default defineManifest({
       ? [
           {
             matches: ['<all_urls>'],
-            js: ['src/content-scripts/spatula.ts'],
+            js: ['src/content-scripts/tide.ts'],
             run_at: 'document_idle' as const,
             all_frames: true,
           },

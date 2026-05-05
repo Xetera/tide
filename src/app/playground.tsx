@@ -1023,7 +1023,7 @@ function Playground() {
       }
       setCaptures(entries)
     } catch (err) {
-      console.error('[spatula] get-captures failed', err)
+      console.error('[tide] get-captures failed', err)
     }
   }
 
@@ -1095,7 +1095,7 @@ function Playground() {
     try {
       setCaptureHostname(new URL(tab.url).hostname)
     } catch (err) {
-      console.error('[spatula] onMount error', err)
+      console.error('[tide] onMount error', err)
     }
   })
 
@@ -1510,7 +1510,7 @@ function Playground() {
     <PlaygroundContext.Provider value={ctx}>
       <div class='h-screen overflow-hidden bg-background text-foreground font-sans flex flex-col'>
         <div class='border-b border-border px-4 py-2 flex items-center gap-3'>
-          <span class='font-semibold text-sm'>Spatula Playground</span>
+          <span class='font-semibold text-sm'>Tide Playground</span>
           <Show when={IS_DEV}>
             <span class='text-xs px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-600 dark:text-yellow-400'>
               dev

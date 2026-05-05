@@ -69,7 +69,7 @@ for (const entity of allEntities) {
 
 const schema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
-  $id: 'https://raw.githubusercontent.com/Xetera/spatula/main/schemas/entities.json',
+  $id: 'https://raw.githubusercontent.com/Xetera/tide/main/schemas/entities.json',
   type: 'array',
   items: {
     oneOf: allEntities.map((entity) => ({

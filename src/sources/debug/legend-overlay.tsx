@@ -154,7 +154,7 @@ const LEGEND_CSS = `
 export function openInPlayground(loader: Funnel): void {
   const url = chrome.runtime.getURL(`playground.html?funnel=${encodeURIComponent(loader.path)}`)
   sendMessage('open-tab', { url }, { context: 'background', tabId: 0 }).catch((err) =>
-    console.error('[spatula] open-tab failed', err),
+    console.error('[tide] open-tab failed', err),
   )
 }
 
@@ -316,7 +316,7 @@ function LegendComponent(props: {
   return (
     <div class={`legend${collapsed() ? ' collapsed' : ''}${dragging() ? ' dragging' : ''}`}>
       <div class='handle' on:mousedown={onDragStart} on:touchstart={onTouchStart}>
-        <span class='handle-title'>Spatula</span>
+        <span class='handle-title'>Tide</span>
         <div class='handle-dots'>
           <span><i /><i /><i /></span>
           <span><i /><i /><i /></span>

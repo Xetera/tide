@@ -1,4 +1,5 @@
 import { createMemo, createResource, createSignal } from 'solid-js'
+import { sendMessage } from 'webext-bridge/popup'
 import {
   TextField,
   TextFieldDescription,
@@ -83,11 +84,11 @@ export function Pool() {
   )
 
   const [reachable] = createResource(
-    () => (hasCredentials() ? `${serverUrl()}/api/health` : null),
-    async (url) => {
+    () => (hasCredentials() ? true : null),
+    async () => {
       try {
-        const res = await fetch(url, { signal: AbortSignal.timeout(3000) })
-        return res.ok
+        const result = await sendMessage('heartbeat', null, { context: 'background', tabId: 0 }) as { ok: boolean } | null
+        return result?.ok ?? false
       } catch {
         return false
       }
@@ -120,7 +121,7 @@ export function Pool() {
         <div class='flex gap-2'>
           <TextField
             type='url'
-            placeholder='https://scrapeer.example.com/api/pool/.../join?token=...'
+            placeholder='https://shoal.example.com/api/pool/.../join?token=...'
             value={inviteUrl()}
             onInput={(e) => setInviteUrl(e.currentTarget.value)}
             class='flex-1'

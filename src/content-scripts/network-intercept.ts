@@ -10,20 +10,20 @@
     capturedAt: number
   }
   const w = window as typeof window & {
-    __spatulaQueue: QueuedCapture[]
-    __spatulaFlush: ((c: QueuedCapture) => void) | null
+    __tideQueue: QueuedCapture[]
+    __tideFlush: ((c: QueuedCapture) => void) | null
   }
-  if (w.__spatulaQueue) {
+  if (w.__tideQueue) {
     return
   }
-  w.__spatulaQueue = []
-  w.__spatulaFlush = null
+  w.__tideQueue = []
+  w.__tideFlush = null
 
   function enqueue(capture: QueuedCapture) {
-    if (w.__spatulaFlush) {
-      w.__spatulaFlush(capture)
+    if (w.__tideFlush) {
+      w.__tideFlush(capture)
     } else {
-      w.__spatulaQueue.push(capture)
+      w.__tideQueue.push(capture)
     }
   }
 
@@ -86,8 +86,8 @@
 
   XMLHttpRequest.prototype.open = new Proxy(XMLHttpRequest.prototype.open, {
     apply: function (target, thisArg, args) {
-      thisArg.__spatula_url = String(args[1])
-      thisArg.__spatula_method = (args[0] || 'GET').toUpperCase()
+      thisArg.__tide_url = String(args[1])
+      thisArg.__tide_method = (args[0] || 'GET').toUpperCase()
       return Reflect.apply(target, thisArg, args)
     },
   })
@@ -111,8 +111,8 @@
               headers[line.slice(0, idx).toLowerCase()] = line.slice(idx + 2)
             }
           })
-        var xhrUrl = new URL(thisArg.__spatula_url, window.location.origin).href
-        var xhrMethod = thisArg.__spatula_method || 'GET'
+        var xhrUrl = new URL(thisArg.__tide_url, window.location.origin).href
+        var xhrMethod = thisArg.__tide_method || 'GET'
         var requestBody =
           typeof args[0] === 'string' ? args[0].slice(0, 200000) : null
         enqueue({

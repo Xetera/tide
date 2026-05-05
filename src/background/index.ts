@@ -31,11 +31,11 @@ import {
 const storage = new Storage<BrowserStorageSchema>()
 
 console.log(
-  '[spatula] funnelEntries:',
+  '[tide] funnelEntries:',
   funnelProvider.getEntries().map((e) => `${e.site}/${e.funnel}/${e.file}`),
 )
 console.log(
-  '[spatula] allSites requests:',
+  '[tide] allSites requests:',
   allSites.map(
     (s) =>
       `${s.hostname}: ${s
@@ -195,7 +195,7 @@ function emitUrlUpdate(
     onMessage('raw-capture', async ({ data }) => {
       const hostname = hostnameFromUrl(data.url)
       console.log(
-        '[spatula] raw-capture received',
+        '[tide] raw-capture received',
         data.method,
         data.url,
         `body=${data.responseBody.length}b`,
@@ -216,9 +216,9 @@ function emitUrlUpdate(
           responseHeaders: data.responseHeaders,
           capturedAt: data.capturedAt,
         })
-        console.log('[spatula] raw-capture stored', data.url)
+        console.log('[tide] raw-capture stored', data.url)
       } catch (err) {
-        console.error('[spatula] raw-capture store failed', data.url, err)
+        console.error('[tide] raw-capture store failed', data.url, err)
       }
     })
     onMessage('get-captures', async ({ data }) => {
@@ -303,7 +303,7 @@ function emitUrlUpdate(
           }
         }
         console.log(
-          '[spatula] match-capture result',
+          '[tide] match-capture result',
           entry.funnel,
           entry.file,
           'patches:',
@@ -322,6 +322,11 @@ function emitUrlUpdate(
       return results
     })
 
+    onMessage('heartbeat', async () => {
+      const ok = await client!.sendHeartbeat()
+      return { ok }
+    })
+
     onMessage('get-funnels', () => {
       return funnelProvider.buildFunnelInfos(allSites)
     })
@@ -334,7 +339,7 @@ function emitUrlUpdate(
         }
       }
       try {
-        const response = await fetch(`http://localhost:3000/__spatula_write`, {
+        const response = await fetch(`http://localhost:3000/__tide_write`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ path: data.path, content: data.content }),
@@ -492,6 +497,10 @@ function emitUrlUpdate(
     storage.set('resources:all', resources)
 
     await client.startAll()
+
+    const HEARTBEAT_INTERVAL_MS = 60_000
+    setInterval(() => client!.sendHeartbeat(), HEARTBEAT_INTERVAL_MS)
+    client.sendHeartbeat()
   } catch (err) {
     console.error(err)
   }

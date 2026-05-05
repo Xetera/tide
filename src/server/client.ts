@@ -78,7 +78,7 @@ export class Client {
     enabledResources,
     onResourcesUpdated,
     onPatches,
-  }: ScrapeerClientOptions) {
+  }: ShoalClientOptions) {
     this.#pollIntervalSeconds = pollIntervalSeconds
     // We're assuming that there is only one server and that this isn't empty
     this.servers = defaultServers
@@ -113,6 +113,21 @@ export class Client {
   getServer(): ServerDefinition {
     // biome-ignore lint/style/noNonNullAssertion: We'll add multi server support soon enough
     return this.servers[0]!
+  }
+
+  async sendHeartbeat(): Promise<boolean> {
+    const server = this.servers[0]
+    if (!server?.url || !server.poolId) {
+      return false
+    }
+    try {
+      const url = new URL(`/api/pool/${server.poolId}/worker/heartbeat`, server.url)
+      const request = await this.#requestBase(new Request(url, { method: 'GET' }), server)
+      const res = await fetch(request, { signal: AbortSignal.timeout(5000) })
+      return res.ok
+    } catch {
+      return false
+    }
   }
 
   async start(server: ServerDefinition) {
@@ -237,7 +252,7 @@ export class Client {
       return
     }
     console.log(
-      `[spatula] scraped${scrapeSource ? ` ${scrapeSourceFunnelKey(scrapeSource) ?? scrapeSource.kind}` : ''}`,
+      `[tide] scraped${scrapeSource ? ` ${scrapeSourceFunnelKey(scrapeSource) ?? scrapeSource.kind}` : ''}`,
       patches,
     )
     const body: JobResult = {
@@ -562,7 +577,7 @@ export class Client {
   }
 }
 
-export interface ScrapeerClientOptions {
+export interface ShoalClientOptions {
   pollIntervalSeconds: number
   queueIntervalSeconds: number
   defaultServers?: ServerDefinition[]

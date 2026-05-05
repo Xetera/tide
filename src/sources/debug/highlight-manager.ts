@@ -1,7 +1,7 @@
 import type { HighlightEntry } from '~/extraction/scrape-result'
 import { strokeColor, labelBg, labelFg } from './legend-overlay'
 
-const CANVAS_ID = 'spatula-highlight-canvas'
+const CANVAS_ID = 'tide-highlight-canvas'
 const HUE_STEP = 37
 
 function rectsOverlap(a: DOMRect, b: DOMRect): boolean {

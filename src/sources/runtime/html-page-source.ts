@@ -10,7 +10,7 @@ import type { HighlightEntry, ScrapeResult } from '~/extraction/scrape-result'
 
 export type { ScrapeResult }
 
-const JOB_FINISHED_MARKER = 'spatula:job-finished'
+const JOB_FINISHED_MARKER = 'tide:job-finished'
 const IFRAME_SCRAPE_TIMEOUT_MS = 10_000
 
 class PageRuleRunner {
@@ -147,7 +147,7 @@ export class HtmlPageSource {
     console.log('matching', matching)
     if (matching.kind === 'match') {
       console.log(
-        `[spatula] matched page funnel: ${matching.funnel.urlPattern} for ${document.URL}`,
+        `[tide] matched page funnel: ${matching.funnel.urlPattern} for ${document.URL}`,
       )
       const jobSource: JobSource = this.isInIframe
         ? { kind: 'active', id: await this.#getJobId() }
@@ -173,7 +173,7 @@ export class HtmlPageSource {
   async #scrapePage(parameters: JobParameters): Promise<void> {
     if (this.isInIframe) {
       console.error(
-        '[spatula:html-page-source] Refusing to scrape via iframe because we are already in an iframe',
+        '[tide:html-page-source] Refusing to scrape via iframe because we are already in an iframe',
       )
       return
     }

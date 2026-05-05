@@ -12,7 +12,7 @@ async function fetchMedia(
 }
 
 window.addEventListener('message', (evt) => {
-  if (!evt.data?.__spatula) {
+  if (!evt.data?.__tide) {
     return
   }
 
@@ -27,7 +27,7 @@ window.addEventListener('message', (evt) => {
           const { buffer, mimeType, sha256hash } = await fetchMedia(url)
           return { hash, buffer, mimeType, sha256hash }
         } catch (err) {
-          console.warn(`[spatula] failed to capture media ${url}`, err)
+          console.warn(`[tide] failed to capture media ${url}`, err)
           return null
         }
       }),
@@ -36,7 +36,7 @@ window.addEventListener('message', (evt) => {
       const buffers = filtered.map((r) => r.buffer)
       window.postMessage(
         {
-          __spatula: true,
+          __tide: true,
           kind: 'download-cached-media:response',
           id,
           results: filtered,

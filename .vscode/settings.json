@@ -10,7 +10,7 @@
   "[typescriptreact]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
-  "cSpell.words": ["Scrapeer"],
+  "cSpell.words": ["Shoal"],
   "[typescript]": {
     "editor.defaultFormatter": "biomejs.biome"
   },

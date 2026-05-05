@@ -181,7 +181,7 @@ export class EntityValidator {
       } catch {
         const errs = this.validate(entityName, item)
         console.warn(
-          '[spatula] validation failed for',
+          '[tide] validation failed for',
           entityName,
           JSON.stringify(item),
           JSON.stringify(errs),
@@ -193,7 +193,7 @@ export class EntityValidator {
     const removed = patches.length - deduped.length
     if (removed > 0) {
       console.log(
-        `[spatula] removed ${removed} duplicate patch${removed === 1 ? '' : 'es'}`,
+        `[tide] removed ${removed} duplicate patch${removed === 1 ? '' : 'es'}`,
       )
     }
     return { patches: deduped, errors }

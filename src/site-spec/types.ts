@@ -194,6 +194,12 @@ export class SiteDefinition {
   }
 }
 
+export type JsonLdValue = string | JsonLdMapping
+
+export type JsonLdMapping = {
+  [key: string]: JsonLdValue | JsonLdValue[]
+}
+
 export interface Entity {
   entity: string
   version: number
@@ -201,6 +207,7 @@ export interface Entity {
   canonicalUrl?: string
   uniqueFields?: string[]
   displayField?: string
+  jsonLd?: JsonLdMapping
 }
 
 export type EntityId = string | string[]

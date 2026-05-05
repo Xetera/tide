@@ -44,9 +44,9 @@ export default defineConfig({
   plugins: [
     gleamPlugin(),
     {
-      name: 'spatula-write',
+      name: 'tide-write',
       configureServer(server) {
-        server.middlewares.use('/__spatula_write', async (req, res) => {
+        server.middlewares.use('/__tide_write', async (req, res) => {
           if (req.method !== 'POST') {
             res.writeHead(405).end()
             return
@@ -71,7 +71,7 @@ export default defineConfig({
       },
     },
     {
-      name: 'spatula-source-hmr',
+      name: 'tide-source-hmr',
       enforce: 'pre',
       configureServer(server) {
         server.watcher.add('src/**/*.jsonata')
@@ -89,7 +89,7 @@ export default defineConfig({
         const relPath = file.slice(srcDir.length + 1)
         server.hot.send({
           type: 'custom',
-          event: 'spatula:source-update',
+          event: 'tide:source-update',
           data: { path: relPath, content },
         })
         return []
@@ -108,7 +108,7 @@ export default defineConfig({
     alias: [
       {
         find: '~gleam/',
-        replacement: `${GLEAM_DIR}/build/dev/javascript/spatula_shared/`,
+        replacement: `${GLEAM_DIR}/build/dev/javascript/tide_shared/`,
       },
       { find: '~/', replacement: `${r('src')}/` },
       // alias: [

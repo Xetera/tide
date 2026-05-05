@@ -26,8 +26,8 @@ interface QueuedCapture {
 
 declare global {
   interface Window {
-    __spatulaQueue: QueuedCapture[]
-    __spatulaFlush: ((capture: QueuedCapture) => void) | null
+    __tideQueue: QueuedCapture[]
+    __tideFlush: ((capture: QueuedCapture) => void) | null
   }
 }
 
@@ -35,7 +35,7 @@ const funnels = new Map<string, FunnelRegistration>()
 let funnelsRegistered = false
 
 window.addEventListener('message', (evt) => {
-  if (!evt.data?.__spatula) {
+  if (!evt.data?.__tide) {
     return
   }
   if (evt.data.kind !== 'register-funnels') {
@@ -48,13 +48,13 @@ window.addEventListener('message', (evt) => {
   }
   if (!funnelsRegistered) {
     funnelsRegistered = true
-    window.__spatulaFlush = (capture) => {
+    window.__tideFlush = (capture) => {
       void processCapture(capture)
     }
-    for (const capture of window.__spatulaQueue ?? []) {
+    for (const capture of window.__tideQueue ?? []) {
       void processCapture(capture)
     }
-    window.__spatulaQueue = []
+    window.__tideQueue = []
   }
 })
 
@@ -105,7 +105,7 @@ async function processCapture(capture: QueuedCapture) {
         }
         window.postMessage(
           {
-            __spatula: true,
+            __tide: true,
             kind: 'funnel-result',
             name,
             file,
@@ -117,7 +117,7 @@ async function processCapture(capture: QueuedCapture) {
         )
       } catch (err) {
         console.warn(
-          `[spatula] funnel "${name}/${file}" failed for ${url}:`,
+          `[tide] funnel "${name}/${file}" failed for ${url}:`,
           err,
         )
       }
@@ -131,7 +131,7 @@ async function processCapture(capture: QueuedCapture) {
   }
   window.postMessage(
     {
-      __spatula: true,
+      __tide: true,
       kind: 'raw-capture',
       url,
       method,

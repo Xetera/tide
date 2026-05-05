@@ -40,7 +40,7 @@
           Array.from(this.sourceBuffers).every((sb) => !sb.updating)
         const tryEmit = () => {
           if (allDone()) {
-            this.dispatchEvent(new Event('__spatula:ended'))
+            this.dispatchEvent(new Event('__tide:ended'))
           } else {
             for (const sb of Array.from(this.sourceBuffers)) {
               if (sb.updating)
@@ -51,7 +51,7 @@
         tryEmit()
         return result
       }
-      this.addEventListener('__spatula:audio', finish, { once: true })
+      this.addEventListener('__tide:audio', finish, { once: true })
       setTimeout(finish, 5000)
       return
     }
@@ -61,7 +61,7 @@
       Array.from(this.sourceBuffers).every((sb) => !sb.updating)
     const tryEmit = () => {
       if (allDone()) {
-        this.dispatchEvent(new Event('__spatula:ended'))
+        this.dispatchEvent(new Event('__tide:ended'))
       } else {
         for (const sb of Array.from(this.sourceBuffers)) {
           if (sb.updating)
@@ -93,7 +93,7 @@
       const reconstructable = firstBox === 'ftyp' || firstBox === 'moov'
       window.postMessage(
         {
-          __spatula: true,
+          __tide: true,
           kind: 'stream-end',
           mimeType,
           segments,
@@ -117,13 +117,13 @@
 
       if (isAudio && !audioSegmentsByMediaSource.get(this)) {
         audioSegmentsByMediaSource.set(this, true)
-        this.dispatchEvent(new Event('__spatula:audio'))
+        this.dispatchEvent(new Event('__tide:audio'))
       }
 
       return originalAppendBuffer(buffer)
     }
 
-    this.addEventListener('__spatula:ended', emit, { once: true })
+    this.addEventListener('__tide:ended', emit, { once: true })
 
     return sourceBuffer
   }

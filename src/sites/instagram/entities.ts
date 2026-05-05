@@ -37,7 +37,22 @@ export const instagramEntities = [
       ),
     })
     .display('username')
-    .version(0),
+    .version(0)
+    .jsonLd({
+      '@type': 'Person',
+      identifier: '_id',
+      name: 'nickname',
+      alternateName: 'username',
+      description: 'bio',
+      url: 'canonicalUrl',
+      interactionStatistic: [
+        {
+          '@type': 'InteractionCounter',
+          interactionType: 'https://schema.org/FollowAction',
+          userInteractionCount: 'followerCount',
+        },
+      ],
+    }),
   new EntityBuilder('@instagram/post')
     .canonicalUrl('https://instagram.com/p/{code}')
     .fields({
@@ -59,7 +74,20 @@ export const instagramEntities = [
       author: One('@instagram/user'),
     })
     .unique(['code'])
-    .display('title'),
+    .display('title')
+    .jsonLd({
+      '@type': 'SocialMediaPosting',
+      identifier: 'code',
+      headline: 'title',
+      url: 'canonicalUrl',
+      interactionStatistic: [
+        {
+          '@type': 'InteractionCounter',
+          interactionType: 'https://schema.org/LikeAction',
+          userInteractionCount: 'likeCount',
+        },
+      ],
+    }),
   new EntityBuilder('@instagram/comment')
     .fields({
       text: Type.String(),
@@ -67,5 +95,16 @@ export const instagramEntities = [
       author: One('@instagram/user'),
       post: One('@instagram/post'),
     })
-    .display('text'),
+    .display('text')
+    .jsonLd({
+      '@type': 'Comment',
+      text: 'text',
+      interactionStatistic: [
+        {
+          '@type': 'InteractionCounter',
+          interactionType: 'https://schema.org/LikeAction',
+          userInteractionCount: 'likeCount',
+        },
+      ],
+    }),
 ]

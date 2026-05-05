@@ -20,7 +20,7 @@ export function downloadCachedMedia(
   return new Promise((resolve) => {
     function handler(evt: MessageEvent) {
       if (
-        !evt.data?.__spatula ||
+        !evt.data?.__tide ||
         evt.data.kind !== 'download-cached-media:response' ||
         evt.data.id !== id
       ) {
@@ -45,7 +45,7 @@ export function downloadCachedMedia(
     }
     window.addEventListener('message', handler)
     window.postMessage(
-      { __spatula: true, kind: 'download-cached-media', refs, id },
+      { __tide: true, kind: 'download-cached-media', refs, id },
       '*',
     )
   })

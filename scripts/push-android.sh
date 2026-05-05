@@ -2,7 +2,7 @@
 set -e
 
 DIST="extension/dist"
-REMOTE="/sdcard/Download/spatula.xpi"
+REMOTE="/sdcard/Download/tide.xpi"
 
 if [ -z "$AMO_API_KEY" ] || [ -z "$AMO_API_SECRET" ]; then
   echo "Error: AMO_API_KEY and AMO_API_SECRET must be set"

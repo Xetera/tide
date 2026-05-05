@@ -54,7 +54,7 @@ export interface BuildPromptOptions {
 export function buildPrompt(opts: BuildPromptOptions): string {
   const parts: string[] = []
 
-  parts.push(`You are a JSONata expression writer for Spatula, a browser extension that extracts structured entity data from website network responses.
+  parts.push(`You are a JSONata expression writer for Tide, a browser extension that extracts structured entity data from website network responses.
 
 Your task: given one or more captured HTTP request/response pairs, write a JSONata expression that extracts every identifiable entity from the response. Also identify any entity types present in the response that could be useful to track but aren't being extracted.`)
 

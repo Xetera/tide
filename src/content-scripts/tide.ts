@@ -10,7 +10,7 @@ import './stream-capture'
 
 ;(async () => {
   try {
-    console.log('[spatula] init', window.location.href)
+    console.log('[tide] init', window.location.href)
 
     const { 'debug:visual': visualDebug } = await chrome.storage.local.get({
       'debug:visual': false,
@@ -20,7 +20,7 @@ import './stream-capture'
       const funnels = s.getNetworkFunnels()
       for (const f of funnels) {
         console.log(
-          `[spatula] network funnel: ${s.hostname} "${f.name}" → ${f.request.url}`,
+          `[tide] network funnel: ${s.hostname} "${f.name}" → ${f.request.url}`,
         )
       }
       return funnels
@@ -53,15 +53,15 @@ import './stream-capture'
       }
     })
 
-    console.group('[spatula] running')
-    console.log('[spatula] injecting page source')
+    console.group('[tide] running')
+    console.log('[tide] injecting page source')
     const pageFunnels = allSites.flatMap((s) => s.getPageFunnels())
     console.log(
-      '[spatula] loaded sites',
+      '[tide] loaded sites',
       allSites.map((s) => s.hostname),
     )
     console.log(
-      '[spatula] loaded page funnels',
+      '[tide] loaded page funnels',
       pageFunnels.map((p) => p.urlPattern),
     )
 
@@ -75,7 +75,7 @@ import './stream-capture'
 
     if (import.meta.hot) {
       import.meta.hot.on(
-        'spatula:source-update',
+        'tide:source-update',
         ({ path, content }: { path: string; content: string }) => {
           const changed = funnelProvider.patchEntry(path, content)
           if (!changed) {
@@ -83,12 +83,12 @@ import './stream-capture'
           }
           const updatedPageFunnels = allSites.flatMap((s) => s.getPageFunnels())
           source.updateRules(updatedPageFunnels)
-          console.log(`[spatula] hot-reloaded: ${path}`)
+          console.log(`[tide] hot-reloaded: ${path}`)
         },
       )
     }
 
-    console.log('[spatula] page source running')
+    console.log('[tide] page source running')
     console.groupEnd()
   } catch (err) {
     console.error(err)

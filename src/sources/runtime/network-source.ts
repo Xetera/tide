@@ -38,13 +38,13 @@ export function registerFunnels(
     }
   }
   window.postMessage(
-    { __spatula: true, kind: 'register-funnels', funnels },
+    { __tide: true, kind: 'register-funnels', funnels },
     '*',
   )
 }
 
 window.addEventListener('message', (evt) => {
-  if (!evt.data?.__spatula) {
+  if (!evt.data?.__tide) {
     return
   }
 
@@ -66,14 +66,14 @@ window.addEventListener('message', (evt) => {
 
     if (errors.length > 0) {
       console.warn(
-        `[spatula] entity validation errors from ${name}/${file}`,
+        `[tide] entity validation errors from ${name}/${file}`,
         errors,
         result,
         body,
       )
     }
     if (warnings.length > 0) {
-      console.warn(`[spatula] identity warnings from ${name}/${file}`, warnings)
+      console.warn(`[tide] identity warnings from ${name}/${file}`, warnings)
     }
     if (patches.length > 0) {
       const patchCounts = new Map<string, number>()

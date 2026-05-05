@@ -12,7 +12,8 @@ import {
   TNumber,
 } from 'typebox'
 import { SiteDefinition } from '~/site-spec/types'
-import type { Entity } from '~/site-spec/types'
+import type { Entity, JsonLdMapping } from '~/site-spec/types'
+export type { JsonLdMapping, JsonLdValue } from '~/site-spec/types'
 import { MediaBuilder } from '~/extraction/media-types'
 import type { FunnelProvider } from '~/site-spec/funnel-loader'
 
@@ -53,6 +54,7 @@ export class EntityBuilder {
   #canonicalUrl?: string
   #uniqueFields?: string[]
   #displayField?: string
+  #jsonLd?: JsonLdMapping
 
   constructor(entityName: string) {
     this.#entityName = entityName
@@ -75,6 +77,11 @@ export class EntityBuilder {
 
   display(field: string): this {
     this.#displayField = field
+    return this
+  }
+
+  jsonLd(mapping: JsonLdMapping): this {
+    this.#jsonLd = mapping
     return this
   }
 
@@ -107,6 +114,7 @@ export class EntityBuilder {
       canonicalUrl: this.#canonicalUrl,
       uniqueFields: this.#uniqueFields,
       displayField: this.#displayField,
+      jsonLd: this.#jsonLd,
     }
   }
 }
