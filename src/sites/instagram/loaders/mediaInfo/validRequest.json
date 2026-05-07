@@ -22,12 +22,30 @@
           "like_count": 53,
           "carousel_media": [
             {
-              "url": "https://scontent.cdninstagram.com/v/image1.jpg",
+              "pk": "85880757073328",
+              "image_versions2": {
+                "candidates": [
+                  {
+                    "url": "https://scontent.cdninstagram.com/v/image1.jpg",
+                    "width": 640,
+                    "height": 1136
+                  }
+                ]
+              },
               "width": 640,
               "height": 1136
             },
             {
-              "url": "https://scontent.cdninstagram.com/v/image2.jpg",
+              "pk": "865743362988914",
+              "image_versions2": {
+                "candidates": [
+                  {
+                    "url": "https://scontent.cdninstagram.com/v/image2.jpg",
+                    "width": 640,
+                    "height": 1136
+                  }
+                ]
+              },
               "width": 640,
               "height": 1136
             }

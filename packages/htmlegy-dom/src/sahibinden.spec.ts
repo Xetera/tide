@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { compile } from '~/htmlevate/compiler'
-import htmlevateSrc from './fixtures/sahibinden.htmlevate?raw'
+import { createExpr } from './index'
+import htmlegySrc from './fixtures/sahibinden.htmlegy?raw'
 import htmlSrc from './fixtures/sahibinden-test.html?raw'
 
 function doc(html: string): Element {
@@ -17,8 +17,7 @@ describe('sahibinden listing', () => {
   let images: Entity[]
 
   beforeAll(() => {
-    entities = compile(htmlevateSrc, { locale: 'tr' })(doc(htmlSrc)) as Entity[]
-    console.dir(entities, { depth: Infinity })
+    entities = createExpr(htmlegySrc, { locale: 'tr' }).run(doc(htmlSrc)) as Entity[]
     listing = entities.find((e) => e['_entity'] === '@sahibinden/listing')!
     images = entities.filter((e) => e['_entity'] === '@sahibinden/image')
   })

@@ -7,7 +7,7 @@ import {
   RequestMatcher,
 } from '~/site-spec/types'
 import { matchesGlob } from '~/extraction/glob'
-import { parse, parseFrontmatter } from '~/htmlevate/parser'
+import { parseFrontmatter } from '@tide/frontmatter'
 export { matchesGlob }
 import type {
   PageFunnelEntry,
@@ -29,13 +29,13 @@ const rawJsonataModules = {
   }),
 } as Record<string, string>
 
-const rawHtmlevateModules = {
-  ...import.meta.glob('../sites/*/loaders/*/*.htmlevate', {
+const rawHtmlegyModules = {
+  ...import.meta.glob('../sites/*/loaders/*/*.htmlegy', {
     query: '?raw',
     import: 'default',
     eager: true,
   }),
-  ...import.meta.glob('../sites/*/loaders/*.htmlevate', {
+  ...import.meta.glob('../sites/*/loaders/*.htmlegy', {
     query: '?raw',
     import: 'default',
     eager: true,
@@ -48,20 +48,15 @@ const rawFixtureModules = import.meta.glob('../sites/*/loaders/*/*.json', {
 }) as Record<string, unknown>
 
 const LOADER_DIR_RE =
-  /\/sites\/([^/]+)\/loaders\/([^/]+)\/(.+\.(jsonata|htmlevate))$/
-const LOADER_FLAT_RE =
-  /\/sites\/([^/]+)\/loaders\/([^/]+\.(jsonata|htmlevate))$/
+  /\/sites\/([^/]+)\/loaders\/([^/]+)\/(.+\.(jsonata|htmlegy))$/
+const LOADER_FLAT_RE = /\/sites\/([^/]+)\/loaders\/([^/]+\.(jsonata|htmlegy))$/
 const FIXTURE_RE = /\/sites\/([^/]+)\/loaders\/([^/]+)\/([^/]+\.json)$/
 
-function parseEntry<
-  T extends {
-    site: string
-    funnel: string
-    file: string
-    path: string
-    expression: string
-  },
->(path: string, expression: string): T | null {
+function parseEntry(
+  path: string,
+  expression: string,
+): { site: string; funnel: string; file: string; path: string; expression: string; body: string; frontmatter: Record<string, unknown> } | null {
+  const { body, frontmatter } = parseFrontmatter(expression)
   const dirMatch = path.match(LOADER_DIR_RE)
   if (dirMatch) {
     const [, site, funnel, file] = dirMatch
@@ -71,19 +66,23 @@ function parseEntry<
       file: file!,
       path: `src/sites${path.split('/sites')[1]}`,
       expression,
-    } as T
+      body,
+      frontmatter,
+    }
   }
   const flatMatch = path.match(LOADER_FLAT_RE)
   if (flatMatch) {
     const [, site, filename] = flatMatch
-    const funnel = filename!.replace(/\.(jsonata|htmlevate)$/, '')
+    const funnel = filename!.replace(/\.(jsonata|htmlegy)$/, '')
     return {
       site: site!,
       funnel: funnel!,
       file: filename!,
       path: `src/sites${path.split('/sites')[1]}`,
       expression,
-    } as T
+      body,
+      frontmatter,
+    }
   }
   return null
 }
@@ -92,21 +91,23 @@ function parseAllEntries(): {
   page: PageFunnelEntry[]
   network: NetworkFunnelEntry[]
 } {
-  const page = Object.entries(rawHtmlevateModules).flatMap(
+  const page = Object.entries(rawHtmlegyModules).flatMap(
     ([path, expression]) => {
-      const entry = parseEntry<PageFunnelEntry>(path, expression)
+      const entry = parseEntry(path, expression) as PageFunnelEntry | null
       return entry ? [entry] : []
     },
   )
   const network = Object.entries(rawJsonataModules).flatMap(
     ([path, expression]) => {
-      const entry = parseEntry<NetworkFunnelEntry>(path, expression)
+      const entry = parseEntry(path, expression) as NetworkFunnelEntry | null
       if (!entry) {
         return []
       }
-      const { frontmatter } = parseFrontmatter(expression)
-      const url = frontmatter.url
-      if (typeof url !== 'string' && !(Array.isArray(url) && url.every((u) => typeof u === 'string'))) {
+      const url = entry.frontmatter.url
+      if (
+        typeof url !== 'string' &&
+        !(Array.isArray(url) && url.every((u) => typeof u === 'string'))
+      ) {
         console.warn(`[tide] ${path}: missing required frontmatter field "url"`)
         return []
       }
@@ -172,9 +173,8 @@ export class FunnelProvider {
         continue
       }
       try {
-        const { frontmatter } = parse(e.expression)
-        const urlPattern = frontmatter.urlPattern
-        if (!urlPattern) {
+        const url = e.frontmatter.url
+        if (!url || (typeof url !== 'string' && !Array.isArray(url))) {
           continue
         }
         result.push(
@@ -182,7 +182,7 @@ export class FunnelProvider {
             name: e.funnel,
             file: e.file,
             path: e.path,
-            urlPattern,
+            url: url as string | string[],
             hostname,
             entry: e,
           }),
@@ -194,19 +194,20 @@ export class FunnelProvider {
     return result
   }
 
-  buildNetworkFunnels(
-    dir: string,
-    hostname: string,
-  ): NetworkFunnelGroup[] {
+  buildNetworkFunnels(dir: string, hostname: string): NetworkFunnelGroup[] {
     const grouped: Map<
       string,
       { matcher: RequestMatcher; entries: NetworkFunnelEntry[] }
     > = new Map()
     for (const entry of this.getForSite(dir)) {
-      const { frontmatter } = parseFrontmatter(entry.expression)
+      const { frontmatter } = entry
       const url = frontmatter.url as string | string[]
-      const method = typeof frontmatter.method === 'string' ? frontmatter.method : 'GET'
-      const matcher: RequestMatcher = { method: method as RequestMatcher['method'], url }
+      const method =
+        typeof frontmatter.method === 'string' ? frontmatter.method : 'GET'
+      const matcher: RequestMatcher = {
+        method: method as RequestMatcher['method'],
+        url,
+      }
       const group = grouped.get(entry.funnel) ?? { matcher, entries: [] }
       group.entries.push(entry)
       grouped.set(entry.funnel, group)
@@ -238,12 +239,18 @@ export class FunnelProvider {
   patchEntry(path: string, content: string): boolean {
     const page = this.#pageEntries.find((e) => e.path === `src/${path}`)
     if (page) {
+      const { body, frontmatter } = parseFrontmatter(content)
       page.expression = content
+      page.body = body
+      page.frontmatter = frontmatter
       return true
     }
     const network = this.#networkEntries.find((e) => e.path === `src/${path}`)
     if (network) {
+      const { body, frontmatter } = parseFrontmatter(content)
       network.expression = content
+      network.body = body
+      network.frontmatter = frontmatter
       return true
     }
     return false
@@ -252,16 +259,17 @@ export class FunnelProvider {
   buildFunnelInfos(_sites: SiteDefinition[]): FunnelInfo[] {
     const toInfo = (
       entry: PageFunnelEntry | NetworkFunnelEntry,
-      format: 'htmlevate' | 'jsonata',
+      format: 'htmlegy' | 'jsonata',
     ): FunnelInfo | null => {
-      const { frontmatter } = parseFrontmatter(entry.expression)
+      const { frontmatter } = entry
       let request: FunnelInfo['request']
       if (format === 'jsonata') {
         const url = frontmatter.url as string | string[]
-        const method = typeof frontmatter.method === 'string' ? frontmatter.method : 'GET'
+        const method =
+          typeof frontmatter.method === 'string' ? frontmatter.method : 'GET'
         request = { method, url }
       } else {
-        const urlPattern = frontmatter.urlPattern
+        const urlPattern = frontmatter.url
         if (!urlPattern) {
           return null
         }
@@ -276,14 +284,14 @@ export class FunnelProvider {
         funnel: entry.funnel,
         file: entry.file,
         path: entry.path,
-        expression: entry.expression,
+        expression: entry.body,
         format,
         fixtures,
         request,
       }
     }
     return [
-      ...this.#pageEntries.flatMap((e) => toInfo(e, 'htmlevate') ?? []),
+      ...this.#pageEntries.flatMap((e) => toInfo(e, 'htmlegy') ?? []),
       ...this.#networkEntries.flatMap((e) => toInfo(e, 'jsonata') ?? []),
     ]
   }

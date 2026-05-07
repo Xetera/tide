@@ -24,7 +24,7 @@ import { HighlightedCode, JsonViewer } from './json-viewer'
 import { JsonataEditor, parseErrorPosition } from './jsonata-editor'
 import {
   evaluate,
-  evaluateHtmlevate,
+  evaluateHtmlegy,
   relativeTime,
   type EvalResult,
 } from './evaluate'
@@ -37,6 +37,14 @@ const IS_DEV = import.meta.env.DEV
 
 type FunnelInfoGroup = [string, FunnelInfo[]]
 type SiteGroup = { site: string; hostname: string; groups: FunnelInfoGroup[] }
+
+interface NewFunnelForm {
+  site: string
+  name: string
+  format: 'jsonata' | 'htmlegy'
+  status: 'idle' | 'creating' | 'error'
+  error: string | null
+}
 
 interface PlaygroundState {
   funnels: () => FunnelInfo[]
@@ -72,7 +80,7 @@ interface PlaygroundState {
   fixtureJson: () => string | null
   captureJson: () => string | null
   resultJson: () => string | null
-  isHtmlevate: () => boolean
+  isHtmlegy: () => boolean
   htmlInputTab: () => 'html' | 'url' | 'tab'
   setHtmlInputTab: (v: 'html' | 'url' | 'tab') => void
   htmlInput: () => string
@@ -89,6 +97,12 @@ interface PlaygroundState {
   selectedLiveTab: () => number | null
   liveTabStatus: () => 'idle' | 'loading' | 'error'
   selectLiveTab: (tabId: number) => void
+  newFunnelForm: () => NewFunnelForm | null
+  openNewFunnelForm: (site: string) => void
+  closeNewFunnelForm: () => void
+  setNewFunnelName: (name: string) => void
+  setNewFunnelFormat: (format: 'jsonata' | 'htmlegy') => void
+  submitNewFunnel: () => void
 }
 
 const PlaygroundContext = createContext<PlaygroundState>()
@@ -128,8 +142,8 @@ function FunnelGroupRow({
   const { selectedFunnel, selectFunnel } = usePlayground()
   const selectedPath = () => selectedFunnel()?.path
 
-  const formatBadge = (format: 'jsonata' | 'htmlevate') =>
-    format === 'htmlevate' ? (
+  const formatBadge = (format: 'jsonata' | 'htmlegy') =>
+    format === 'htmlegy' ? (
       <span
         class='shrink-0 font-mono text-orange-500/70 inline-block w-[1.75rem] text-center'
         style='font-size: 0.6rem'
@@ -145,7 +159,9 @@ function FunnelGroupRow({
       </span>
     )
 
-  const urlGlob = (req: { method: string; url: string | string[] } | undefined) =>
+  const urlGlob = (
+    req: { method: string; url: string | string[] } | undefined,
+  ) =>
     req ? (
       <span
         class='text-muted-foreground/40 truncate font-mono'
@@ -201,7 +217,8 @@ function FunnelGroupRow({
 }
 
 function FunnelSidebar() {
-  const { funnelsLoading, sites } = usePlayground()
+  const { funnelsLoading, sites, newFunnelForm, openNewFunnelForm } =
+    usePlayground()
   return (
     <Resizable.Panel
       initialSize={0.15}
@@ -212,7 +229,7 @@ function FunnelSidebar() {
         <p class='text-xs text-muted-foreground p-3'>Loading...</p>
       </Show>
       <For each={sites()}>
-        {({ hostname, groups }) => (
+        {({ site, hostname, groups }) => (
           <div class='border-b border-border'>
             <div class='px-3 pt-3 pb-1.5 sticky top-0 bg-background flex items-center gap-2'>
               <img
@@ -222,9 +239,20 @@ function FunnelSidebar() {
                 height={14}
                 class='shrink-0 rounded-sm'
               />
-              <span class='text-xs font-medium text-muted-foreground'>
+              <span class='text-xs font-medium text-muted-foreground flex-1'>
                 {hostname}
               </span>
+              <Show when={IS_DEV}>
+                <button
+                  type='button'
+                  onClick={() => openNewFunnelForm(site)}
+                  class={`text-muted-foreground/50 hover:text-muted-foreground transition-colors leading-none ${newFunnelForm()?.site === site ? 'text-foreground' : ''}`}
+                  title='New funnel'
+                  style='font-size: 0.85rem; line-height: 1'
+                >
+                  +
+                </button>
+              </Show>
             </div>
             <For each={groups}>
               {([group, files]) => (
@@ -509,7 +537,7 @@ function CaptureItem({ capture }: { capture: CaptureEntry }) {
 function InputPanel() {
   const {
     selectedFunnel,
-    isHtmlevate,
+    isHtmlegy,
     inputTab,
     setInputTab,
     htmlInputTab,
@@ -542,7 +570,7 @@ function InputPanel() {
       minSize={0.1}
       class='flex flex-col overflow-hidden'
     >
-      <Show when={isHtmlevate() && htmlInputTab() !== 'tab'}>
+      <Show when={isHtmlegy() && htmlInputTab() !== 'tab'}>
         <iframe
           ref={setIframeRef}
           sandbox={htmlInputTab() === 'url' ? undefined : 'allow-same-origin'}
@@ -560,7 +588,7 @@ function InputPanel() {
         />
       </Show>
       <Show
-        when={isHtmlevate()}
+        when={isHtmlegy()}
         fallback={
           <div class='border-b border-border flex shrink-0'>
             <button
@@ -705,7 +733,7 @@ function InputPanel() {
         </Show>
       </Show>
 
-      <Show when={!isHtmlevate() && inputTab() === 'fixture'}>
+      <Show when={!isHtmlegy() && inputTab() === 'fixture'}>
         <div class='flex flex-col overflow-hidden flex-1'>
           <div class='border-b border-border flex flex-col gap-0.5 p-1.5 shrink-0'>
             <For
@@ -742,7 +770,7 @@ function InputPanel() {
         </div>
       </Show>
 
-      <Show when={!isHtmlevate() && inputTab() === 'capture'}>
+      <Show when={!isHtmlegy() && inputTab() === 'capture'}>
         <div class='flex flex-col overflow-hidden flex-1'>
           <div class='border-b border-border flex flex-col gap-0.5 p-1.5 shrink-0'>
             <For
@@ -898,6 +926,83 @@ function ResultPanel() {
   )
 }
 
+function NewFunnelPanel() {
+  const {
+    newFunnelForm,
+    closeNewFunnelForm,
+    setNewFunnelName,
+    setNewFunnelFormat,
+    submitNewFunnel,
+    sites,
+  } = usePlayground()
+
+  const form = () => newFunnelForm()!
+  const hostname = () =>
+    sites().find((s) => s.site === form().site)?.hostname ?? form().site
+
+  return (
+    <div class='flex-1 flex flex-col items-center justify-center'>
+      <div class='flex flex-col gap-3 w-64'>
+        <span class='text-xs text-muted-foreground font-mono'>
+          {hostname()}
+        </span>
+        <input
+          ref={(el) => setTimeout(() => el.focus(), 0)}
+          type='text'
+          placeholder='funnel-name'
+          value={form().name}
+          onInput={(e) => setNewFunnelName(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              submitNewFunnel()
+            }
+            if (e.key === 'Escape') {
+              closeNewFunnelForm()
+            }
+          }}
+          class='px-2 py-1.5 text-xs font-mono bg-transparent border border-border rounded outline-none text-foreground placeholder:text-muted-foreground focus:border-foreground/50'
+        />
+        <div class='flex gap-2'>
+          <button
+            type='button'
+            onClick={() => setNewFunnelFormat('jsonata')}
+            class={`flex-1 px-2 py-1.5 text-xs rounded border transition-colors font-mono ${form().format === 'jsonata' ? 'border-blue-500 text-blue-500 bg-blue-500/10' : 'border-border text-muted-foreground hover:bg-accent'}`}
+          >
+            {'{}'} http
+          </button>
+          <button
+            type='button'
+            onClick={() => setNewFunnelFormat('htmlegy')}
+            class={`flex-1 px-2 py-1.5 text-xs rounded border transition-colors font-mono ${form().format === 'htmlegy' ? 'border-orange-500 text-orange-500 bg-orange-500/10' : 'border-border text-muted-foreground hover:bg-accent'}`}
+          >
+            {'</>'} html
+          </button>
+        </div>
+        <Show when={form().error}>
+          <p class='text-xs text-destructive'>{form().error}</p>
+        </Show>
+        <div class='flex gap-2'>
+          <button
+            type='button'
+            onClick={submitNewFunnel}
+            disabled={!form().name.trim() || form().status === 'creating'}
+            class='flex-1 px-2 py-1.5 text-xs border border-border rounded hover:bg-accent transition-colors disabled:opacity-50'
+          >
+            {form().status === 'creating' ? 'Creating...' : 'Create'}
+          </button>
+          <button
+            type='button'
+            onClick={closeNewFunnelForm}
+            class='px-2 py-1.5 text-xs border border-border rounded hover:bg-accent transition-colors text-muted-foreground'
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Playground() {
   const [funnels, setFunnels] = createSignal<FunnelInfo[]>([])
   const [funnelsLoading, setFunnelsLoading] = createSignal(true)
@@ -951,9 +1056,12 @@ function Playground() {
   const [liveTabStatus, setLiveTabStatus] = createSignal<
     'idle' | 'loading' | 'error'
   >('idle')
+  const [newFunnelForm, setNewFunnelForm] = createSignal<NewFunnelForm | null>(
+    null,
+  )
   let iframeRef: HTMLIFrameElement | undefined
 
-  const isHtmlevate = () => selectedFunnel()?.format === 'htmlevate'
+  const isHtmlegy = () => selectedFunnel()?.format === 'htmlegy'
 
   async function loadLiveTabHtml(tabId: number) {
     setLiveTabStatus('loading')
@@ -1125,7 +1233,7 @@ function Playground() {
   })
 
   createEffect(() => {
-    if (!isHtmlevate() || htmlInputTab() !== 'tab') {
+    if (!isHtmlegy() || htmlInputTab() !== 'tab') {
       return
     }
     const funnel = selectedFunnel()
@@ -1187,11 +1295,12 @@ function Playground() {
 
   function selectFunnel(funnel: FunnelInfo) {
     setSelectedFunnel(funnel)
+    setNewFunnelForm(null)
     setEvalResult(null)
     setWriteStatus('idle')
     setSelectedFixture(null)
     setSelectedCapture(null)
-    if (funnel.format === 'htmlevate') {
+    if (funnel.format === 'htmlegy') {
       setHtmlInputTab('tab')
       setLiveTabs([])
       setSelectedLiveTab(null)
@@ -1243,7 +1352,7 @@ function Playground() {
 
   createEffect(() => {
     const expr = expression()
-    if (isHtmlevate()) {
+    if (isHtmlegy()) {
       const html = htmlInput()
       const root = iframeBody()
       const entity = selectedFunnel()?.funnel ?? ''
@@ -1257,7 +1366,7 @@ function Playground() {
           setEvalResult(null)
           return
         }
-        setEvalResult(evaluateHtmlevate(expr, entity, body))
+        setEvalResult(evaluateHtmlegy(expr, entity, body))
       }, 100)
       return () => clearTimeout(timer)
     }
@@ -1384,6 +1493,58 @@ function Playground() {
     }
   }
 
+  function openNewFunnelForm(site: string) {
+    setSelectedFunnel(null)
+    setNewFunnelForm({
+      site,
+      name: '',
+      format: 'jsonata',
+      status: 'idle',
+      error: null,
+    })
+  }
+
+  function closeNewFunnelForm() {
+    setNewFunnelForm(null)
+  }
+
+  function setNewFunnelName(name: string) {
+    setNewFunnelForm((prev) => (prev ? { ...prev, name, error: null } : null))
+  }
+
+  function setNewFunnelFormat(format: 'jsonata' | 'htmlegy') {
+    setNewFunnelForm((prev) => (prev ? { ...prev, format } : null))
+  }
+
+  async function submitNewFunnel() {
+    const form = newFunnelForm()
+    if (!form || !form.name.trim()) {
+      return
+    }
+    setNewFunnelForm((prev) =>
+      prev ? { ...prev, status: 'creating', error: null } : null,
+    )
+    const res = await sendMessage(
+      'create-funnel',
+      { site: form.site, name: form.name.trim(), format: form.format },
+      { context: 'background', tabId: 0 },
+    )
+    if (res.ok) {
+      setNewFunnelForm(null)
+      await refreshFunnels()
+      const created = funnels().find((f) => f.path === res.path)
+      if (created) {
+        selectFunnel(created)
+      }
+    } else {
+      setNewFunnelForm((prev) =>
+        prev
+          ? { ...prev, status: 'error', error: res.error ?? 'Unknown error' }
+          : null,
+      )
+    }
+  }
+
   const sites = (): SiteGroup[] => {
     const all = funnels() ?? []
     const siteMap: Record<string, Record<string, FunnelInfo[]>> = {}
@@ -1480,7 +1641,7 @@ function Playground() {
     fixtureJson,
     captureJson,
     resultJson,
-    isHtmlevate,
+    isHtmlegy,
     htmlInputTab,
     setHtmlInputTab,
     htmlInput,
@@ -1504,6 +1665,12 @@ function Playground() {
     selectedLiveTab,
     liveTabStatus,
     selectLiveTab,
+    newFunnelForm,
+    openNewFunnelForm,
+    closeNewFunnelForm,
+    setNewFunnelName,
+    setNewFunnelFormat,
+    submitNewFunnel,
   }
 
   return (
@@ -1531,9 +1698,16 @@ function Playground() {
             <Show
               when={selectedFunnel()}
               fallback={
-                <div class='flex-1 flex items-center justify-center text-sm text-muted-foreground'>
-                  Select a funnel to get started
-                </div>
+                <Show
+                  when={newFunnelForm()}
+                  fallback={
+                    <div class='flex-1 flex items-center justify-center text-sm text-muted-foreground'>
+                      Select a funnel to get started
+                    </div>
+                  }
+                >
+                  <NewFunnelPanel />
+                </Show>
               }
             >
               <Resizable class='flex-1 flex overflow-hidden'>

@@ -1,0 +1,21 @@
+{
+  "name": "@tide/htmlegy-dom",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest --no-isolate"
+  },
+  "dependencies": {
+    "@tide/htmlegy": "workspace:*"
+  },
+  "devDependencies": {
+    "@tide/frontmatter": "workspace:*",
+    "happy-dom": "^20.8.4",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "vitest": "^4.1.0"
+  }
+}

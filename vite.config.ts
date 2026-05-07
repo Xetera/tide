@@ -16,7 +16,9 @@ function gleamPlugin(): Plugin {
   return {
     name: 'gleam',
     buildStart() {
-      if (!this.meta.watchMode) {return}
+      if (!this.meta.watchMode) {
+        return
+      }
       execSync('gleam build --target javascript --no-print-progress', {
         cwd: GLEAM_DIR,
         stdio: 'inherit',
@@ -33,7 +35,9 @@ function gleamPlugin(): Plugin {
           stdio: 'inherit',
         })
         proc.on('close', (code) => {
-          if (code === 0) {server.hot.send({ type: 'full-reload' })}
+          if (code === 0) {
+            server.hot.send({ type: 'full-reload' })
+          }
         })
       })
     },
@@ -52,7 +56,9 @@ export default defineConfig({
             return
           }
           const chunks: Buffer[] = []
-          for await (const chunk of req) {chunks.push(chunk)}
+          for await (const chunk of req) {
+            chunks.push(chunk)
+          }
           const { path: filePath, content } = JSON.parse(
             Buffer.concat(chunks).toString(),
           ) as { path: string; content: string }
@@ -75,10 +81,10 @@ export default defineConfig({
       enforce: 'pre',
       configureServer(server) {
         server.watcher.add('src/**/*.jsonata')
-        server.watcher.add('src/**/*.htmlevate')
+        server.watcher.add('src/**/*.htmlegy')
       },
       async handleHotUpdate({ file, server, read }) {
-        if (!file.endsWith('.jsonata') && !file.endsWith('.htmlevate')) {
+        if (!file.endsWith('.jsonata') && !file.endsWith('.htmlegy')) {
           return
         }
         const srcDir = resolve(__dirname, 'src')
@@ -116,6 +122,10 @@ export default defineConfig({
         find: 'msw/node',
         replacement: '/node_modules/msw/lib/native/index.mjs',
       },
+      {
+        find: /^webextension-polyfill$/,
+        replacement: resolve(__dirname, 'src/__mocks__/webextension-polyfill.ts'),
+      },
       // ],
     ],
   },
@@ -144,5 +154,10 @@ export default defineConfig({
     include: ['**/*.spec.ts'],
     // environment: 'jsdom',
     environment: 'happy-dom',
+    server: {
+      deps: {
+        inline: ['webext-bridge', 'webextension-polyfill'],
+      },
+    },
   },
 })

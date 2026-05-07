@@ -104,7 +104,7 @@ function ScrapeViewer() {
                         return `network / ${s.funnel} / ${s.file}`
                       }
                       if (s.kind === 'page') {
-                        return `page / ${s.urlPattern}`
+                        return `page / ${s.url}`
                       }
                     })()}
                   </h1>

@@ -247,7 +247,7 @@ function emitUrlUpdate(
       }
       const results: FunnelMatchResult[] = []
       for (const entry of funnelProvider.getEntries()) {
-        const expr = new JsonataExpression(entry.expression, {
+        const expr = new JsonataExpression(entry.body, {
           request: {
             url: capture.url,
             method: capture.method,
@@ -353,6 +353,40 @@ function emitUrlUpdate(
           ok: false,
           error: err instanceof Error ? err.message : String(err),
         }
+      }
+    })
+
+    onMessage('create-funnel', async ({ data }) => {
+      if (import.meta.env.PROD) {
+        return {
+          ok: false,
+          error: 'create-funnel is only available in development',
+        } as const
+      }
+      const ext = data.format === 'htmlegy' ? 'htmlegy' : 'jsonata'
+      const path = `src/sites/${data.site}/loaders/${data.name}.${ext}`
+      const content =
+        data.format === 'htmlegy'
+          ? `---\nurl: "/"\n---\n`
+          : `---\nmethod: GET\nurl: "/"\n---\n`
+      try {
+        const response = await fetch(`http://localhost:3000/__tide_write`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ path, content }),
+        })
+        if (!response.ok) {
+          return {
+            ok: false,
+            error: `Server returned ${response.status}`,
+          } as const
+        }
+        return { ok: true, path } as const
+      } catch (err) {
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+        } as const
       }
     })
 

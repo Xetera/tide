@@ -23,6 +23,9 @@ export class PageEvaluator {
     const url = new URL(this.document.URL)
 
     for (const funnel of this.pageFunnels) {
+      if (funnel.hostname && funnel.hostname !== url.hostname) {
+        continue
+      }
       if (funnel.matchesUrl(url.pathname)) {
         return { kind: 'match', funnel }
       }

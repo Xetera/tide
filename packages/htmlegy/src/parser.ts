@@ -1,15 +1,11 @@
-import { parse as parseYaml } from 'yaml'
 import * as ohm from 'ohm-js'
 import type { NonterminalNode, IterationNode, TerminalNode } from 'ohm-js'
-import type {
-  HTMLevateActionDict,
-  HTMLevateSemantics,
-} from './grammar.ohm-bundle'
+import type { HTMLegyActionDict, HTMLegySemantics } from './grammar.ohm-bundle'
 import grammarSrc from './grammar.ohm?raw'
 
 const grammar = ohm.grammar(
   grammarSrc,
-) as unknown as import('./grammar.ohm-bundle').HTMLevateGrammar
+) as unknown as import('./grammar.ohm-bundle').HTMLegyGrammar
 
 export type SimplePipeline = { source: Source; tail: PipelineTail[] }
 
@@ -81,9 +77,9 @@ const toAst = (
   node: NonterminalNode | IterationNode | TerminalNode,
 ): AstResult => (node as WithAst).toAst()
 
-const semantics: HTMLevateSemantics = grammar.createSemantics()
+const semantics: HTMLegySemantics = grammar.createSemantics()
 
-const exprActions: HTMLevateActionDict<AstResult> = {
+const exprActions: HTMLegyActionDict<AstResult> = {
   Expr(e) {
     return e.toAst()
   },
@@ -380,37 +376,10 @@ const exprActions: HTMLevateActionDict<AstResult> = {
 
 semantics.addOperation<AstResult>('toAst', exprActions)
 
-export interface Frontmatter {
-  urlPattern?: string | string[]
-  [key: string]: unknown
-}
-
-export interface ParseResult {
-  frontmatter: Frontmatter
-  expr: Expr
-}
-
-const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/
-
-export function parseFrontmatter(src: string): {
-  frontmatter: Frontmatter
-  body: string
-} {
-  const m = src.match(FRONTMATTER_RE)
-  if (!m) {
-    return { frontmatter: {}, body: src }
-  }
-  const parsed = parseYaml(m[1]!)
-  const frontmatter: Frontmatter =
-    parsed != null && typeof parsed === 'object' ? parsed : {}
-  return { frontmatter, body: m[2]! }
-}
-
-export function parse(src: string): ParseResult {
-  const { frontmatter, body } = parseFrontmatter(src)
-  const match = grammar.match(body, 'Expr')
+export function parse(src: string): Expr {
+  const match = grammar.match(src, 'Expr')
   if (match.failed()) {
     throw new Error(match.message ?? 'Parse failed')
   }
-  return { frontmatter, expr: semantics(match).toAst() as Expr }
+  return semantics(match).toAst() as Expr
 }

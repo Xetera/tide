@@ -88,8 +88,8 @@ export class HighlightManager {
     this.#patchCounts = patchCounts ?? null
     this.#errors = errors ?? []
     this.#hues = new Map()
-    for (const { label } of entries) {
-      hueFor(label.entity, this.#hues)
+    for (const { entity } of entries) {
+      hueFor(entity ?? '', this.#hues)
     }
     this.#ensureCanvas()
     this.#scheduleDraw()
@@ -190,14 +190,14 @@ export class HighlightManager {
       {
         element: Element
         rect: DOMRect
-        labels: { entity: string; field: string }[]
+        labels: { entity?: string; field: string[] }[]
         hue: number
         isArrayItem: boolean
       }
     >()
 
-    for (const { element, label, isArrayItem } of this.#entries) {
-      if (this.#callbacks.isHidden(label.entity)) {
+    for (const { element, label, entity, isArrayItem } of this.#entries) {
+      if (this.#callbacks.isHidden(entity ?? '')) {
         continue
       }
       const rect = element.getBoundingClientRect()
@@ -208,22 +208,22 @@ export class HighlightManager {
         continue
       }
 
-      const hue = this.#hues.get(label.entity) ?? 0
+      const hue = this.#hues.get(entity ?? '') ?? 0
 
       const existing = drawn.get(element)
       if (existing) {
         if (
           !existing.labels.some(
-            (l) => l.entity === label.entity && l.field === label.field,
+            (l) => l.entity === entity && l.field.join('.') === label.field.join('.'),
           )
         ) {
-          existing.labels.push(label)
+          existing.labels.push({ ...label, entity })
         }
       } else {
         drawn.set(element, {
           element,
           rect,
-          labels: [label],
+          labels: [{ ...label, entity }],
           hue,
           isArrayItem: !!isArrayItem,
         })
@@ -244,7 +244,7 @@ export class HighlightManager {
       ctx.stroke()
 
       if (!isArrayItem) {
-        const text = labels.map((l) => l.field).join(', ')
+        const text = labels.map((l) => l.field.join('.')).join(', ')
         ctx.font = '9px monospace'
         const metrics = ctx.measureText(text)
         const textHeight = 10

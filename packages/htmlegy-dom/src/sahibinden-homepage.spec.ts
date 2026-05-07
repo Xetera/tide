@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { compile } from '~/htmlevate/compiler'
-import htmlevateSrc from './fixtures/sahibinden-homepage.htmlevate?raw'
+import { createExpr } from './index'
+import { parseFrontmatter } from '@tide/frontmatter'
+import rawHtmlegySrc from './fixtures/sahibinden-homepage.htmlegy?raw'
 import htmlSrc from './fixtures/sahibinden-homepage.html?raw'
+
+const htmlegySrc = parseFrontmatter(rawHtmlegySrc).body
 
 function doc(html: string): Element {
   const d = document.implementation.createHTMLDocument()
@@ -30,8 +33,7 @@ describe('sahibinden homepage', () => {
   let result: Result
 
   beforeAll(() => {
-    result = compile(htmlevateSrc)(doc(htmlSrc)) as Result
-    console.dir(result, { depth: Infinity })
+    result = createExpr(htmlegySrc).run(doc(htmlSrc)) as Result
   })
 
   describe('showcase listings', () => {

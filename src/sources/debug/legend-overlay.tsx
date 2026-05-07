@@ -152,9 +152,11 @@ const LEGEND_CSS = `
 `
 
 export function openInPlayground(loader: Funnel): void {
-  const url = chrome.runtime.getURL(`playground.html?funnel=${encodeURIComponent(loader.path)}`)
-  sendMessage('open-tab', { url }, { context: 'background', tabId: 0 }).catch((err) =>
-    console.error('[tide] open-tab failed', err),
+  const url = chrome.runtime.getURL(
+    `playground.html?funnel=${encodeURIComponent(loader.path)}`,
+  )
+  sendMessage('open-tab', { url }, { context: 'background', tabId: 0 }).catch(
+    (err) => console.error('[tide] open-tab failed', err),
   )
 }
 
@@ -172,16 +174,37 @@ function FunnelRow(props: {
   return (
     <div
       class={`file-link${props.activeOpacity() !== null ? ' active' : ''}${props.patchCount() === undefined ? ' unfired' : ''}`}
-      style={props.activeOpacity() !== null ? { background: `light-dark(oklch(0.88 0.04 250 / ${props.activeOpacity()! * 0.6}), oklch(0.28 0.04 250 / ${props.activeOpacity()! * 0.6}))` } : {}}
+      style={
+        props.activeOpacity() !== null
+          ? {
+              background: `light-dark(oklch(0.88 0.04 250 / ${props.activeOpacity()! * 0.6}), oklch(0.28 0.04 250 / ${props.activeOpacity()! * 0.6}))`,
+            }
+          : {}
+      }
       on:mousedown={(e: MouseEvent) => e.stopPropagation()}
-      on:click={(e: MouseEvent) => { e.stopPropagation(); openInPlayground(props.file) }}
+      on:click={(e: MouseEvent) => {
+        e.stopPropagation()
+        openInPlayground(props.file)
+      }}
     >
-      <span class={`file-ext ${props.file.format === 'htmlevate' ? 'file-ext-html' : 'file-ext-json'}`}>
-        {props.file.format === 'htmlevate' ? '</>' : '{}'}
+      <span
+        class={`file-ext ${props.file.format === 'htmlegy' ? 'file-ext-html' : 'file-ext-json'}`}
+      >
+        {props.file.format === 'htmlegy' ? '</>' : '{}'}
       </span>
-      <span style={props.activeOpacity() !== null ? { opacity: String(0.4 + props.activeOpacity()! * 0.6) } : {}}>{props.file.file}</span>
+      <span
+        style={
+          props.activeOpacity() !== null
+            ? { opacity: String(0.4 + props.activeOpacity()! * 0.6) }
+            : {}
+        }
+      >
+        {props.file.file}
+      </span>
       {props.patchCount() !== undefined && (
-        <span class={`file-count${props.patchCount() === 0 ? ' empty' : ''}`}>{props.patchCount()}</span>
+        <span class={`file-count${props.patchCount() === 0 ? ' empty' : ''}`}>
+          {props.patchCount()}
+        </span>
       )}
     </div>
   )
@@ -269,9 +292,22 @@ function LegendComponent(props: {
     return { offsetX, offsetY, width: rect.width, height: rect.height }
   }
 
-  const moveDrag = (clientX: number, clientY: number, offsetX: number, offsetY: number, width: number, height: number) => {
-    const x = Math.max(0, Math.min(window.innerWidth - width, clientX - offsetX))
-    const y = Math.max(0, Math.min(window.innerHeight - height, clientY - offsetY))
+  const moveDrag = (
+    clientX: number,
+    clientY: number,
+    offsetX: number,
+    offsetY: number,
+    width: number,
+    height: number,
+  ) => {
+    const x = Math.max(
+      0,
+      Math.min(window.innerWidth - width, clientX - offsetX),
+    )
+    const y = Math.max(
+      0,
+      Math.min(window.innerHeight - height, clientY - offsetY),
+    )
     props.host.style.setProperty('left', `${x}px`, 'important')
     props.host.style.setProperty('top', `${y}px`, 'important')
   }
@@ -282,7 +318,9 @@ function LegendComponent(props: {
     }
     e.preventDefault()
     const { offsetX, offsetY, width, height } = startDrag(e.clientX, e.clientY)
-    const onMouseMove = (e: MouseEvent) => { moveDrag(e.clientX, e.clientY, offsetX, offsetY, width, height) }
+    const onMouseMove = (e: MouseEvent) => {
+      moveDrag(e.clientX, e.clientY, offsetX, offsetY, width, height)
+    }
     const onMouseUp = () => {
       setDragging(false)
       document.removeEventListener('mousemove', onMouseMove)
@@ -298,7 +336,10 @@ function LegendComponent(props: {
       return
     }
     const touch = e.touches[0]!
-    const { offsetX, offsetY, width, height } = startDrag(touch.clientX, touch.clientY)
+    const { offsetX, offsetY, width, height } = startDrag(
+      touch.clientX,
+      touch.clientY,
+    )
     const onTouchMove = (e: TouchEvent) => {
       const t = e.touches[0]!
       moveDrag(t.clientX, t.clientY, offsetX, offsetY, width, height)
@@ -314,12 +355,26 @@ function LegendComponent(props: {
   }
 
   return (
-    <div class={`legend${collapsed() ? ' collapsed' : ''}${dragging() ? ' dragging' : ''}`}>
-      <div class='handle' on:mousedown={onDragStart} on:touchstart={onTouchStart}>
+    <div
+      class={`legend${collapsed() ? ' collapsed' : ''}${dragging() ? ' dragging' : ''}`}
+    >
+      <div
+        class='handle'
+        on:mousedown={onDragStart}
+        on:touchstart={onTouchStart}
+      >
         <span class='handle-title'>Tide</span>
         <div class='handle-dots'>
-          <span><i /><i /><i /></span>
-          <span><i /><i /><i /></span>
+          <span>
+            <i />
+            <i />
+            <i />
+          </span>
+          <span>
+            <i />
+            <i />
+            <i />
+          </span>
         </div>
         {props.networkFunnels().length > 0 && (
           <button
@@ -355,7 +410,10 @@ function LegendComponent(props: {
           {({ entity, hue, count }) => (
             <div
               class={`row${hidden().has(entity) ? ' hidden' : ''}`}
-              on:click={(e: MouseEvent) => { e.stopPropagation(); toggle(entity) }}
+              on:click={(e: MouseEvent) => {
+                e.stopPropagation()
+                toggle(entity)
+              }}
             >
               <div class='swatch' style={{ background: strokeColor(hue) }} />
               <span class='entity'>{entity}</span>
@@ -437,7 +495,10 @@ export class LegendOverlay {
     if (this.#host) {
       return
     }
-    const savedPos = await legendStorage.get('legend:position', null as { x: number; y: number } | null)
+    const savedPos = await legendStorage.get(
+      'legend:position',
+      null as { x: number; y: number } | null,
+    )
     if (this.#host) {
       return
     }
@@ -461,7 +522,9 @@ export class LegendOverlay {
 
     const [entries, setEntries] = createSignal<LegendEntry[]>([])
     const [errors, setErrors] = createSignal<string[]>([])
-    const [networkFunnels, setNetworkFunnels] = createSignal<Funnel[]>(this.#networkFunnels)
+    const [networkFunnels, setNetworkFunnels] = createSignal<Funnel[]>(
+      this.#networkFunnels,
+    )
     this.#setEntries = setEntries
     this.#setErrors = setErrors
     this.#setNetworkFunnels = setNetworkFunnels
@@ -474,9 +537,17 @@ export class LegendOverlay {
           errors={errors}
           networkFunnels={networkFunnels}
           fileSignals={(key) => this.#getOrCreateFileState(key)}
-          onOpenNetworkFiles={(setter) => { this.#openNetworkFiles = setter }}
-          onHiddenChange={(hidden) => { this.#hidden = hidden; this.#onRedraw?.() }}
-          onOpacityChange={(v) => { this.#opacity = v; this.#onRedraw?.() }}
+          onOpenNetworkFiles={(setter) => {
+            this.#openNetworkFiles = setter
+          }}
+          onHiddenChange={(hidden) => {
+            this.#hidden = hidden
+            this.#onRedraw?.()
+          }}
+          onOpacityChange={(v) => {
+            this.#opacity = v
+            this.#onRedraw?.()
+          }}
         />
       ),
       container,
@@ -491,11 +562,20 @@ export class LegendOverlay {
     if (existing) {
       return existing
     }
-    const [patchCount, setPatchCount] = createSignal<number | undefined>(undefined)
+    const [patchCount, setPatchCount] = createSignal<number | undefined>(
+      undefined,
+    )
     const idx = this.#recentFunnels.indexOf(key)
     const initialOpacity = idx === -1 ? null : Math.pow(0.55, idx)
-    const [activeOpacity, setActiveOpacity] = createSignal<number | null>(initialOpacity)
-    const state: FileState = { patchCount, setPatchCount, activeOpacity, setActiveOpacity }
+    const [activeOpacity, setActiveOpacity] = createSignal<number | null>(
+      initialOpacity,
+    )
+    const state: FileState = {
+      patchCount,
+      setPatchCount,
+      activeOpacity,
+      setActiveOpacity,
+    }
     this.#fileStates.set(key, state)
     return state
   }
@@ -536,7 +616,10 @@ export class LegendOverlay {
     if (this.#recentFunnels[0] === key) {
       return
     }
-    this.#recentFunnels = [key, ...this.#recentFunnels.filter((k) => k !== key)].slice(0, LegendOverlay.#BUFFER_SIZE)
+    this.#recentFunnels = [
+      key,
+      ...this.#recentFunnels.filter((k) => k !== key),
+    ].slice(0, LegendOverlay.#BUFFER_SIZE)
     this.#applyFunnelOpacities()
   }
 
@@ -568,7 +651,11 @@ export class LegendOverlay {
     return this.#opacity
   }
 
-  update(hues: Map<string, number>, counts: Map<string, number>, errors: string[] = []) {
+  update(
+    hues: Map<string, number>,
+    counts: Map<string, number>,
+    errors: string[] = [],
+  ) {
     this.#setErrors?.(errors)
     this.#setEntries?.(
       Array.from(hues.entries()).map(([entity, hue]) => ({

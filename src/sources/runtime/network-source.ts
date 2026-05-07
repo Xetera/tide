@@ -20,7 +20,7 @@ export function registerFunnels(
       funnels: {
         file: string
         source: string
-        format: 'jsonata' | 'htmlevate'
+        format: 'jsonata' | 'htmlegy'
       }[]
     }
   > = {}
@@ -37,10 +37,7 @@ export function registerFunnels(
       }
     }
   }
-  window.postMessage(
-    { __tide: true, kind: 'register-funnels', funnels },
-    '*',
-  )
+  window.postMessage({ __tide: true, kind: 'register-funnels', funnels }, '*')
 }
 
 window.addEventListener('message', (evt) => {

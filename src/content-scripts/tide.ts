@@ -62,7 +62,7 @@ import './stream-capture'
     )
     console.log(
       '[tide] loaded page funnels',
-      pageFunnels.map((p) => p.urlPattern),
+      pageFunnels.map((p) => p.url),
     )
 
     registerFunnels(allSites, (result) => {

@@ -2,5 +2,5 @@ node_modules
 dist
 dummy-non-existing-folder
 zed
-zed-htmlevate/grammars
-tree-sitter-htmlevate
+zed-htmlegy/grammars
+tree-sitter-htmlegy

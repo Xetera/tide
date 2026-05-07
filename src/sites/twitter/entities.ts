@@ -18,22 +18,7 @@ export const twitterEntities = [
       isProtected: Type.Boolean(),
       bio: Type.String(),
     })
-    .display('username')
-    .jsonLd({
-      '@type': 'Person',
-      identifier: '_id',
-      name: 'nickname',
-      alternateName: 'username',
-      description: 'bio',
-      url: 'canonicalUrl',
-      interactionStatistic: [
-        {
-          '@type': 'InteractionCounter',
-          interactionType: 'https://schema.org/FollowAction',
-          userInteractionCount: 'followerCount',
-        },
-      ],
-    }),
+    .display('username'),
   new EntityBuilder('@twitter/tweet')
     .canonicalUrl('https://x.com/{authorUsername}/status/{id}')
     .fields({
@@ -47,28 +32,5 @@ export const twitterEntities = [
       inReplyTo: One('@twitter/tweet'),
       replies: Many('@twitter/tweet'),
     })
-    .display('text')
-    .jsonLd({
-      '@type': 'SocialMediaPosting',
-      identifier: '_id',
-      text: 'text',
-      url: 'canonicalUrl',
-      interactionStatistic: [
-        {
-          '@type': 'InteractionCounter',
-          interactionType: 'https://schema.org/LikeAction',
-          userInteractionCount: 'likeCount',
-        },
-        {
-          '@type': 'InteractionCounter',
-          interactionType: 'https://schema.org/ShareAction',
-          userInteractionCount: 'retweetCount',
-        },
-        {
-          '@type': 'InteractionCounter',
-          interactionType: 'https://schema.org/ReplyAction',
-          userInteractionCount: 'replyCount',
-        },
-      ],
-    }),
+    .display('text'),
 ]

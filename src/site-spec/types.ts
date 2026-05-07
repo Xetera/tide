@@ -8,6 +8,8 @@ export interface PageFunnelEntry {
   file: string
   path: string
   expression: string
+  body: string
+  frontmatter: Record<string, unknown>
 }
 
 export interface NetworkFunnelEntry {
@@ -16,6 +18,8 @@ export interface NetworkFunnelEntry {
   file: string
   path: string
   expression: string
+  body: string
+  frontmatter: Record<string, unknown>
 }
 
 export interface FixtureEntry {
@@ -35,7 +39,7 @@ export interface Funnel {
   readonly name: string
   readonly file: string
   readonly path: string
-  readonly format: 'htmlevate' | 'jsonata'
+  readonly format: 'htmlegy' | 'jsonata'
   readonly key: string
   readonly source: string
   matchesUrl(pathname: string): boolean
@@ -45,9 +49,9 @@ export class PageFunnel implements Funnel {
   readonly name: string
   readonly file: string
   readonly path: string
-  readonly format = 'htmlevate' as const
+  readonly format = 'htmlegy' as const
   readonly key: string
-  readonly urlPattern: string | string[]
+  readonly url: string | string[]
   readonly hostname: string | undefined
   #entry: PageFunnelEntry
 
@@ -55,28 +59,28 @@ export class PageFunnel implements Funnel {
     name: string
     file: string
     path: string
-    urlPattern: string | string[]
+    url: string | string[]
     hostname: string | undefined
     entry: PageFunnelEntry
   }) {
     this.name = init.name
     this.file = init.file
     this.path = init.path
-    this.urlPattern = init.urlPattern
+    this.url = init.url
     this.hostname = init.hostname
     this.#entry = init.entry
     this.key = `${init.name}/${init.file}`
   }
 
   get source(): string {
-    return this.#entry.expression
+    return this.#entry.body
   }
 
   matchesUrl(pathname: string): boolean {
     const normalized = normalizePath(pathname)
-    const patterns = Array.isArray(this.urlPattern)
-      ? this.urlPattern
-      : [this.urlPattern]
+    const patterns = Array.isArray(this.url)
+      ? this.url
+      : [this.url]
     return patterns.some((p) => matchesGlob(normalizePath(p), normalized))
   }
 }
@@ -106,7 +110,7 @@ export class NetworkFunnel implements Funnel {
   }
 
   get source(): string {
-    return this.#entry.expression
+    return this.#entry.body
   }
 
   matchesUrl(pathname: string): boolean {
@@ -134,6 +138,10 @@ export class NetworkFunnelGroup {
     this.hostname = init.hostname
     this.request = init.request
     this.funnels = init.funnels
+  }
+
+  get key(): string {
+    return this.funnels[0]?.key ?? this.name
   }
 }
 
@@ -194,12 +202,6 @@ export class SiteDefinition {
   }
 }
 
-export type JsonLdValue = string | JsonLdMapping
-
-export type JsonLdMapping = {
-  [key: string]: JsonLdValue | JsonLdValue[]
-}
-
 export interface Entity {
   entity: string
   version: number
@@ -207,7 +209,6 @@ export interface Entity {
   canonicalUrl?: string
   uniqueFields?: string[]
   displayField?: string
-  jsonLd?: JsonLdMapping
 }
 
 export type EntityId = string | string[]
@@ -247,7 +248,7 @@ export type AssetReference = {
 export interface ResourceSpec {
   entity: string
   hostname: string
-  urlPattern: string | string[]
+  url: string | string[]
 }
 
 export interface ResourcesResponse {

@@ -2,16 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { JsonataExpression } from '~/extraction/jsonata-bindings'
 import { EntityValidator } from '~/extraction/entity-validator'
 import { instagramSite } from '~/sites/instagram'
-import expression from './request.jsonata?raw'
+import { parseFrontmatter } from '@tide/frontmatter'
+import rawExpression from './request.jsonata?raw'
 import validRequest from './validRequest.json'
 import notFound from './notFound.json'
 
 const validator = new EntityValidator([instagramSite])
+const { body: expression } = parseFrontmatter(rawExpression)
 
 describe('instagram mediaInfo loader', () => {
   it('parses valid response entities against schema', async () => {
     const entities =
-      await JsonataExpression.default(expression).entities(validRequest)
+      await JsonataExpression.default(expression).entities(validRequest.response.body)
 
     const post = entities.find((e) => e._entity === '@instagram/post')
     const user = entities.find((e) => e._entity === '@instagram/user')

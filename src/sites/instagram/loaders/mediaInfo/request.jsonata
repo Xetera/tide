@@ -13,9 +13,7 @@ url: "/api/v1/media/*/info/"
       "video": $video(video_versions[0].url) ~> $with_dimensions(width, height) ~> $unique_id(id)
     } : carousel_media ? {
       "kind": "carousel",
-      "images": carousel_media[]@$M.(
-        image_versions2.candidates[0].($image(url) ~> $with_dimensions(width, height) ~> $unique_id($M.pk))
-      )
+      "images": carousel_media[]@$M.($image($M.image_versions2.candidates[0].url) ~> $with_dimensions($M.width, $M.height) ~> $unique_id($M.pk))
     } : image_versions2 ? {
       "kind": "image",
       "image": $image(image_versions2.candidates[0].url)

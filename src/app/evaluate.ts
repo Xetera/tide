@@ -1,8 +1,11 @@
 import { JsonataExpression } from '~/extraction/jsonata-bindings'
-import { EntityValidator, type IdentityWarning } from '~/extraction/entity-validator'
+import {
+  EntityValidator,
+  type IdentityWarning,
+} from '~/extraction/entity-validator'
 import { allSites } from '~/sites'
 import type { RawEntityPatch } from '~/site-spec/types'
-import { compile } from '~/htmlevate/compiler'
+import { createExpr } from '@tide/htmlegy-dom'
 
 export const validator = new EntityValidator(allSites)
 
@@ -39,11 +42,20 @@ export async function evaluate(
       err instanceof Error
         ? err.message
         : ((err as { message?: string })?.message ?? String(err))
-    return { patches: [], validationErrors: [], identityWarnings: [] as IdentityWarning[], raw: undefined, error: msg }
+    return {
+      patches: [],
+      validationErrors: [],
+      identityWarnings: [] as IdentityWarning[],
+      raw: undefined,
+      error: msg,
+    }
   }
 }
 
-export function htmlevateToPatches(entity: string, result: unknown): RawEntityPatch[] {
+export function htmlegyToPatches(
+  entity: string,
+  result: unknown,
+): RawEntityPatch[] {
   if (Array.isArray(result)) {
     return result.filter(
       (item): item is RawEntityPatch =>
@@ -54,26 +66,34 @@ export function htmlevateToPatches(entity: string, result: unknown): RawEntityPa
     return [result as RawEntityPatch]
   }
   if (typeof result === 'object' && result !== null) {
-    return [{ _entity: entity, _id: '', ...(result as Record<string, unknown>) }]
+    return [
+      { _entity: entity, _id: '', ...(result as Record<string, unknown>) },
+    ]
   }
   return []
 }
 
-export function evaluateHtmlevate(
+export function evaluateHtmlegy(
   expression: string,
   entity: string,
   root: Element,
 ): EvalResult {
   try {
-    const result = compile(expression)(root)
-    const patches = htmlevateToPatches(entity, result)
+    const result = createExpr(expression).run(root)
+    const patches = htmlegyToPatches(entity, result)
     return { patches, validationErrors: [], identityWarnings: [], raw: result }
   } catch (err) {
     const msg =
       err instanceof Error
         ? err.message
         : ((err as { message?: string })?.message ?? String(err))
-    return { patches: [], validationErrors: [], identityWarnings: [], raw: undefined, error: msg }
+    return {
+      patches: [],
+      validationErrors: [],
+      identityWarnings: [],
+      raw: undefined,
+      error: msg,
+    }
   }
 }
 

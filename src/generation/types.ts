@@ -57,7 +57,7 @@ export interface FunnelInfo {
   file: string
   path: string
   expression: string
-  format: 'jsonata' | 'htmlevate'
+  format: 'jsonata' | 'htmlegy'
   fixtures: FunnelFixture[]
   request: { method: string; url: string | string[] }
 }

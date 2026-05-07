@@ -4,7 +4,7 @@ import { matchesGlob } from '~/extraction/glob'
 interface FunnelEntry {
   file: string
   source: string
-  format: 'jsonata' | 'htmlevate'
+  format: 'jsonata' | 'htmlegy'
 }
 
 interface FunnelRegistration {
@@ -98,7 +98,9 @@ async function processCapture(capture: QueuedCapture) {
           request: { url, method, headers: requestHeaders },
           response: { url, status, headers: responseHeaders, body: json },
         })
-        const result = await expression.evaluate(json as Record<string, unknown>)
+        const result = await expression.evaluate(
+          json as Record<string, unknown>,
+        )
 
         if (result === undefined) {
           continue
@@ -116,10 +118,7 @@ async function processCapture(capture: QueuedCapture) {
           '*',
         )
       } catch (err) {
-        console.warn(
-          `[tide] funnel "${name}/${file}" failed for ${url}:`,
-          err,
-        )
+        console.warn(`[tide] funnel "${name}/${file}" failed for ${url}:`, err)
       }
     }
   }

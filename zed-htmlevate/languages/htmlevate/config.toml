@@ -1,4 +1,0 @@
-name = "HTMLevate"
-grammar = "htmlevate"
-path_suffixes = ["htmlevate"]
-line_comments = ["// "]

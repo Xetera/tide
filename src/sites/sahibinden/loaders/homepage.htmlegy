@@ -1,5 +1,5 @@
 ---
-urlPattern: "/"
+url: "/"
 ---
 [
    $$(.vitrin-list > li:has(a[href*="/ilan/"]), #interestingAds > li) {

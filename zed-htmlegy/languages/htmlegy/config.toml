@@ -1,0 +1,4 @@
+name = "HTMLegy"
+grammar = "htmlegy"
+path_suffixes = ["htmlegy"]
+line_comments = ["// "]

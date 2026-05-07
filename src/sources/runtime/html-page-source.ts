@@ -1,5 +1,5 @@
 import { onMessage } from 'webext-bridge/content-script'
-import { compile } from '~/htmlevate/compiler'
+import { createExpr, type HtmlegyExpr } from '@tide/htmlegy-dom'
 import { PageEvaluator } from '~/extraction/page-evaluator'
 import type { JobParameters, JobSource, PageFunnel } from '~/site-spec/types'
 import { EntityValidator } from '~/extraction/entity-validator'
@@ -19,12 +19,12 @@ class PageRuleRunner {
   #dispose: (() => void) | null = null
   #highlights: HighlightEntry[] = []
   #pendingReset = false
-  #fn: ReturnType<typeof compile>
+  #fn: HtmlegyExpr<Element>
 
   constructor(rule: PageFunnel, validator: EntityValidator) {
     this.rule = rule
     this.#validator = validator
-    this.#fn = compile(rule.source, {
+    this.#fn = createExpr(rule.source, {
       onElement: (element, label, isArrayItem) => {
         if (this.#pendingReset) {
           this.#highlights = []
@@ -50,16 +50,20 @@ class PageRuleRunner {
         return
       }
       const { patches, errors } = this.#validator.parsePatches(value)
-      const { patches: validated, warnings } = this.#validator.applyIdentityExprs(patches)
+      const { patches: validated, warnings } =
+        this.#validator.applyIdentityExprs(patches)
 
       const patchCounts = new Map<string, number>()
       for (const patch of validated) {
-        patchCounts.set(patch._entity, (patchCounts.get(patch._entity) ?? 0) + 1)
+        patchCounts.set(
+          patch._entity,
+          (patchCounts.get(patch._entity) ?? 0) + 1,
+        )
       }
 
-      const urlPattern = Array.isArray(this.rule.urlPattern)
-        ? this.rule.urlPattern[0]!
-        : this.rule.urlPattern
+      const url = Array.isArray(this.rule.url)
+        ? this.rule.url[0]!
+        : this.rule.url
 
       onResult({
         patches: validated,
@@ -67,18 +71,23 @@ class PageRuleRunner {
         patchCounts,
         errors,
         warnings: warnings.map((w) => w.message),
-        scrapeSource: { kind: 'page', urlPattern, funnel: this.rule.name, file: this.rule.file },
+        scrapeSource: {
+          kind: 'page',
+          url,
+          funnel: this.rule.name,
+          file: this.rule.file,
+        },
       })
     }
 
-    if (this.#fn.reactive) {
+    if (this.#fn.isReactive) {
       const reactive = this.#fn.reactive(doc.documentElement)
       this.#dispose = reactive.subscribe((value) => {
         this.#pendingReset = true
         emit(value)
       })
     } else {
-      emit(this.#fn(doc.documentElement))
+      emit(this.#fn.run(doc.documentElement))
     }
   }
 
@@ -147,7 +156,7 @@ export class HtmlPageSource {
     console.log('matching', matching)
     if (matching.kind === 'match') {
       console.log(
-        `[tide] matched page funnel: ${matching.funnel.urlPattern} for ${document.URL}`,
+        `[tide] matched page funnel: ${matching.funnel.url} for ${document.URL}`,
       )
       const jobSource: JobSource = this.isInIframe
         ? { kind: 'active', id: await this.#getJobId() }

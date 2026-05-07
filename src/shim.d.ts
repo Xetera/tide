@@ -21,14 +21,22 @@ import type {
 declare module 'webext-bridge' {
   export interface ProtocolMap {
     'open-tab': { url: string }
-    'get-tabs-for-hostname': ProtocolWithReturn<{ hostname: string }, Array<{ tabId: number; title: string; url: string }>>
-    'get-tab-html': ProtocolWithReturn<{ tabId: number }, { html: string; url: string } | null>
+    'get-tabs-for-hostname': ProtocolWithReturn<
+      { hostname: string },
+      Array<{ tabId: number; title: string; url: string }>
+    >
+    'get-tab-html': ProtocolWithReturn<
+      { tabId: number },
+      { html: string; url: string } | null
+    >
     'url-update': unknown
     'toggle-highlight': void
     'run-job': JobParameters
     'update-resources': Resource[]
     start: unknown
-    log: Omit<PlainLog, 'date' | 'id' | 'type'> | Omit<ScrapeLog, 'date' | 'id' | 'status'>
+    log:
+      | Omit<PlainLog, 'date' | 'id' | 'type'>
+      | Omit<ScrapeLog, 'date' | 'id' | 'status'>
     resources: ProtocolWithReturn<unknown, Resource[]>
     'set-schema': ProtocolWithReturn<Resource[], void>
     'entity-patches': ScrapeResult
@@ -43,7 +51,10 @@ declare module 'webext-bridge' {
       capturedAt: number
     }
     'get-captures': ProtocolWithReturn<
-      { hostname: string; request?: { method: string; url: string | string[] } },
+      {
+        hostname: string
+        request?: { method: string; url: string | string[] }
+      },
       CaptureEntry[]
     >
     'generate-spec': ProtocolWithReturn<GenerationRequest, GenerationResult>
@@ -55,6 +66,10 @@ declare module 'webext-bridge' {
     'write-funnel': ProtocolWithReturn<
       { path: string; content: string },
       { ok: boolean; error?: string }
+    >
+    'create-funnel': ProtocolWithReturn<
+      { site: string; name: string; format: 'jsonata' | 'htmlegy' },
+      { ok: true; path: string } | { ok: false; error: string }
     >
     'generate-jsonata': ProtocolWithReturn<
       { captureId: string; currentExpression: string; userNote?: string },

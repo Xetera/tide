@@ -4,15 +4,28 @@ import { PageFunnel } from '~/site-spec/types'
 import type { PageFunnelEntry } from '~/site-spec/types'
 import { JSDOM } from 'jsdom'
 
-function makeLoader(opts: { hostname?: string; urlPattern?: string | string[]; source?: string }): PageFunnel {
+function makeLoader(opts: {
+  hostname?: string
+  url?: string | string[]
+  source?: string
+}): PageFunnel {
   const entry: PageFunnelEntry = {
     site: 'test',
     funnel: 'test',
-    file: 'test.htmlevate',
-    path: 'src/sites/test/loaders/test.htmlevate',
+    file: 'test.htmlegy',
+    path: 'src/sites/test/loaders/test.htmlegy',
     expression: opts.source ?? '',
+    body: opts.source ?? '',
+    frontmatter: {},
   }
-  return new PageFunnel({ name: 'test', file: 'test.htmlevate', path: 'src/sites/test/loaders/test.htmlevate', urlPattern: opts.urlPattern ?? '/', hostname: opts.hostname, entry })
+  return new PageFunnel({
+    name: 'test',
+    file: 'test.htmlegy',
+    path: 'src/sites/test/loaders/test.htmlegy',
+    url: opts.url ?? '/',
+    hostname: opts.hostname,
+    entry,
+  })
 }
 
 describe('page evaluator', () => {
@@ -30,69 +43,84 @@ describe('page evaluator', () => {
 
   it('matches a rule by hostname and url pattern', () => {
     setUrl('https://abc.com/abcd123')
-    const rule = makeLoader({ hostname: 'abc.com', urlPattern: '/*' })
+    const rule = makeLoader({ hostname: 'abc.com', url: '/*' })
     const pe = new PageEvaluator(document, [rule])
     expect(pe.checkCurrentPage()).toStrictEqual({ kind: 'match', funnel: rule })
   })
 
   it('does not match a different hostname', () => {
     setUrl('https://www.example.com')
-    const rule = makeLoader({ hostname: 'example.com', urlPattern: '/' })
+    const rule = makeLoader({ hostname: 'example.com', url: '/' })
     const pe = new PageEvaluator(document, [rule])
-    expect(pe.checkCurrentPage()).toMatchObject({ kind: 'fail', reason: 'no-matching-rule' })
+    expect(pe.checkCurrentPage()).toMatchObject({
+      kind: 'fail',
+      reason: 'no-matching-rule',
+    })
   })
 
   it('ignores trailing slash in url pattern', () => {
     setUrl('https://abc.com/abcd123')
-    const rule = makeLoader({ hostname: 'abc.com', urlPattern: '/*/' })
+    const rule = makeLoader({ hostname: 'abc.com', url: '/*/' })
     const pe = new PageEvaluator(document, [rule])
     expect(pe.checkCurrentPage()).toStrictEqual({ kind: 'match', funnel: rule })
   })
 
   it('ignores trailing slash in the current url', () => {
     setUrl('https://abc.com/abcd123/')
-    const rule = makeLoader({ hostname: 'abc.com', urlPattern: '/*' })
+    const rule = makeLoader({ hostname: 'abc.com', url: '/*' })
     const pe = new PageEvaluator(document, [rule])
     expect(pe.checkCurrentPage()).toStrictEqual({ kind: 'match', funnel: rule })
   })
 
   it('does not partially match patterns', () => {
     setUrl('https://abc.com/abcd123/extra')
-    const rule = makeLoader({ hostname: 'abc.com', urlPattern: '/*' })
+    const rule = makeLoader({ hostname: 'abc.com', url: '/*' })
     const pe = new PageEvaluator(document, [rule])
-    expect(pe.checkCurrentPage()).toMatchObject({ kind: 'fail', reason: 'no-matching-rule' })
+    expect(pe.checkCurrentPage()).toMatchObject({
+      kind: 'fail',
+      reason: 'no-matching-rule',
+    })
   })
 
   it('picks the first matching rule when multiple rules exist', () => {
     setUrl('https://abc.com/posts/123')
-    const first = makeLoader({ hostname: 'abc.com', urlPattern: '/posts/*' })
-    const second = makeLoader({ hostname: 'abc.com', urlPattern: '/posts/*' })
+    const first = makeLoader({ hostname: 'abc.com', url: '/posts/*' })
+    const second = makeLoader({ hostname: 'abc.com', url: '/posts/*' })
     const pe = new PageEvaluator(document, [first, second])
-    expect(pe.checkCurrentPage()).toStrictEqual({ kind: 'match', funnel: first })
+    expect(pe.checkCurrentPage()).toStrictEqual({
+      kind: 'match',
+      funnel: first,
+    })
   })
 
   it('matches when no hostname is specified', () => {
     setUrl('https://anything.com/foo')
-    const rule = makeLoader({ hostname: undefined, urlPattern: '/foo' })
+    const rule = makeLoader({ hostname: undefined, url: '/foo' })
     const pe = new PageEvaluator(document, [rule])
     expect(pe.checkCurrentPage()).toStrictEqual({ kind: 'match', funnel: rule })
   })
 
   it('supports multiple url patterns', () => {
     setUrl('https://abc.com/bar/123')
-    const rule = makeLoader({ hostname: 'abc.com', urlPattern: ['/foo/*', '/bar/*'] })
+    const rule = makeLoader({
+      hostname: 'abc.com',
+      url: ['/foo/*', '/bar/*'],
+    })
     const pe = new PageEvaluator(document, [rule])
     expect(pe.checkCurrentPage()).toStrictEqual({ kind: 'match', funnel: rule })
   })
 
   it('updateDocument re-evaluates against the new url', () => {
     setUrl('https://abc.com/foo')
-    const rule = makeLoader({ hostname: 'abc.com', urlPattern: '/foo' })
+    const rule = makeLoader({ hostname: 'abc.com', url: '/foo' })
     const pe = new PageEvaluator(document, [rule])
     expect(pe.checkCurrentPage()).toStrictEqual({ kind: 'match', funnel: rule })
 
     setUrl('https://abc.com/bar')
     pe.updateDocument(document)
-    expect(pe.checkCurrentPage()).toMatchObject({ kind: 'fail', reason: 'no-matching-rule' })
+    expect(pe.checkCurrentPage()).toMatchObject({
+      kind: 'fail',
+      reason: 'no-matching-rule',
+    })
   })
 })

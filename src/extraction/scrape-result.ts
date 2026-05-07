@@ -1,4 +1,4 @@
-import type { HighlightLabel } from '~/htmlevate/compiler'
+import type { HighlightLabel } from '@tide/htmlegy'
 import type { EntityPatch, JobSource } from '~/site-spec/types'
 import type { EntityValidationError } from '~/extraction/entity-validator'
 import type { ScrapeSource } from '~/shared/log'
@@ -6,6 +6,7 @@ import type { ScrapeSource } from '~/shared/log'
 export interface HighlightEntry {
   element: Element
   label: HighlightLabel
+  entity?: string
   isArrayItem?: boolean
 }
 

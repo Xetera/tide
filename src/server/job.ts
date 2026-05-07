@@ -14,7 +14,7 @@ export class Job {
         `Invalid job hostname: ${url.hostname}. Expected ${resource.hostname}`,
       )
     }
-    const patterns = constructPathRegexes(resource.urlPattern)
+    const patterns = constructPathRegexes(resource.url)
 
     if (!patterns.some((pattern) => pattern.test(url.pathname))) {
       throw new InvalidJobUrlError(url)

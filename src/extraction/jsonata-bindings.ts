@@ -2,7 +2,6 @@ import jsonata from 'jsonata'
 import type { RawEntityPatch, EntityRef } from '~/site-spec/types'
 import { EntityValidator } from './entity-validator'
 import { expandLocaleSuffix, parseLocaleNumber } from './number-parser'
-import { parseFrontmatter } from '~/htmlevate/parser'
 
 type MediaRef = {
   _type: 'image' | 'video'
@@ -29,8 +28,7 @@ export class JsonataExpression {
   #expr: ReturnType<typeof jsonata>
 
   constructor(expression: string, context: JsonataContext = {}) {
-    const { body } = parseFrontmatter(expression)
-    this.#expr = JsonataExpression.evaluator(body)
+    this.#expr = JsonataExpression.evaluator(expression)
     if (context.request) {
       this.#expr.assign('request', context.request)
     }

@@ -1,40 +1,32 @@
----
-urlPattern: "/ilan/*/detay"
----
 [
   {
     "_entity": "@sahibinden/listing",
-    "_id": $(.classifiedId):data(classifiedid) ?? $(#classifiedId):text,
+    "_id": $(.classifiedId):data(classifiedid),
     "name": $(.classifiedDetailTitle h1):text | trim,
     "price":
       $(.classified-price-wrapper):text | regex("(.+) TL", 1)
       | trim
       | number(locale: 'tr'),
     "description": $(#classifiedDescription):text | trim,
-    "attributes": $$(.classifiedInfoList li, .classified-info-list li) {
+    "attributes": $$(.classifiedInfoList li) {
       [$(strong):text | trim]: $(span):text | trim
     } | merge,
     ($(#gmap) {
       "latitude": $:data(lat) | number(locale: 'en'),
       "longitude": $:data(lon) | number(locale: 'en')
-    }),
-    "images":
-      match {
-        // mobile
-        $$([data-extra-class="mega-image"] ul > li) => {
-          "_type": "image",
-          "url": $(source[type="image/png"]):attr(srcset) | url
-        }
-        // desktop
-        $$(.megaPhotoThmbItem) => {
-          "_type": "image",
-          "url": $(img):data(source) | url
-        }
-      }
-
+    })
   },
 
-  $(.classifiedUserBox:has(.storeInfo)) {
+  $$(.megaPhotoThmbItem) {
+    "_entity": "@sahibinden/image",
+    "_id": $:data(img-index),
+    "listingId": @.(
+      $(.classifiedId):data(classifiedid)
+    ),
+    "image": $(img):data(source) | url
+  },
+
+  $(.classifiedUserBox) {
     "_entity": "@sahibinden/agency",
     "_id": $(.storeBox a):attr(href) | url,
     "name": $(.storeInfo):text | trim,

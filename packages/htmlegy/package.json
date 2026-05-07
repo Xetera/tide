@@ -1,0 +1,22 @@
+{
+  "name": "@tide/htmlegy",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest --no-isolate",
+    "ohm": "pnpm exec ohm generateBundles --withTypes 'src/**/*.ohm'"
+  },
+  "dependencies": {
+    "ohm-js": "^17.5.0"
+  },
+  "devDependencies": {
+    "@ohm-js/cli": "^2.0.1",
+    "happy-dom": "^20.8.4",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "vitest": "^4.1.0"
+  }
+}

@@ -1,0 +1,13 @@
+id = "htmlegy"
+name = "HTMLegy"
+version = "0.0.1"
+schema_version = 1
+authors = ["Xetera"]
+description = "Syntax highlighting for .htmlegy files"
+repository = "file:///Users/xetera/projects/tide/zed-htmlegy"
+
+languages = ["HTMLegy"]
+
+[grammars.htmlegy]
+repository = "file:///Users/xetera/projects/tide/tree-sitter-htmlegy"
+rev = "26b106f04ce76e68bc56714e03d0b8ab9e9e8d76"
