@@ -122,10 +122,6 @@ export default defineConfig({
         find: 'msw/node',
         replacement: '/node_modules/msw/lib/native/index.mjs',
       },
-      {
-        find: /^webextension-polyfill$/,
-        replacement: resolve(__dirname, 'src/__mocks__/webextension-polyfill.ts'),
-      },
       // ],
     ],
   },
@@ -154,6 +150,12 @@ export default defineConfig({
     include: ['**/*.spec.ts'],
     // environment: 'jsdom',
     environment: 'happy-dom',
+    alias: {
+      'webextension-polyfill': resolve(
+        __dirname,
+        'src/__mocks__/webextension-polyfill.ts',
+      ),
+    },
     server: {
       deps: {
         inline: ['webext-bridge', 'webextension-polyfill'],

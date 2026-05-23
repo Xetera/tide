@@ -22,7 +22,9 @@ import type { ScrapeResult } from '~/extraction/scrape-result'
 const PRECONDITION_FAILED = 412
 
 function isResolvedMediaField(value: unknown): value is { hash: string } {
-  if (value === null || typeof value !== 'object') {return false}
+  if (value === null || typeof value !== 'object') {
+    return false
+  }
   const v = value as Record<string, unknown>
   return typeof v.hash === 'string' && 'source_url' in v && 'content_type' in v
 }
@@ -121,8 +123,14 @@ export class Client {
       return false
     }
     try {
-      const url = new URL(`/api/pool/${server.poolId}/worker/heartbeat`, server.url)
-      const request = await this.#requestBase(new Request(url, { method: 'GET' }), server)
+      const url = new URL(
+        `/api/pool/${server.poolId}/worker/heartbeat`,
+        server.url,
+      )
+      const request = await this.#requestBase(
+        new Request(url, { method: 'GET' }),
+        server,
+      )
       const res = await fetch(request, { signal: AbortSignal.timeout(5000) })
       return res.ok
     } catch {
@@ -392,7 +400,9 @@ export class Client {
 
   async #updateResource(server: ServerDefinition): Promise<void> {
     try {
-      if (!server.url.trim()) {return}
+      if (!server.url.trim()) {
+        return
+      }
 
       const lastRequest = this.#lastResourceRequest.get(server)
       if (
@@ -559,7 +569,10 @@ export class Client {
       .join('')
   }
 
-  #findResource(id: string): { server: ServerDefinition; resource: ResourceSpec } {
+  #findResource(id: string): {
+    server: ServerDefinition
+    resource: ResourceSpec
+  } {
     for (const server of this.servers) {
       const resources = this.#resources.get(server) ?? []
       for (const resource of resources) {
