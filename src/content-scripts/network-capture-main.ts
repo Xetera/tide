@@ -8,6 +8,7 @@ interface FunnelEntry {
 }
 
 interface FunnelRegistration {
+  site: string
   url: string
   method: string
   funnels: FunnelEntry[]
@@ -110,6 +111,7 @@ async function processCapture(capture: QueuedCapture) {
             __tide: true,
             kind: 'funnel-result',
             name,
+            site: funnel.site,
             file,
             result,
             url,

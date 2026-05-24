@@ -17,8 +17,8 @@ export type PlainLog = {
 export type ScrapeLogStatus = 'pending' | 'submitted' | 'failed'
 
 export type ScrapeSource =
-  | { kind: 'network'; funnel: string; file: string }
-  | { kind: 'page'; url: string; funnel: string; file: string }
+  | { kind: 'network'; site: string; funnel: string; file: string }
+  | { kind: 'page'; site: string; url: string; funnel: string; file: string }
 
 export function scrapeSourceFunnelKey(src: ScrapeSource): string | null {
   return `${src.funnel}/${src.file}`

@@ -47,6 +47,7 @@ export interface Funnel {
 
 export class PageFunnel implements Funnel {
   readonly name: string
+  readonly site: string
   readonly file: string
   readonly path: string
   readonly format = 'htmlegy' as const
@@ -57,6 +58,7 @@ export class PageFunnel implements Funnel {
 
   constructor(init: {
     name: string
+    site: string
     file: string
     path: string
     url: string | string[]
@@ -64,6 +66,7 @@ export class PageFunnel implements Funnel {
     entry: PageFunnelEntry
   }) {
     this.name = init.name
+    this.site = init.site
     this.file = init.file
     this.path = init.path
     this.url = init.url
@@ -78,9 +81,7 @@ export class PageFunnel implements Funnel {
 
   matchesUrl(pathname: string): boolean {
     const normalized = normalizePath(pathname)
-    const patterns = Array.isArray(this.url)
-      ? this.url
-      : [this.url]
+    const patterns = Array.isArray(this.url) ? this.url : [this.url]
     return patterns.some((p) => matchesGlob(normalizePath(p), normalized))
   }
 }
@@ -187,12 +188,6 @@ export class SiteDefinition {
     return false
   }
 
-  hasFunnel(funnelName: string): boolean {
-    return this.#provider
-      .getForSite(this.id)
-      .some((e) => e.funnel === funnelName)
-  }
-
   getNetworkFunnels(): NetworkFunnelGroup[] {
     return this.#provider.buildNetworkFunnels(this.id, this.hostname)
   }
@@ -266,6 +261,7 @@ export type JobSource = { kind: 'active'; id: string } | { kind: 'passive' }
 interface JobOkay {
   success: true
   job: JobSource
+  funnel?: import('~/shared/log').ScrapeSource
   patches: RawEntityPatch[]
   warnings: readonly string[]
 }
@@ -294,7 +290,7 @@ export interface JobPollParameters {
 }
 
 export interface JobPollResponse {
-  refetch?: Array<'resources'>
+  refetch?: Array<'sites'>
   jobs: JobParameters[]
 }
 

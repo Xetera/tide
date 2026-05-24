@@ -36,17 +36,11 @@ function jsonGlob(patterns: string[]): Record<string, unknown> {
   return result
 }
 
-const rawJsonataModules = rawGlob([
-  'sites/*/loaders/*/*.jsonata',
-  'sites/*/loaders/*.jsonata',
-])
+const rawJsonataModules = rawGlob(['sites/*/funnels/*.jsonata'])
 
-const rawHtmlegyModules = rawGlob([
-  'sites/*/loaders/*/*.htmlegy',
-  'sites/*/loaders/*.htmlegy',
-])
+const rawHtmlegyModules = rawGlob(['sites/*/funnels/*.htmlegy'])
 
-const rawFixtureModules = jsonGlob(['sites/*/loaders/*/*.json'])
+const rawFixtureModules = jsonGlob(['sites/*/funnels/*.json'])
 
 const { page: pageEntries, network: networkEntries } = parseAllEntries(
   rawJsonataModules,

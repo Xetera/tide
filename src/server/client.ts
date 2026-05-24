@@ -290,6 +290,7 @@ export class Client {
       success: true,
       patches,
       job: source,
+      funnel: scrapeSource,
       warnings,
     }
     const serialized = stableStringify(body)

@@ -1,0 +1,103 @@
+@theme {
+  --color-border:                  var(--hairline-strong);
+  --color-input:                   var(--surface-2);
+  --color-ring:                    var(--ring);
+  --color-background:              var(--background);
+  --color-surface:                 var(--surface);
+  --color-surface-2:               var(--surface-2);
+  --color-foreground:              var(--foreground);
+  --color-foreground-muted:        var(--foreground-muted);
+  --color-foreground-faint:        var(--foreground-faint);
+
+  --color-primary:                 var(--primary);
+  --color-primary-foreground:      var(--primary-foreground);
+  --color-secondary:               var(--secondary);
+  --color-secondary-foreground:    var(--secondary-foreground);
+  --color-destructive:             var(--destructive);
+  --color-destructive-foreground:  var(--destructive-soft);
+  --color-muted:                   var(--muted);
+  --color-muted-foreground:        var(--muted-foreground);
+  --color-accent:                  var(--accent);
+  --color-accent-foreground:       var(--accent-foreground);
+
+  --color-brand:                   var(--brand);
+  --color-brand-soft:              var(--brand-soft);
+  --color-success:                 var(--success);
+  --color-success-soft:            var(--success-soft);
+  --color-warning:                 var(--warning);
+  --color-warning-soft:            var(--warning-soft);
+  --color-danger:                  var(--destructive);
+  --color-danger-soft:             var(--destructive-soft);
+
+  --color-shoal-bg:                var(--background);
+  --color-shoal-surface:           var(--surface);
+  --color-shoal-surface-2:         var(--surface-2);
+  --color-shoal-fg:                var(--foreground);
+  --color-shoal-fg-muted:          var(--foreground-muted);
+  --color-shoal-fg-faint:          var(--foreground-faint);
+  --color-shoal-hairline:          var(--hairline);
+  --color-shoal-hairline-strong:   var(--hairline-strong);
+  --color-shoal-primary:           var(--primary);
+  --color-shoal-primary-fg:        var(--primary-foreground);
+  --color-shoal-secondary:         var(--secondary);
+  --color-shoal-secondary-fg:      var(--secondary-foreground);
+  --color-shoal-accent:            var(--accent);
+  --color-shoal-accent-fg:         var(--accent-foreground);
+  --color-shoal-muted:             var(--muted);
+  --color-shoal-muted-fg:          var(--muted-foreground);
+  --color-shoal-brand:             var(--brand);
+  --color-shoal-brand-fg:          var(--brand-foreground);
+  --color-shoal-brand-soft:        var(--brand-soft);
+  --color-shoal-brand-soft-fg:     var(--brand-soft-foreground);
+  --color-shoal-success:           var(--success);
+  --color-shoal-success-soft:      var(--success-soft);
+  --color-shoal-warning:           var(--warning);
+  --color-shoal-warning-soft:      var(--warning-soft);
+  --color-shoal-danger:            var(--destructive);
+  --color-shoal-danger-soft:       var(--destructive-soft);
+
+  --color-shoal-ink-50:            var(--shoal-ink-50);
+  --color-shoal-ink-100:           var(--shoal-ink-100);
+  --color-shoal-ink-200:           var(--shoal-ink-200);
+  --color-shoal-ink-300:           var(--shoal-ink-300);
+  --color-shoal-ink-400:           var(--shoal-ink-400);
+  --color-shoal-ink-500:           var(--shoal-ink-500);
+  --color-shoal-ink-600:           var(--shoal-ink-600);
+  --color-shoal-ink-700:           var(--shoal-ink-700);
+  --color-shoal-ink-800:           var(--shoal-ink-800);
+  --color-shoal-ink-900:           var(--shoal-ink-900);
+
+  --color-shoal-blue-50:           var(--shoal-blue-50);
+  --color-shoal-blue-100:          var(--shoal-blue-100);
+  --color-shoal-blue-200:          var(--shoal-blue-200);
+  --color-shoal-blue-300:          var(--shoal-blue-300);
+  --color-shoal-blue-400:          var(--shoal-blue-400);
+  --color-shoal-blue-500:          var(--shoal-blue-500);
+  --color-shoal-blue-600:          var(--shoal-blue-600);
+  --color-shoal-blue-700:          var(--shoal-blue-700);
+  --color-shoal-blue-800:          var(--shoal-blue-800);
+  --color-shoal-blue-900:          var(--shoal-blue-900);
+
+  --color-shoal-sage-100:          var(--shoal-sage-100);
+  --color-shoal-sage-500:          var(--shoal-sage-500);
+  --color-shoal-amber-100:         var(--shoal-amber-100);
+  --color-shoal-amber-500:         var(--shoal-amber-500);
+  --color-shoal-rose-100:          var(--shoal-rose-100);
+  --color-shoal-rose-500:          var(--shoal-rose-500);
+
+  --font-family-sans:              var(--font-sans);
+  --font-family-mono:              var(--font-mono);
+
+  --radius-shoal-xs:               var(--radius-xs);
+  --radius-shoal-sm:               var(--radius-sm);
+  --radius-shoal:                  var(--radius);
+  --radius-shoal-md:               var(--radius-md);
+  --radius-shoal-lg:               var(--radius-lg);
+  --radius-shoal-xl:               var(--radius-xl);
+
+  --shadow-shoal-xs:               var(--shadow-xs);
+  --shadow-shoal-sm:               var(--shadow-sm);
+  --shadow-shoal-md:               var(--shadow-md);
+  --shadow-shoal-lg:               var(--shadow-lg);
+  --shadow-shoal-focus:            var(--shadow-focus);
+}

@@ -24,7 +24,7 @@ const OUTPUT_FORMAT = `
 
 Return a JSON object with these fields:
 - \`jsonataExpression\`: the JSONata expression string
-- \`suggestedLoaderName\`: short camelCase name for the loader
+- \`suggestedFunnelName\`: short camelCase name for the funnel
 - \`suggestedRequestUrl\`: URL pattern like \`/api/path/to/:param\`
 - \`suggestedRequestMethod\`: HTTP method
 - \`potentialEntities\`: markdown list of additional entity types noticed in the response that aren't currently being extracted, with a brief note on available fields. Format as \`- \`@site/entity-name\`: description\`

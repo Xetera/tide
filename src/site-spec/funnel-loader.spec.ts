@@ -34,7 +34,7 @@ describe('funnelProvider', () => {
       expect(funnels.length).toBeGreaterThan(0)
       const names = funnels.map((f) => f.name)
       expect(names).toContain('mediaInfo')
-      expect(names).toContain('graphql')
+      expect(names).toContain('graphql_user')
     })
 
     it('loads twitter network funnels', () => {

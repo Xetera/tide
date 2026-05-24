@@ -368,7 +368,7 @@ function emitUrlUpdate(
         } as const
       }
       const ext = data.format === 'htmlegy' ? 'htmlegy' : 'jsonata'
-      const path = `src/sites/${data.site}/loaders/${data.name}.${ext}`
+      const path = `src/sites/${data.site}/funnels/${data.name}.${ext}`
       const content =
         data.format === 'htmlegy'
           ? `---\nurl: "/"\n---\n`

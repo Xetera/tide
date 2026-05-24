@@ -16,31 +16,16 @@ import type {
 } from '~/site-spec/types'
 export type { PageFunnelEntry, NetworkFunnelEntry, FixtureEntry }
 
-export const LOADER_DIR_RE =
-  /\/sites\/([^/]+)\/loaders\/([^/]+)\/(.+\.(jsonata|htmlegy))$/
 export const LOADER_FLAT_RE =
-  /\/sites\/([^/]+)\/loaders\/([^/]+\.(jsonata|htmlegy))$/
+  /\/sites\/([^/]+)\/funnels\/([^/]+\.(jsonata|htmlegy))$/
 export const FIXTURE_RE =
-  /\/sites\/([^/]+)\/loaders\/([^/]+)\/([^/]+\.json)$/
+  /\/sites\/([^/]+)\/funnels\/([^/]+\.json)$/
 
 export function parseEntry(
   path: string,
   expression: string,
 ): { site: string; funnel: string; file: string; path: string; expression: string; body: string; frontmatter: Record<string, unknown> } | null {
   const { body, frontmatter } = parseFrontmatter(expression)
-  const dirMatch = path.match(LOADER_DIR_RE)
-  if (dirMatch) {
-    const [, site, funnel, file] = dirMatch
-    return {
-      site: site!,
-      funnel: funnel!,
-      file: file!,
-      path: `src/sites${path.split('/sites')[1]}`,
-      expression,
-      body,
-      frontmatter,
-    }
-  }
   const flatMatch = path.match(LOADER_FLAT_RE)
   if (flatMatch) {
     const [, site, filename] = flatMatch
@@ -96,13 +81,14 @@ export function parseFixtures(
     if (!match) {
       return []
     }
-    const [, site, funnel, name] = match
+    const [, site, filename] = match
+    const funnel = filename!.replace(/\.json$/, '')
     return [
       {
         site: site!,
         funnel: funnel!,
         path: `src/sites${path.split('/sites')[1]}`,
-        name: name!,
+        name: filename!,
         data,
       },
     ]
@@ -153,6 +139,7 @@ export class FunnelProvider {
         result.push(
           new PageFunnel({
             name: e.funnel,
+            site: dir,
             file: e.file,
             path: e.path,
             url: url as string | string[],

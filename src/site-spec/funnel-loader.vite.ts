@@ -11,19 +11,19 @@ export {
 export type { PageFunnelEntry, NetworkFunnelEntry, FixtureEntry } from './funnel-loader'
 
 console.log('loading vite!')
-const rawJsonataModules = import.meta.glob('../sites/*/loaders/**/*.jsonata', {
+const rawJsonataModules = import.meta.glob('../sites/*/funnels/*.jsonata', {
   eager: true,
   query: '?raw',
   import: 'default',
 }) as Record<string, string>
 
-const rawHtmlegyModules = import.meta.glob('../sites/*/loaders/**/*.htmlegy', {
+const rawHtmlegyModules = import.meta.glob('../sites/*/funnels/*.htmlegy', {
   eager: true,
   query: '?raw',
   import: 'default',
 }) as Record<string, string>
 
-const rawFixtureModules = import.meta.glob('../sites/*/loaders/**/*.json', {
+const rawFixtureModules = import.meta.glob('../sites/*/funnels/*.json', {
   eager: true,
   import: 'default',
 }) as Record<string, unknown>

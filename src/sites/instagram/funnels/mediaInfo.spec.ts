@@ -3,14 +3,14 @@ import { JsonataExpression } from '~/extraction/jsonata-bindings'
 import { EntityValidator } from '~/extraction/entity-validator'
 import { instagramSite } from '~/sites/instagram'
 import { parseFrontmatter } from '@tide/frontmatter'
-import rawExpression from './request.jsonata?raw'
+import rawExpression from './mediaInfo.jsonata?raw'
 import validRequest from './validRequest.json'
 import notFound from './notFound.json'
 
 const validator = new EntityValidator([instagramSite])
 const { body: expression } = parseFrontmatter(rawExpression)
 
-describe('instagram mediaInfo loader', () => {
+describe('instagram mediaInfo funnel', () => {
   it('parses valid response entities against schema', async () => {
     const entities =
       await JsonataExpression.default(expression).entities(validRequest.response.body)

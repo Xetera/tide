@@ -13,12 +13,12 @@ export class DebugUIManager {
   })
   #enabled = false
   #lastResult: ScrapeResult | null = null
-  #hasMatchingLoaders = false
+  #hasMatchingFunnels = false
   #funnels: Funnel[] = []
 
   constructor(networkFunnels: NetworkFunnelGroup[]) {
     const matched = this.#matchingFunnels(networkFunnels)
-    this.#hasMatchingLoaders = matched.length > 0
+    this.#hasMatchingFunnels = matched.length > 0
     this.#funnels = matched.flatMap((l) => l.funnels)
   }
 
@@ -34,7 +34,7 @@ export class DebugUIManager {
     }
     this.#enabled = enabled
     if (enabled) {
-      if (!this.#hasMatchingLoaders) {
+      if (!this.#hasMatchingFunnels) {
         return
       }
       if (this.#lastResult) {

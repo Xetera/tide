@@ -15,6 +15,7 @@ export function registerFunnels(
   const funnels: Record<
     string,
     {
+      site: string
       url: string | string[]
       method: string
       funnels: {
@@ -27,6 +28,7 @@ export function registerFunnels(
   for (const site of sites) {
     for (const group of site.getNetworkFunnels()) {
       funnels[group.name] = {
+        site: site.id,
         url: group.request.url,
         method: group.request.method,
         funnels: group.funnels.map((l) => ({
@@ -46,8 +48,9 @@ window.addEventListener('message', (evt) => {
   }
 
   if (evt.data.kind === 'funnel-result') {
-    const { name, file, result, body } = evt.data as {
+    const { name, site, file, result, body } = evt.data as {
       name: string
+      site: string
       file: string
       result: unknown
       url: string
@@ -84,7 +87,7 @@ window.addEventListener('message', (evt) => {
         patches,
         source: { kind: 'passive' },
         warnings: [],
-        scrapeSource: { kind: 'network', funnel: name, file },
+        scrapeSource: { kind: 'network', site, funnel: name, file },
         highlights: [],
         patchCounts,
         errors: [],

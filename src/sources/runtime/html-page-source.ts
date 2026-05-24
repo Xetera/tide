@@ -73,6 +73,7 @@ class PageRuleRunner {
         warnings: warnings.map((w) => w.message),
         scrapeSource: {
           kind: 'page',
+          site: this.rule.site,
           url,
           funnel: this.rule.name,
           file: this.rule.file,
