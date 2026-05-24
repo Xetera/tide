@@ -14,10 +14,22 @@
         "$ref": "#/$defs/instagram__comment"
       },
       {
+        "$ref": "#/$defs/instagram__user"
+      },
+      {
+        "$ref": "#/$defs/instagram__post"
+      },
+      {
+        "$ref": "#/$defs/instagram__comment"
+      },
+      {
         "$ref": "#/$defs/roblox__game"
       },
       {
-        "$ref": "#/$defs/sahibinden__city_listing"
+        "$ref": "#/$defs/sahibinden__listing"
+      },
+      {
+        "$ref": "#/$defs/sahibinden__agency"
       },
       {
         "$ref": "#/$defs/twitter__user"
@@ -33,11 +45,16 @@
       "properties": {
         "_id": {}
       },
-      "required": ["_id"]
+      "required": [
+        "_id"
+      ]
     },
     "ImageRef": {
       "type": "object",
-      "required": ["_type", "url"],
+      "required": [
+        "_type",
+        "url"
+      ],
       "properties": {
         "_type": {
           "type": "string",
@@ -60,7 +77,10 @@
     },
     "VideoRef": {
       "type": "object",
-      "required": ["_type", "url"],
+      "required": [
+        "_type",
+        "url"
+      ],
       "properties": {
         "_type": {
           "type": "string",
@@ -86,7 +106,10 @@
     },
     "instagram__user": {
       "type": "object",
-      "required": ["_entity", "_id"],
+      "required": [
+        "_entity",
+        "_id"
+      ],
       "properties": {
         "username": {
           "anyOf": [
@@ -112,7 +135,10 @@
           "anyOf": [
             {
               "type": "object",
-              "required": ["_type", "url"],
+              "required": [
+                "_type",
+                "url"
+              ],
               "properties": {
                 "_type": {
                   "type": "string",
@@ -131,6 +157,11 @@
                 "height": {
                   "type": "number"
                 }
+              },
+              "x-offload": true,
+              "x-ephemeral": {},
+              "x-identity": {
+                "fn": "instagram_image_identity"
               }
             },
             {
@@ -216,7 +247,11 @@
               "type": "array",
               "items": {
                 "type": "object",
-                "required": ["title", "linkType", "url"],
+                "required": [
+                  "title",
+                  "linkType",
+                  "url"
+                ],
                 "properties": {
                   "title": {
                     "type": "string"
@@ -255,7 +290,11 @@
         },
         "_createdAt": {
           "type": "object",
-          "required": ["_type", "value", "precision"],
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
           "properties": {
             "_type": {
               "type": "string",
@@ -266,7 +305,12 @@
               "description": "ISO 8601 string timestamp"
             },
             "precision": {
-              "enum": ["full", "year", "month", "day"],
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
               "default": "full"
             }
           }
@@ -278,17 +322,21 @@
           "properties": {
             "_id": {}
           },
-          "required": ["_id"]
+          "required": [
+            "_id"
+          ]
         }
       },
-      "$id": "@instagram/user",
       "x-version": 0,
       "x-canonical-url": "https://instagram.com/{username}",
       "x-display-field": "username"
     },
     "instagram__post": {
       "type": "object",
-      "required": ["_entity", "_id"],
+      "required": [
+        "_entity",
+        "_id"
+      ],
       "properties": {
         "code": {
           "anyOf": [
@@ -316,7 +364,10 @@
               "anyOf": [
                 {
                   "type": "object",
-                  "required": ["kind", "video"],
+                  "required": [
+                    "kind",
+                    "video"
+                  ],
                   "properties": {
                     "kind": {
                       "type": "string",
@@ -324,7 +375,10 @@
                     },
                     "video": {
                       "type": "object",
-                      "required": ["_type", "url"],
+                      "required": [
+                        "_type",
+                        "url"
+                      ],
                       "properties": {
                         "_type": {
                           "type": "string",
@@ -348,13 +402,19 @@
                         }
                       },
                       "x-offload": true,
-                      "x-ephemeral": {}
+                      "x-ephemeral": {},
+                      "x-identity": {
+                        "fn": "instagram_video_identity"
+                      }
                     }
                   }
                 },
                 {
                   "type": "object",
-                  "required": ["kind", "images"],
+                  "required": [
+                    "kind",
+                    "images"
+                  ],
                   "properties": {
                     "kind": {
                       "type": "string",
@@ -364,7 +424,12 @@
                       "type": "array",
                       "items": {
                         "type": "object",
-                        "required": ["_type", "url", "width", "height"],
+                        "required": [
+                          "_type",
+                          "url",
+                          "width",
+                          "height"
+                        ],
                         "properties": {
                           "_type": {
                             "type": "string",
@@ -385,14 +450,20 @@
                           }
                         },
                         "x-offload": true,
-                        "x-ephemeral": {}
+                        "x-ephemeral": {},
+                        "x-identity": {
+                          "fn": "instagram_image_identity"
+                        }
                       }
                     }
                   }
                 },
                 {
                   "type": "object",
-                  "required": ["kind", "image"],
+                  "required": [
+                    "kind",
+                    "image"
+                  ],
                   "properties": {
                     "kind": {
                       "type": "string",
@@ -400,7 +471,12 @@
                     },
                     "image": {
                       "type": "object",
-                      "required": ["_type", "url", "width", "height"],
+                      "required": [
+                        "_type",
+                        "url",
+                        "width",
+                        "height"
+                      ],
                       "properties": {
                         "_type": {
                           "type": "string",
@@ -421,7 +497,10 @@
                         }
                       },
                       "x-offload": true,
-                      "x-ephemeral": {}
+                      "x-ephemeral": {},
+                      "x-identity": {
+                        "fn": "instagram_image_identity"
+                      }
                     }
                   }
                 }
@@ -483,7 +562,11 @@
         },
         "_createdAt": {
           "type": "object",
-          "required": ["_type", "value", "precision"],
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
           "properties": {
             "_type": {
               "type": "string",
@@ -494,7 +577,12 @@
               "description": "ISO 8601 string timestamp"
             },
             "precision": {
-              "enum": ["full", "year", "month", "day"],
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
               "default": "full"
             }
           }
@@ -506,18 +594,24 @@
           "properties": {
             "_id": {}
           },
-          "required": ["_id"]
+          "required": [
+            "_id"
+          ]
         }
       },
-      "$id": "@instagram/post",
       "x-version": 0,
       "x-canonical-url": "https://instagram.com/p/{code}",
-      "x-unique-fields": ["code"],
+      "x-unique-fields": [
+        "code"
+      ],
       "x-display-field": "title"
     },
     "instagram__comment": {
       "type": "object",
-      "required": ["_entity", "_id"],
+      "required": [
+        "_entity",
+        "_id"
+      ],
       "properties": {
         "text": {
           "anyOf": [
@@ -582,7 +676,11 @@
         },
         "_createdAt": {
           "type": "object",
-          "required": ["_type", "value", "precision"],
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
           "properties": {
             "_type": {
               "type": "string",
@@ -593,7 +691,12 @@
               "description": "ISO 8601 string timestamp"
             },
             "precision": {
-              "enum": ["full", "year", "month", "day"],
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
               "default": "full"
             }
           }
@@ -605,16 +708,20 @@
           "properties": {
             "_id": {}
           },
-          "required": ["_id"]
+          "required": [
+            "_id"
+          ]
         }
       },
-      "$id": "@instagram/comment",
       "x-version": 0,
       "x-display-field": "text"
     },
     "roblox__game": {
       "type": "object",
-      "required": ["_entity", "_id"],
+      "required": [
+        "_entity",
+        "_id"
+      ],
       "properties": {
         "name": {
           "anyOf": [
@@ -676,7 +783,11 @@
         },
         "_createdAt": {
           "type": "object",
-          "required": ["_type", "value", "precision"],
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
           "properties": {
             "_type": {
               "type": "string",
@@ -687,7 +798,12 @@
               "description": "ISO 8601 string timestamp"
             },
             "precision": {
-              "enum": ["full", "year", "month", "day"],
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
               "default": "full"
             }
           }
@@ -699,17 +815,31 @@
           "properties": {
             "_id": {}
           },
-          "required": ["_id"]
+          "required": [
+            "_id"
+          ]
         }
       },
-      "$id": "@roblox/game",
       "x-version": 0
     },
-    "sahibinden__city_listing": {
+    "sahibinden__listing": {
       "type": "object",
-      "required": ["_entity", "_id"],
+      "required": [
+        "_entity",
+        "_id"
+      ],
       "properties": {
         "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
           "anyOf": [
             {
               "type": "string"
@@ -723,6 +853,16 @@
           "anyOf": [
             {
               "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
             },
             {
               "type": "null"
@@ -749,18 +889,53 @@
             }
           ]
         },
-        "agency": {
+        "attributes": {
           "anyOf": [
             {
               "type": "object",
-              "required": ["name", "link"],
-              "properties": {
-                "name": {
+              "patternProperties": {
+                "^.*$": {
                   "type": "string"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "images": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "_type",
+                  "url"
+                ],
+                "properties": {
+                  "_type": {
+                    "type": "string",
+                    "const": "image"
+                  },
+                  "_id": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "width": {
+                    "type": "number"
+                  },
+                  "height": {
+                    "type": "number"
+                  }
                 },
-                "link": {
-                  "type": "string",
-                  "format": "uri"
+                "x-offload": true,
+                "x-identity": {
+                  "fn": "shbdn_image_identity"
                 }
               }
             },
@@ -771,7 +946,7 @@
         },
         "_entity": {
           "type": "string",
-          "const": "@sahibinden/city_listing"
+          "const": "@sahibinden/listing"
         },
         "_id": {
           "anyOf": [
@@ -788,7 +963,11 @@
         },
         "_createdAt": {
           "type": "object",
-          "required": ["_type", "value", "precision"],
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
           "properties": {
             "_type": {
               "type": "string",
@@ -799,7 +978,12 @@
               "description": "ISO 8601 string timestamp"
             },
             "precision": {
-              "enum": ["full", "year", "month", "day"],
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
               "default": "full"
             }
           }
@@ -811,15 +995,142 @@
           "properties": {
             "_id": {}
           },
-          "required": ["_id"]
+          "required": [
+            "_id"
+          ]
         }
       },
-      "$id": "@sahibinden/city_listing",
+      "x-version": 0
+    },
+    "sahibinden__agency": {
+      "type": "object",
+      "required": [
+        "_entity",
+        "_id"
+      ],
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "link": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uri"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "logo": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "_type",
+                "url"
+              ],
+              "properties": {
+                "_type": {
+                  "type": "string",
+                  "const": "image"
+                },
+                "_id": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "width": {
+                  "type": "number"
+                },
+                "height": {
+                  "type": "number"
+                }
+              },
+              "x-offload": true,
+              "x-identity": {
+                "fn": "shbdn_image_identity"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "_entity": {
+          "type": "string",
+          "const": "@sahibinden/agency"
+        },
+        "_id": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "_createdAt": {
+          "type": "object",
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
+          "properties": {
+            "_type": {
+              "type": "string",
+              "const": "timestamp"
+            },
+            "value": {
+              "type": "string",
+              "description": "ISO 8601 string timestamp"
+            },
+            "precision": {
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
+              "default": "full"
+            }
+          }
+        }
+      },
+      "$defs": {
+        "EntityRef": {
+          "type": "object",
+          "properties": {
+            "_id": {}
+          },
+          "required": [
+            "_id"
+          ]
+        }
+      },
       "x-version": 0
     },
     "twitter__user": {
       "type": "object",
-      "required": ["_entity", "_id"],
+      "required": [
+        "_entity",
+        "_id"
+      ],
       "properties": {
         "username": {
           "anyOf": [
@@ -845,7 +1156,10 @@
           "anyOf": [
             {
               "type": "object",
-              "required": ["_type", "url"],
+              "required": [
+                "_type",
+                "url"
+              ],
               "properties": {
                 "_type": {
                   "type": "string",
@@ -952,7 +1266,11 @@
         },
         "_createdAt": {
           "type": "object",
-          "required": ["_type", "value", "precision"],
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
           "properties": {
             "_type": {
               "type": "string",
@@ -963,7 +1281,12 @@
               "description": "ISO 8601 string timestamp"
             },
             "precision": {
-              "enum": ["full", "year", "month", "day"],
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
               "default": "full"
             }
           }
@@ -975,17 +1298,21 @@
           "properties": {
             "_id": {}
           },
-          "required": ["_id"]
+          "required": [
+            "_id"
+          ]
         }
       },
-      "$id": "@twitter/user",
       "x-version": 0,
       "x-canonical-url": "https://x.com/{username}",
       "x-display-field": "username"
     },
     "twitter__tweet": {
       "type": "object",
-      "required": ["_entity", "_id"],
+      "required": [
+        "_entity",
+        "_id"
+      ],
       "properties": {
         "text": {
           "anyOf": [
@@ -1104,7 +1431,11 @@
         },
         "_createdAt": {
           "type": "object",
-          "required": ["_type", "value", "precision"],
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
           "properties": {
             "_type": {
               "type": "string",
@@ -1115,7 +1446,12 @@
               "description": "ISO 8601 string timestamp"
             },
             "precision": {
-              "enum": ["full", "year", "month", "day"],
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
               "default": "full"
             }
           }
@@ -1127,10 +1463,11 @@
           "properties": {
             "_id": {}
           },
-          "required": ["_id"]
+          "required": [
+            "_id"
+          ]
         }
       },
-      "$id": "@twitter/tweet",
       "x-version": 0,
       "x-canonical-url": "https://x.com/{authorUsername}/status/{id}",
       "x-display-field": "text"

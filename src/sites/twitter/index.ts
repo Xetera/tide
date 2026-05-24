@@ -3,7 +3,7 @@ import { funnelProvider } from '~/site-spec/funnel-loader'
 import { twitterEntities } from './entities'
 
 export const twitterSite = defineSite({
-  dir: 'twitter',
+  id: 'twitter',
   funnelProvider,
   hostname: 'x.com',
   entities: twitterEntities,

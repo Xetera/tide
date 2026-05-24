@@ -1,30 +1,25 @@
 import { cn } from '~/cn'
-import { cva, type VariantProps } from 'class-variance-authority'
 import type { ComponentProps } from 'solid-js'
 
-const badgeVariants = cva(
-  'inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs font-medium transition-colors',
-  {
-    variants: {
-      variant: {
-        default: 'border-transparent bg-primary text-primary-foreground',
-        secondary: 'border-transparent bg-secondary text-secondary-foreground',
-        outline: 'border-border text-foreground',
-        muted: 'border-transparent bg-muted text-muted-foreground',
-      },
-    },
-    defaultVariants: {
-      variant: 'secondary',
-    },
-  },
-)
+type BadgeVariant = 'default' | 'secondary' | 'outline' | 'muted' | 'brand' | 'ok' | 'warn' | 'err'
 
-type BadgeProps = ComponentProps<'span'> &
-  VariantProps<typeof badgeVariants> & {
-    class?: string
-  }
+type BadgeProps = ComponentProps<'span'> & {
+  variant?: BadgeVariant
+  class?: string
+}
+
+const variantClass: Record<BadgeVariant, string> = {
+  default:   's-badge',
+  secondary: 's-badge s-badge-muted',
+  outline:   's-badge s-badge-outline',
+  muted:     's-badge s-badge-muted',
+  brand:     's-badge s-badge-brand',
+  ok:        's-badge s-badge-ok',
+  warn:      's-badge s-badge-warn',
+  err:       's-badge s-badge-err',
+}
 
 export function Badge(props: BadgeProps) {
-  const { variant, class: className, ...rest } = props
-  return <span class={cn(badgeVariants({ variant }), className)} {...rest} />
+  const { variant = 'secondary', class: className, ...rest } = props
+  return <span class={cn(variantClass[variant], className)} {...rest} />
 }

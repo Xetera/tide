@@ -28,8 +28,6 @@ import {
   relativeTime,
   type EvalResult,
 } from './evaluate'
-import '@unocss/reset/tailwind-compat.css'
-import 'virtual:uno.css'
 import './app.css'
 import './scrape-viewer.css'
 
@@ -1210,7 +1208,7 @@ function Playground() {
   const effectiveHostname = () => {
     const funnel = selectedFunnel()
     if (funnel) {
-      const site = allSites.find((s) => s.dir === funnel.site)
+      const site = allSites.find((s) => s.id ===funnel.site)
       if (site) {
         return site.hostname
       }
@@ -1240,7 +1238,7 @@ function Playground() {
     if (!funnel) {
       return
     }
-    const site = allSites.find((s) => s.dir === funnel.site)
+    const site = allSites.find((s) => s.id ===funnel.site)
     if (!site) {
       return
     }
@@ -1555,7 +1553,7 @@ function Playground() {
     }
     return Object.entries(siteMap).map(([site, groups]) => ({
       site,
-      hostname: allSites.find((s) => s.dir === site)?.hostname ?? site,
+      hostname: allSites.find((s) => s.id === site)?.hostname ?? site,
       groups: Object.entries(groups).sort(
         ([, a], [, b]) => a.length - b.length,
       ),

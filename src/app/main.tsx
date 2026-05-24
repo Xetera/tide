@@ -1,8 +1,6 @@
 /* @refresh reload */
 import { render } from 'solid-js/web'
 import Page from './page'
-import '@unocss/reset/tailwind-compat.css'
-import 'virtual:uno.css'
 import './app.css'
 
 const root =

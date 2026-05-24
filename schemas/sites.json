@@ -1,0 +1,43 @@
+[
+  {
+    "hostname": "www.instagram.com",
+    "id": "instagram",
+    "entities": [
+      "@instagram/user",
+      "@instagram/post",
+      "@instagram/comment"
+    ]
+  },
+  {
+    "hostname": "www.linkedin.com",
+    "id": "linkedin",
+    "entities": [
+      "@instagram/user",
+      "@instagram/post",
+      "@instagram/comment"
+    ]
+  },
+  {
+    "hostname": "www.roblox.com",
+    "id": "roblox",
+    "entities": [
+      "@roblox/game"
+    ]
+  },
+  {
+    "hostname": "www.sahibinden.com",
+    "id": "sahibinden",
+    "entities": [
+      "@sahibinden/listing",
+      "@sahibinden/agency"
+    ]
+  },
+  {
+    "hostname": "x.com",
+    "id": "twitter",
+    "entities": [
+      "@twitter/user",
+      "@twitter/tweet"
+    ]
+  }
+]

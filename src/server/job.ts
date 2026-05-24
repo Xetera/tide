@@ -1,20 +1,20 @@
 import { constructPathRegexes } from '~/site-spec/resource'
-import type { JobParameters, ResourceSpec, ServerAutonomy } from '~/site-spec/types'
+import type { JobParameters, SiteSpec, ServerAutonomy } from '~/site-spec/types'
 
 export class Job {
   readonly url: URL
   constructor(
     readonly params: JobParameters,
-    readonly resource: ResourceSpec,
+    readonly site: SiteSpec,
     readonly autonomy: ServerAutonomy,
   ) {
     const url = new URL(params.url)
-    if (url.hostname !== resource.hostname) {
+    if (url.hostname !== site.hostname) {
       throw new Error(
-        `Invalid job hostname: ${url.hostname}. Expected ${resource.hostname}`,
+        `Invalid job hostname: ${url.hostname}. Expected ${site.hostname}`,
       )
     }
-    const patterns = constructPathRegexes(resource.url)
+    const patterns = constructPathRegexes(site.url)
 
     if (!patterns.some((pattern) => pattern.test(url.pathname))) {
       throw new InvalidJobUrlError(url)

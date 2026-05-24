@@ -13,8 +13,8 @@ import type {
   JobPollResponse,
   JobResult,
   JobSource,
-  ResourceSpec,
-  ResourcesResponse,
+  SiteSpec,
+  SitesResponse,
 } from '~/site-spec/types'
 import { ServerAutonomy } from '~/site-spec/types'
 import type { ScrapeResult } from '~/extraction/scrape-result'
@@ -52,16 +52,16 @@ function stableStringify(value: unknown): string {
 export class Client {
   readonly servers: ServerDefinition[]
   readonly #cst: ContentScriptTracker
-  readonly #onResourcesUpdated: (
+  readonly #onSitesUpdated?: (
     server: ServerDefinition,
-    resources: ResourceSpec[],
+    sites: SiteSpec[],
   ) => void
 
   // TODO: turn this mess into an array of stateful classes
   #timers = new WeakMap<ServerDefinition, NodeJS.Timeout>()
   #rescheduleTimers = new WeakMap<ServerDefinition, NodeJS.Timeout>()
-  #resources = new Map<ServerDefinition, ResourceSpec[]>()
-  #lastResourceRequest = new Map<ServerDefinition, Date>()
+  #sites = new Map<ServerDefinition, SiteSpec[]>()
+  #lastSitesRequest = new Map<ServerDefinition, Date>()
   #recentSubmissions = new Map<
     string,
     { hash: string; sentAt: number; serialized: string }
@@ -70,22 +70,20 @@ export class Client {
   readonly #pollIntervalSeconds: number
   readonly #queue: JobQueue<JobParameters>
   #errorCount = 0
-  enabledResources: (server: ServerDefinition) => Promise<string[]>
 
   constructor({
     pollIntervalSeconds,
     queueIntervalSeconds,
     cst,
     defaultServers = [],
-    enabledResources,
-    onResourcesUpdated,
+    onSitesUpdated,
     onPatches,
   }: ShoalClientOptions) {
     this.#pollIntervalSeconds = pollIntervalSeconds
     // We're assuming that there is only one server and that this isn't empty
     this.servers = defaultServers
     this.#cst = cst
-    this.#onResourcesUpdated = onResourcesUpdated
+    this.#onSitesUpdated = onSitesUpdated
     this.#queue = new JobQueue<JobParameters>({
       minimumWaitSeconds: queueIntervalSeconds,
       // TODO: make this work with multiple servers
@@ -105,11 +103,10 @@ export class Client {
         sender.tabId,
       )
     })
-    this.enabledResources = enabledResources
   }
 
-  get allResources(): ResourceSpec[] {
-    return Array.from(this.#resources.values()).flat()
+  get allSites(): SiteSpec[] {
+    return Array.from(this.#sites.values()).flat()
   }
 
   getServer(): ServerDefinition {
@@ -140,7 +137,7 @@ export class Client {
 
   async start(server: ServerDefinition) {
     try {
-      await this.#updateResource(server)
+      await this.#updateSites(server)
       this.#rescheduleTimers.delete(server)
       if (this.#pollIntervalSeconds > 0) {
         const timer = setInterval(() => {
@@ -176,9 +173,9 @@ export class Client {
     this.#rescheduleTimers.delete(server)
   }
 
-  setResources(server: ServerDefinition, resources: ResourceSpec[]) {
-    this.#resources.set(server, resources)
-    this.#onResourcesUpdated(server, resources)
+  setSites(server: ServerDefinition, sites: SiteSpec[]) {
+    this.#sites.set(server, sites)
+    this.#onSitesUpdated?.(server, sites)
   }
 
   addServer(server: ServerDefinition) {
@@ -206,22 +203,48 @@ export class Client {
       this.stop(server)
     }
   }
+
+  async putSites(siteNames: string[]): Promise<void> {
+    const server = this.servers[0]
+    if (!server?.url || !server.poolId) {
+      return
+    }
+    try {
+      const request = await this.#requestBase(
+        new Request(new URL(`/api/pool/${server.poolId}/sites`, server.url), {
+          method: 'PUT',
+          body: JSON.stringify({ sites: siteNames }),
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        }),
+        server,
+      )
+      await fetch(request)
+    } catch (err) {
+      log({
+        severity: 'error',
+        scope: 'pool',
+        text: 'Failed to update opted-in sites',
+        data: { error: err instanceof Error ? err.message : String(err) },
+      })
+    }
+  }
+
   async #tryRequestActiveJob(params: JobParameters, server: ServerDefinition) {
     try {
-      const { resource } = this.#findResource(params.resource_id)
+      const { site } = this.#findSite(params.resource_id)
       if (server.autonomy === ServerAutonomy.Passive) {
         console.warn(
           `[client] ignoring job request from ${server.url} because the server is in passive mode`,
         )
         return
       }
-      const job = new Job(params, resource, server.autonomy)
-      const tabId = await this.#cst.getScriptTab(resource)
+      const job = new Job(params, site, server.autonomy)
+      const tabId = await this.#cst.getScriptTab()
       log({
-        text: `Running job: ${resource.entity}`,
+        text: `Running job: ${site.site}`,
         severity: 'debug',
         scope: 'pool',
-        data: { url: job.url.toString(), resourceId: resource.entity, tabId },
+        data: { url: job.url.toString(), siteId: site.site, tabId },
       })
       try {
         await sendMessage('run-job', job.params, {
@@ -240,7 +263,7 @@ export class Client {
       }
     } catch (err) {
       setTimeout(() => {
-        this.#updateResource(server)
+        this.#updateSites(server)
       })
       console.error(err)
     }
@@ -334,7 +357,7 @@ export class Client {
 
           this.stop(server)
           try {
-            await this.#updateResource(server)
+            await this.#updateSites(server)
             await this.#submitJob(
               patches,
               source,
@@ -398,13 +421,13 @@ export class Client {
     )
   }
 
-  async #updateResource(server: ServerDefinition): Promise<void> {
+  async #updateSites(server: ServerDefinition): Promise<void> {
     try {
       if (!server.url.trim()) {
         return
       }
 
-      const lastRequest = this.#lastResourceRequest.get(server)
+      const lastRequest = this.#lastSitesRequest.get(server)
       if (
         lastRequest &&
         dayjs(lastRequest).subtract(5, 'minutes').isAfter(new Date())
@@ -413,19 +436,19 @@ export class Client {
       }
 
       const request = await this.#requestBase(
-        this.#requestResources(server.url, server.poolId),
+        this.#requestSites(server.url, server.poolId),
         server,
       )
 
       const response = await fetch(request)
-      const body: ResourcesResponse = await response.json()
-      this.#resources.set(server, body.resources)
-      this.#onResourcesUpdated(server, body.resources)
-      this.#lastResourceRequest.set(server, new Date())
+      const body: SitesResponse = await response.json()
+      this.#sites.set(server, body.sites)
+      this.#onSitesUpdated?.(server, body.sites)
+      this.#lastSitesRequest.set(server, new Date())
     } catch (error) {
-      console.error('Error updating jobs:', error)
+      console.error('Error updating sites:', error)
       // no `finally` please
-      this.#lastResourceRequest.set(server, new Date())
+      this.#lastSitesRequest.set(server, new Date())
     }
   }
 
@@ -435,25 +458,21 @@ export class Client {
       return
     }
     try {
-      const resourceIds = await this.enabledResources(server)
       const request = await this.#requestBase(
-        this.#requestJobs(url, server.poolId, {
-          autonomy: server.autonomy,
-          resourceIds,
-        }),
+        this.#requestJobs(url, server.poolId, { autonomy: server.autonomy }),
         server,
       )
       const response = await fetch(request)
 
       const body: JobPollResponse = await response.json()
 
-      if (body.refetch?.includes('resources')) {
+      if (body.refetch?.includes('sites')) {
         log({
           severity: 'info',
           scope: 'pool',
-          text: 'The server requested a refetch because the resources have changed',
+          text: 'The server requested a refetch because the sites have changed',
         })
-        await this.#updateResource(server)
+        await this.#updateSites(server)
       }
 
       this.#addJobs(body.jobs)
@@ -517,8 +536,8 @@ export class Client {
     })
   }
 
-  #requestResources(base: string, poolId: string) {
-    return new Request(new URL(`/api/pool/${poolId}/resources`, base), {
+  #requestSites(base: string, poolId: string) {
+    return new Request(new URL(`/api/pool/${poolId}/sites`, base), {
       method: 'GET',
     })
   }
@@ -526,9 +545,6 @@ export class Client {
   #requestJobs(base: string, poolId: string, options: JobPollParameters) {
     const url = new URL(`/api/pool/${poolId}/worker/jobs`, base)
     url.searchParams.set('autonomy', options.autonomy)
-    for (const id of options.resourceIds) {
-      url.searchParams.append('resource[]', id)
-    }
     return new Request(url, { method: 'GET' })
   }
 
@@ -569,24 +585,24 @@ export class Client {
       .join('')
   }
 
-  #findResource(id: string): {
+  #findSite(id: string): {
     server: ServerDefinition
-    resource: ResourceSpec
+    site: SiteSpec
   } {
     for (const server of this.servers) {
-      const resources = this.#resources.get(server) ?? []
-      for (const resource of resources) {
-        if (resource.entity === id) {
-          return { server, resource }
+      const sites = this.#sites.get(server) ?? []
+      for (const site of sites) {
+        if (site.site === id) {
+          return { server, site }
         }
       }
     }
     log({
       severity: 'error',
       scope: 'pool',
-      text: `Could not find resource ${id}`,
+      text: `Could not find site ${id}`,
     })
-    throw new Error(`Invalid resource ${id}`)
+    throw new Error(`Invalid site ${id}`)
   }
 }
 
@@ -595,8 +611,7 @@ export interface ShoalClientOptions {
   queueIntervalSeconds: number
   defaultServers?: ServerDefinition[]
   cst: ContentScriptTracker
-  enabledResources(server: ServerDefinition): Promise<string[]>
-  onResourcesUpdated(server: ServerDefinition, resources: ResourceSpec[]): void
+  onSitesUpdated?(server: ServerDefinition, sites: SiteSpec[]): void
   onPatches?: (result: ScrapeResult) => void
 }
 

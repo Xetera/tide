@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { funnelProvider } from './funnel-loader'
+import { funnelProvider } from './funnel-loader.node'
 import { allSites } from '~/sites'
 
 describe('funnelProvider', () => {

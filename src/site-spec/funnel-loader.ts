@@ -16,43 +16,14 @@ import type {
 } from '~/site-spec/types'
 export type { PageFunnelEntry, NetworkFunnelEntry, FixtureEntry }
 
-const rawJsonataModules = {
-  ...import.meta.glob('../sites/*/loaders/*/*.jsonata', {
-    query: '?raw',
-    import: 'default',
-    eager: true,
-  }),
-  ...import.meta.glob('../sites/*/loaders/*.jsonata', {
-    query: '?raw',
-    import: 'default',
-    eager: true,
-  }),
-} as Record<string, string>
-
-const rawHtmlegyModules = {
-  ...import.meta.glob('../sites/*/loaders/*/*.htmlegy', {
-    query: '?raw',
-    import: 'default',
-    eager: true,
-  }),
-  ...import.meta.glob('../sites/*/loaders/*.htmlegy', {
-    query: '?raw',
-    import: 'default',
-    eager: true,
-  }),
-} as Record<string, string>
-
-const rawFixtureModules = import.meta.glob('../sites/*/loaders/*/*.json', {
-  import: 'default',
-  eager: true,
-}) as Record<string, unknown>
-
-const LOADER_DIR_RE =
+export const LOADER_DIR_RE =
   /\/sites\/([^/]+)\/loaders\/([^/]+)\/(.+\.(jsonata|htmlegy))$/
-const LOADER_FLAT_RE = /\/sites\/([^/]+)\/loaders\/([^/]+\.(jsonata|htmlegy))$/
-const FIXTURE_RE = /\/sites\/([^/]+)\/loaders\/([^/]+)\/([^/]+\.json)$/
+export const LOADER_FLAT_RE =
+  /\/sites\/([^/]+)\/loaders\/([^/]+\.(jsonata|htmlegy))$/
+export const FIXTURE_RE =
+  /\/sites\/([^/]+)\/loaders\/([^/]+)\/([^/]+\.json)$/
 
-function parseEntry(
+export function parseEntry(
   path: string,
   expression: string,
 ): { site: string; funnel: string; file: string; path: string; expression: string; body: string; frontmatter: Record<string, unknown> } | null {
@@ -87,10 +58,10 @@ function parseEntry(
   return null
 }
 
-function parseAllEntries(): {
-  page: PageFunnelEntry[]
-  network: NetworkFunnelEntry[]
-} {
+export function parseAllEntries(
+  rawJsonataModules: Record<string, string>,
+  rawHtmlegyModules: Record<string, string>,
+): { page: PageFunnelEntry[]; network: NetworkFunnelEntry[] } {
   const page = Object.entries(rawHtmlegyModules).flatMap(
     ([path, expression]) => {
       const entry = parseEntry(path, expression) as PageFunnelEntry | null
@@ -117,7 +88,9 @@ function parseAllEntries(): {
   return { page, network }
 }
 
-function parseFixtures(): FixtureEntry[] {
+export function parseFixtures(
+  rawFixtureModules: Record<string, unknown>,
+): FixtureEntry[] {
   return Object.entries(rawFixtureModules).flatMap(([path, data]) => {
     const match = path.match(FIXTURE_RE)
     if (!match) {
@@ -322,22 +295,6 @@ export class FunnelProvider {
     }
     return examples
   }
-}
-
-const { page: pageEntries, network: networkEntries } = parseAllEntries()
-export const funnelProvider = new FunnelProvider(
-  pageEntries,
-  networkEntries,
-  parseFixtures(),
-)
-
-if (import.meta.hot) {
-  import.meta.hot.on(
-    'tide:source-update',
-    ({ path, content }: { path: string; content: string }) => {
-      funnelProvider.patchEntry(path, content)
-    },
-  )
 }
 
 export function captureMatchesKnownFunnel(

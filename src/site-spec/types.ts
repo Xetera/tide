@@ -147,7 +147,7 @@ export class NetworkFunnelGroup {
 
 export class SiteDefinition {
   readonly hostname: string
-  readonly dir: string
+  readonly id: string
   readonly icon?: string
   readonly entities: Entity[]
 
@@ -155,20 +155,20 @@ export class SiteDefinition {
 
   constructor(init: {
     hostname: string
-    dir: string
+    id: string
     icon?: string
     entities: Entity[]
     provider: FunnelProvider
   }) {
     this.hostname = init.hostname
-    this.dir = init.dir
+    this.id = init.id
     this.icon = init.icon
     this.entities = init.entities
     this.#provider = init.provider
   }
 
   getPageFunnels(): PageFunnel[] {
-    return this.#provider.getPageFunnelsForSite(this.dir, this.hostname)
+    return this.#provider.getPageFunnelsForSite(this.id, this.hostname)
   }
 
   matchesCapture(url: URL, method: string): boolean {
@@ -189,12 +189,12 @@ export class SiteDefinition {
 
   hasFunnel(funnelName: string): boolean {
     return this.#provider
-      .getForSite(this.dir)
+      .getForSite(this.id)
       .some((e) => e.funnel === funnelName)
   }
 
   getNetworkFunnels(): NetworkFunnelGroup[] {
-    return this.#provider.buildNetworkFunnels(this.dir, this.hostname)
+    return this.#provider.buildNetworkFunnels(this.id, this.hostname)
   }
 
   matchesHostname(url: URL): boolean {
@@ -244,6 +244,11 @@ export type AssetReference = {
       url: string
     }
 )
+
+export interface SiteSpec {
+  site: string
+  hostname: string
+}
 
 export interface ResourceSpec {
   entity: string

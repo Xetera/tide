@@ -7,6 +7,7 @@ import type {
   JobParameters,
   RawEntityPatch,
   JobSource,
+  SiteSpec,
 } from './site-spec/types'
 import type { PlainLog, ScrapeLog, ScrapeSource } from './shared'
 import type { EntityPatch } from './site-spec/types'
@@ -32,13 +33,14 @@ declare module 'webext-bridge' {
     'url-update': unknown
     'toggle-highlight': void
     'run-job': JobParameters
-    'update-resources': Resource[]
+    'update-sites': SiteSpec[]
+    'toggle-site': { site: string; enabled: boolean }
     start: unknown
     log:
       | Omit<PlainLog, 'date' | 'id' | 'type'>
       | Omit<ScrapeLog, 'date' | 'id' | 'status'>
-    resources: ProtocolWithReturn<unknown, Resource[]>
-    'set-schema': ProtocolWithReturn<Resource[], void>
+    sites: ProtocolWithReturn<unknown, SiteSpec[]>
+    'set-schema': ProtocolWithReturn<SiteSpec[], void>
     'entity-patches': ScrapeResult
     'raw-capture': {
       url: string

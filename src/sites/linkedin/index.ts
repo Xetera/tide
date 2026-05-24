@@ -3,7 +3,7 @@ import { funnelProvider } from '~/site-spec/funnel-loader'
 import { instagramEntities } from './entities'
 
 export const instagramSite = defineSite({
-  dir: 'linkedin',
+  id: 'linkedin',
   funnelProvider,
   hostname: 'www.linkedin.com',
   entities: instagramEntities,

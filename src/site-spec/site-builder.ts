@@ -156,7 +156,7 @@ export function Many(entityName: string) {
 
 type SiteInput = {
   hostname: string
-  dir: string
+  id: string
   icon?: string
   entities: EntityBuilder[]
   funnelProvider: FunnelProvider
@@ -165,7 +165,7 @@ type SiteInput = {
 export function defineSite(input: SiteInput): SiteDefinition {
   return new SiteDefinition({
     hostname: input.hostname,
-    dir: input.dir,
+    id: input.id,
     icon: input.icon,
     entities: input.entities.map((e) => e.build()),
     provider: input.funnelProvider,

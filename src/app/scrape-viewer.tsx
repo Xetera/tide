@@ -7,8 +7,6 @@ import {
 } from 'shiki/dist/core.mjs'
 import { createJavaScriptRegexEngine } from 'shiki/dist/engine-javascript.mjs'
 import type { ScrapeLog } from '~/shared/log'
-import '@unocss/reset/tailwind-compat.css'
-import 'virtual:uno.css'
 import './app.css'
 import './scrape-viewer.css'
 

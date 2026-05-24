@@ -14,7 +14,7 @@ export const sahibindenSmallJobs: JobParameters[] = [
 ]
 
 export const sahibindenSite = defineSite({
-  dir: 'sahibinden',
+  id: 'sahibinden',
   funnelProvider,
   hostname: 'www.sahibinden.com',
   entities: sahibindenEntities,

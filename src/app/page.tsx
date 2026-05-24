@@ -1,12 +1,8 @@
 import { createDateFormatter } from '@kobalte/core/i18n'
-import { For, Show, createEffect, createSignal } from 'solid-js'
+import { For, Show, createSignal } from 'solid-js'
 /* @refresh reload */
-import { onMessage, sendMessage } from 'webext-bridge/popup'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { Badge } from '~/components/ui/badge'
-import { toOrigin } from '~/site-spec/resource'
-import type { ResourceSpec } from '~/site-spec/types'
-import { type BrowserStorageSchema, Storage } from '~/shared/storage'
 import { useBrowserStorage } from '~/shared/hooks'
 import type { Log, PlainLog, ScrapeLog } from '~/shared/log'
 import { AddServer } from './add-server'
@@ -16,39 +12,6 @@ import { Pool } from './pool'
 const formatter = createDateFormatter({
   timeStyle: 'medium',
 })()
-
-async function requestNewPermissions(resource: ResourceSpec) {
-  await chrome.permissions.request({
-    origins: [toOrigin(resource)],
-    permissions: ['declarativeNetRequest', 'webNavigation'],
-  })
-  // chrome.permissions.request({
-  // })
-}
-
-function ResourceRow({
-  resource,
-  hostAllowed,
-  onClick,
-}: {
-  resource: ResourceSpec
-  hostAllowed: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type='button'
-      onClick={onClick}
-      class='w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors hover:bg-accent hover:text-accent-foreground'
-    >
-      <span
-        class={`h-1.5 w-1.5 rounded-full shrink-0 ${hostAllowed ? 'bg-green-500' : 'bg-muted-foreground'}`}
-      />
-      <span class='flex-1 font-medium truncate'>{resource.entity}</span>
-      <Badge variant='muted'>{resource.entity}</Badge>
-    </button>
-  )
-}
 
 function ScrapeLogEntry({ log }: { log: ScrapeLog }) {
   const time = formatter.format(new Date(log.date))
@@ -81,49 +44,40 @@ function ScrapeLogEntry({ log }: { log: ScrapeLog }) {
     navigator.clipboard.writeText(data)
   }
 
+  const statusClass = () => {
+    if (log.status === 'submitted') return 's-log-ok'
+    if (log.status === 'failed') return 's-log-err'
+    return 's-log-mute'
+  }
+
   return (
-    <div
-      data-index={log.id}
-      class='text-xs border-b border-border last:border-0 text-foreground'
-    >
+    <div data-index={log.id} class='s-log' style={{ display: 'block', padding: '0' }}>
       <details>
-        <summary class='cursor-pointer px-3 py-2 select-none flex items-center gap-2'>
-          <span class='tabular-nums font-mono text-muted-foreground shrink-0'>
-            {time}
-          </span>
-          <span class='font-medium'>scrape</span>
-          <span class='text-muted-foreground truncate'>{title}</span>
-          <span
-            class={`ml-auto shrink-0 ${log.status === 'submitted' ? 'text-green-500' : log.status === 'failed' ? 'text-red-500' : 'text-muted-foreground'}`}
-          >
+        <summary class='s-log cursor-pointer select-none' style={{ 'border-bottom': 'none' }}>
+          <span class='s-log-time'>{time}</span>
+          <span class='s-log-kind'>scrape</span>
+          <span class='s-log-title'>{title}</span>
+          <span class={`s-log-status ${statusClass()}`}>
             {log.status ?? 'pending'}
           </span>
         </summary>
-        <div class='border-t border-border'>
-          <div class='px-3 py-2'>
-            <div class='text-muted-foreground mb-0.5'>patches</div>
-            <div class='font-mono flex flex-col gap-0.5'>
+        <div style={{ 'border-top': '1px solid var(--hairline)' }}>
+          <div class='s-log' style={{ 'flex-direction': 'column', 'align-items': 'flex-start', 'border-bottom': 'none' }}>
+            <span class='s-log-mute t-eyebrow'>patches</span>
+            <div class='t-mono-xs flex flex-col gap-0.5'>
               {patchesByEntity.map(([entity, count]) => (
                 <div class='flex gap-2'>
-                  <span class='text-muted-foreground'>{entity}</span>
+                  <span class='s-log-mute'>{entity}</span>
                   <span>{count}</span>
                 </div>
               ))}
             </div>
           </div>
-          <div class='px-3 py-2 flex gap-2'>
-            <button
-              type='button'
-              onClick={openViewer}
-              class='px-2 py-1 rounded border border-border hover:bg-accent transition-colors'
-            >
+          <div class='flex gap-2' style={{ padding: '6px 16px 10px' }}>
+            <button type='button' onClick={openViewer} class='s-btn s-btn-secondary s-btn-sm'>
               Open
             </button>
-            <button
-              type='button'
-              onClick={copyToClipboard}
-              class='px-2 py-1 rounded border border-border hover:bg-accent transition-colors'
-            >
+            <button type='button' onClick={copyToClipboard} class='s-btn s-btn-secondary s-btn-sm'>
               Copy
             </button>
           </div>
@@ -135,44 +89,41 @@ function ScrapeLogEntry({ log }: { log: ScrapeLog }) {
 
 function PlainLogEntry({ log }: { log: Exclude<Log, ScrapeLog> }) {
   const time = formatter.format(new Date(log.date))
+
+  const rowClass = () => {
+    if (log.severity === 'error') return 's-log s-log-row-err'
+    if (log.severity === 'warning') return 's-log s-log-row-warn'
+    return 's-log'
+  }
+
   return (
-    <div
-      data-index={log.id}
-      class={`text-xs border-b border-border last:border-0 ${
-        log.severity === 'error'
-          ? 'bg-destructive/10 text-destructive'
-          : log.severity === 'warning'
-            ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
-            : 'text-foreground'
-      }`}
-    >
+    <div data-index={log.id} class={rowClass()} style={{ display: 'block', padding: '0' }}>
       {log.data ? (
         <details>
-          <summary class='cursor-pointer px-3 py-1.5 tabular-nums font-mono select-none'>
-            <span class='text-muted-foreground mr-2'>{time}</span>
-            {log.text}
+          <summary class='s-log cursor-pointer select-none' style={{ 'border-bottom': 'none' }}>
+            <span class='s-log-time'>{time}</span>
+            <span class='s-log-title'>{log.text}</span>
           </summary>
-          <code class='block px-3 pb-2 whitespace-pre text-wrap text-muted-foreground'>
+          <code class='block t-mono-xs whitespace-pre text-wrap' style={{ padding: '4px 16px 10px' }}>
             {JSON.stringify(log.data, null, 2)}
           </code>
         </details>
       ) : (
-        <div class='px-3 py-1.5 tabular-nums font-mono'>
-          <span class='text-muted-foreground mr-2'>{time}</span>
-          {log.text}
+        <div class='s-log' style={{ 'border-bottom': 'none' }}>
+          <span class='s-log-time'>{time}</span>
+          <span class='s-log-title'>{log.text}</span>
         </div>
       )}
     </div>
   )
 }
 
-
 function PoolLogs({ logs }: { logs: PlainLog[] }) {
   return (
-    <details class='border-t border-border'>
-      <summary class='cursor-pointer px-3 py-2 text-xs font-medium text-muted-foreground select-none hover:bg-accent flex items-center justify-between'>
-        <span>Pool logs</span>
-        <span class='tabular-nums'>{logs.length}</span>
+    <details style={{ 'border-top': '1px solid var(--hairline)' }}>
+      <summary class='s-log cursor-pointer select-none' style={{ 'border-bottom': 'none' }}>
+        <span class='s-log-kind'>Pool logs</span>
+        <span class='s-log-mute ml-auto'>{logs.length}</span>
       </summary>
       <div>
         <For each={logs}>{(log) => <PlainLogEntry log={log} />}</For>
@@ -182,8 +133,6 @@ function PoolLogs({ logs }: { logs: PlainLog[] }) {
 }
 
 function Page() {
-  const storage = new Storage<BrowserStorageSchema>()
-  const [state, setState] = createSignal<StatefulResource[]>([])
   const { logs } = useLogs()
   const scrapeLogs = () =>
     logs().filter((l): l is ScrapeLog => l.type === 'scrape')
@@ -196,105 +145,32 @@ function Page() {
     undefined,
   )
 
-  async function updateState(resources: ResourceSpec[]) {
-    const stateful = await Promise.all(
-      resources.map(async (resource) => {
-        const hostAllowed = await chrome.permissions.contains({
-          origins: [toOrigin(resource)],
-        })
-        return { resource, hostAllowed }
-      }),
-    )
-    setState(stateful)
-  }
-
-  createEffect(async () => {
-    const resources = await sendMessage('resources', undefined, {
-      context: 'background',
-      tabId: 0,
-    })
-    updateState(resources)
-  })
-
-  onMessage('update-resources', async ({ data }) => {
-    console.log('updated!!!', data)
-    updateState(data)
-  })
-
-  // onMessage('ran-job', (a) => {
-  //   console.log(a)
-  // })
-
-  function getNewPermissions(resource: ResourceSpec) {
-    requestNewPermissions(resource)
-    storage.push('enabledResources', resource.entity)
-  }
-
   const [tab, setTab] = createSignal('dashboard')
 
   return (
-    <div class='w-[400px] bg-background text-foreground overflow-y-scroll'>
+    <div class='w-[400px] bg-[var(--background)] text-[var(--foreground)] overflow-y-scroll'>
       <Tabs value={tab()} onChange={setTab}>
-        <TabsList class='w-full rounded-none border-b border-border bg-background h-10 p-0 gap-0'>
-          <TabsTrigger
-            value='dashboard'
-            class='flex-1 h-full rounded-none border-b-2 border-transparent data-[selected]:(border-foreground bg-transparent) text-muted-foreground data-[selected]:text-foreground'
-          >
-            Dashboard
-          </TabsTrigger>
-          <TabsTrigger
-            value='pool'
-            class='flex-1 h-full rounded-none border-b-2 border-transparent data-[selected]:(border-foreground bg-transparent) text-muted-foreground data-[selected]:text-foreground'
-          >
-            Pool
-          </TabsTrigger>
-          <TabsTrigger
-            value='settings'
-            class='flex-1 h-full rounded-none border-b-2 border-transparent data-[selected]:(border-foreground bg-transparent) text-muted-foreground data-[selected]:text-foreground'
-          >
-            Settings
-          </TabsTrigger>
+        <TabsList>
+          <TabsTrigger value='dashboard'>Dashboard</TabsTrigger>
+          <TabsTrigger value='pool'>Pool</TabsTrigger>
+          <TabsTrigger value='settings'>Settings</TabsTrigger>
         </TabsList>
 
-        <TabsContent value='dashboard' class='mt-0'>
+        <TabsContent value='dashboard'>
           <div class='flex flex-col'>
-            <div class='border-b border-border'>
-              <For
-                each={state()}
-                fallback={
-                  <div class='px-3 py-6 flex flex-col items-center gap-3'>
-                    <p class='text-sm text-muted-foreground text-center'>No resources configured</p>
-                    <button
-                      type='button'
-                      onClick={() => chrome.tabs.create({ url: chrome.runtime.getURL('playground.html') })}
-                      class='px-4 py-2 text-sm rounded border border-border hover:bg-accent transition-colors'
-                    >
-                      Open Playground
-                    </button>
-                  </div>
-                }
-              >
-                {({ resource, hostAllowed }) => (
-                  <ResourceRow
-                    resource={resource}
-                    hostAllowed={hostAllowed}
-                    onClick={() => getNewPermissions(resource)}
-                  />
-                )}
-              </For>
-            </div>
-
             <Show when={lastScrape()}>
               {(scrape) => (
-                <div class='border-b border-border'>
-                  <details class='group'>
-                    <summary class='cursor-pointer flex items-center justify-between px-3 py-2 text-sm font-medium select-none hover:bg-accent'>
-                      <span>Last scrape{scrape().scrapeSource ? ` · ${scrape().scrapeSource?.funnel}` : ''}</span>
-                      <Badge variant='outline'>
+                <div style={{ 'border-bottom': '1px solid var(--hairline)' }}>
+                  <details>
+                    <summary class='s-log cursor-pointer select-none' style={{ 'border-bottom': 'none' }}>
+                      <span class='s-log-kind'>
+                        Last scrape{scrape().scrapeSource ? ` · ${scrape().scrapeSource?.funnel}` : ''}
+                      </span>
+                      <Badge variant='muted' class='ml-auto shrink-0'>
                         {scrape().patches.length} patches
                       </Badge>
                     </summary>
-                    <code class='block px-3 pb-3 whitespace-pre text-wrap text-xs text-muted-foreground font-mono'>
+                    <code class='block t-mono-xs whitespace-pre text-wrap' style={{ padding: '4px 16px 12px' }}>
                       {JSON.stringify(scrape().patches, null, 2)}
                     </code>
                   </details>
@@ -304,7 +180,7 @@ function Page() {
 
             <div>
               {scrapeLogs().length === 0 && poolLogs().length === 0 && (
-                <p class='px-3 py-6 text-sm text-muted-foreground text-center'>
+                <p class='t-muted text-center' style={{ padding: '24px 12px' }}>
                   No activity yet
                 </p>
               )}
@@ -318,21 +194,16 @@ function Page() {
           </div>
         </TabsContent>
 
-        <TabsContent value='pool' class='mt-0'>
+        <TabsContent value='pool'>
           <Pool />
         </TabsContent>
 
-        <TabsContent value='settings' class='mt-0'>
+        <TabsContent value='settings'>
           <AddServer />
         </TabsContent>
       </Tabs>
     </div>
   )
-}
-
-export interface StatefulResource {
-  hostAllowed: boolean
-  resource: ResourceSpec
 }
 
 export default Page

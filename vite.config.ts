@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config'
 import solidPlugin from 'vite-plugin-solid'
 import { crx } from '@crxjs/vite-plugin'
 import manifest from './manifest'
-import uno from 'unocss/vite'
+import tailwindcss from '@tailwindcss/vite'
 import { r } from './src/scripts'
 import devtools from 'solid-devtools/vite'
 import { writeFile } from 'node:fs/promises'
@@ -107,7 +107,7 @@ export default defineConfig({
     }),
     devtools(),
     solidPlugin(),
-    uno(),
+    tailwindcss(),
   ],
   // root: r("src"),
   resolve: {
@@ -115,6 +115,10 @@ export default defineConfig({
       {
         find: '~gleam/',
         replacement: `${GLEAM_DIR}/build/dev/javascript/tide_shared/`,
+      },
+      {
+        find: /^~\/site-spec\/funnel-loader$/,
+        replacement: resolve(r('src'), 'site-spec/funnel-loader.vite.ts'),
       },
       { find: '~/', replacement: `${r('src')}/` },
       // alias: [

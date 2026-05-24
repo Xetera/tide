@@ -327,6 +327,10 @@ function emitUrlUpdate(
       return { ok }
     })
 
+    onMessage('sites', () => {
+      return allSites.map((s) => ({ site: s.id, hostname: s.hostname }))
+    })
+
     onMessage('get-funnels', () => {
       return funnelProvider.buildFunnelInfos(allSites)
     })
@@ -527,13 +531,20 @@ function emitUrlUpdate(
           }
         })()
       : []
-    client.setResources(client.getServer(), resources)
-    storage.set('resources:all', resources)
+    // client.setResources(client.getServer(), resources)
+    // storage.set('resources:all', resources)
 
     await client.startAll()
 
-    const HEARTBEAT_INTERVAL_MS = 60_000
-    setInterval(() => client!.sendHeartbeat(), HEARTBEAT_INTERVAL_MS)
+    const HEARTBEAT_ALARM = 'tide:heartbeat'
+    // chrome 117+ allows 30s alarms
+    chrome.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: 0.5 })
+    chrome.alarms.onAlarm.addListener((alarm) => {
+      if (alarm.name === HEARTBEAT_ALARM) {
+        console.log("Heartbeating...")
+        client!.sendHeartbeat()
+      }
+    })
     client.sendHeartbeat()
   } catch (err) {
     console.error(err)

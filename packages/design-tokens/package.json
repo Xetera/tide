@@ -1,0 +1,8 @@
+{
+  "name": "@tide/design-tokens",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./tokens.css": "./tokens.css"
+  }
+}

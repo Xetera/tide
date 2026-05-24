@@ -104,7 +104,7 @@ export class ServerStorage {
 
 export type BrowserStorageSchema = {
   events: Log[]
-  enabledResources: string[]
+  'sites:opted-out': string[]
   'server:url'?: string
   'server:name'?: string
   'server:pool-id'?: string
@@ -119,7 +119,7 @@ export type BrowserStorageSchema = {
   'legend:hidden'?: string[]
   'legend:collapsed'?: boolean
   'debug:visual'?: boolean
-  'resources:all'?: import('~/site-spec/types').ResourceSpec[]
+  'sites:all'?: import('~/site-spec/types').SiteSpec[]
   'gemini:api-key'?: string
   'zai:api-key'?: string
   'generation:progress'?: GenerationProgress

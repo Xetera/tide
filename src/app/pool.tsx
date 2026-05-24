@@ -1,5 +1,5 @@
-import { createMemo, createResource, createSignal } from 'solid-js'
-import { sendMessage } from 'webext-bridge/popup'
+import { For, Show, createEffect, createMemo, createResource, createSignal, onMount } from 'solid-js'
+import { onMessage, sendMessage } from 'webext-bridge/popup'
 import {
   TextField,
   TextFieldDescription,
@@ -7,6 +7,50 @@ import {
   TextFieldRoot,
 } from '~/components/ui/textfield'
 import { useBrowserStorage } from '~/shared/hooks'
+import type { SiteSpec } from '~/site-spec/types'
+import { toOrigin } from '~/site-spec/resource'
+import { Storage, type BrowserStorageSchema } from '~/shared/storage'
+
+const storage = new Storage<BrowserStorageSchema>()
+
+interface StatefulSite {
+  hostAllowed: boolean
+  site: SiteSpec
+}
+
+async function requestNewPermissions(site: SiteSpec) {
+  await chrome.permissions.request({
+    origins: [toOrigin(site)],
+    permissions: ['declarativeNetRequest', 'webNavigation'],
+  })
+}
+
+function SiteRow({
+  site,
+  hostAllowed,
+  onClick,
+}: {
+  site: SiteSpec
+  hostAllowed: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type='button'
+      onClick={onClick}
+      class='s-set-row w-full text-left'
+      style={{ cursor: 'pointer', border: '0', background: 'transparent' }}
+    >
+      <div class='s-set-meta'>
+        <span class='s-set-name'>{site.site}</span>
+        <span class='s-set-desc'>{site.hostname}</span>
+      </div>
+      <span
+        class={`s-status-dot ${hostAllowed ? 's-status-live' : 's-status-mute'}`}
+      />
+    </button>
+  )
+}
 
 function parseInviteUrl(
   raw: string,
@@ -23,6 +67,32 @@ function parseInviteUrl(
   } catch {
     return null
   }
+}
+
+function SiteToggleRow({
+  site,
+  enabled,
+  onToggle,
+}: {
+  site: SiteSpec
+  enabled: boolean
+  onToggle: (enabled: boolean) => void
+}) {
+  return (
+    <div class='s-set-row'>
+      <div class='s-set-meta'>
+        <span class='s-set-name'>{site.site}</span>
+        <span class='s-set-desc'>{site.hostname}</span>
+      </div>
+      <button
+        type='button'
+        role='switch'
+        aria-checked={enabled}
+        onClick={() => onToggle(!enabled)}
+        class='s-switch'
+      />
+    </div>
+  )
 }
 
 export function Pool() {
@@ -44,6 +114,53 @@ export function Pool() {
   const [joining, setJoining] = createSignal(false)
   const [joinError, setJoinError] = createSignal<string | null>(null)
   const parsed = createMemo(() => parseInviteUrl(inviteUrl()))
+
+  const [sites, setSites] = createSignal<SiteSpec[]>([])
+  const [statefulSites, setStatefulSites] = createSignal<StatefulSite[]>([])
+  const [optedOut, setOptedOut] = createSignal<string[]>([])
+
+  async function updateStatefulSites(specs: SiteSpec[]) {
+    const stateful = await Promise.all(
+      specs.map(async (site) => {
+        const hostAllowed = await chrome.permissions.contains({
+          origins: [toOrigin(site)],
+        })
+        return { site, hostAllowed }
+      }),
+    )
+    setStatefulSites(stateful)
+  }
+
+  onMount(async () => {
+    const stored = await storage.get('sites:all', [])
+    const specs = stored ?? []
+    setSites(specs)
+    updateStatefulSites(specs)
+    const out = await storage.get('sites:opted-out', [])
+    setOptedOut(out ?? [])
+  })
+
+  createEffect(async () => {
+    const specs = await sendMessage('sites', undefined, {
+      context: 'background',
+      tabId: 0,
+    })
+    setSites(specs)
+    updateStatefulSites(specs)
+  })
+
+  onMessage('update-sites', ({ data }) => {
+    setSites(data)
+    updateStatefulSites(data)
+  })
+
+  async function toggleSite(site: string, enabled: boolean) {
+    const updated = enabled
+      ? optedOut().filter((s) => s !== site)
+      : [...new Set([...optedOut(), site])]
+    setOptedOut(updated)
+    await sendMessage('toggle-site', { site, enabled }, { context: 'background', tabId: 0 })
+  }
 
   async function join() {
     const result = parsed()
@@ -95,80 +212,126 @@ export function Pool() {
     },
   )
 
+  const statusTone = () => {
+    if (!hasCredentials() || reachable.loading) return 's-pill-mute'
+    return reachable() ? 's-pill-ok' : 's-pill-warn'
+  }
+
   const statusLabel = () => {
     if (!hasCredentials()) return 'Not connected'
     if (reachable.loading) return 'Checking...'
     return reachable() ? 'Connected' : 'Unreachable'
   }
 
-  const statusClass = () => {
-    if (!hasCredentials() || !reachable()) return 'bg-muted text-muted-foreground'
-    if (reachable.loading) return 'bg-muted text-muted-foreground'
-    return 'bg-green-500/15 text-green-600 dark:text-green-400'
-  }
-
   return (
-    <div class='p-4 flex flex-col gap-4'>
-      <div class='flex items-center justify-between'>
-        <span class='text-sm font-medium'>Status</span>
-        <span class={`text-xs px-2 py-0.5 rounded-full font-medium ${statusClass()}`}>
+    <div class='flex flex-col'>
+      <div class='s-set-row'>
+        <span class='s-set-name'>Status</span>
+        <span class={`s-pill ${statusTone()}`}>
+          <span class='s-dot' />
           {statusLabel()}
         </span>
       </div>
 
-      <TextFieldRoot>
-        <TextFieldLabel>Invite URL</TextFieldLabel>
-        <div class='flex gap-2'>
+      <div class='flex flex-col gap-3' style={{ padding: '12px 16px', 'border-bottom': '1px solid var(--hairline)' }}>
+        <TextFieldRoot>
+          <TextFieldLabel>Invite URL</TextFieldLabel>
+          <div class='flex gap-2'>
+            <TextField
+              type='url'
+              placeholder='https://shoal.example.com/api/pool/.../join?token=...'
+              value={inviteUrl()}
+              onInput={(e) => setInviteUrl(e.currentTarget.value)}
+              class='flex-1'
+            />
+            <button
+              type='button'
+              disabled={!parsed() || joining()}
+              onClick={join}
+              class='s-btn s-btn-primary s-btn-sm'
+            >
+              {joining() ? 'Joining...' : 'Join'}
+            </button>
+          </div>
+          {joinError() && (
+            <p class='t-mono-xs' style={{ color: 'var(--destructive)', 'margin-top': '4px' }}>{joinError()}</p>
+          )}
+          <TextFieldDescription>
+            Paste an invite link from the pool owner.
+          </TextFieldDescription>
+        </TextFieldRoot>
+
+        <TextFieldRoot>
+          <TextFieldLabel>Worker secret</TextFieldLabel>
           <TextField
-            type='url'
-            placeholder='https://shoal.example.com/api/pool/.../join?token=...'
-            value={inviteUrl()}
-            onInput={(e) => setInviteUrl(e.currentTarget.value)}
-            class='flex-1'
+            type='password'
+            placeholder='Issued after joining a pool'
+            value={workerSecret() ?? ''}
+            readOnly
           />
-          <button
-            type='button'
-            disabled={!parsed() || joining()}
-            onClick={join}
-            class='px-3 py-1 text-sm rounded-md border border-input hover:bg-accent transition-colors disabled:(opacity-50 cursor-not-allowed)'
-          >
-            {joining() ? 'Joining...' : 'Join'}
-          </button>
+          <TextFieldDescription>
+            Automatically set when the join flow is completed.
+          </TextFieldDescription>
+        </TextFieldRoot>
+
+        <TextFieldRoot>
+          <TextFieldLabel>Worker ID</TextFieldLabel>
+          <TextField
+            value={workerId() ?? 'Not yet generated'}
+            readOnly
+            class='s-input-mono'
+          />
+          <TextFieldDescription>
+            Share this with the pool owner when requesting a worker secret.
+          </TextFieldDescription>
+        </TextFieldRoot>
+      </div>
+
+      <div>
+        <div class='s-sec-head'>
+          <span class='s-title'>Sites</span>
         </div>
-        {joinError() && (
-          <p class='text-xs text-destructive mt-1'>{joinError()}</p>
-        )}
-        <TextFieldDescription>
-          Paste an invite link from the pool owner. The link includes the
-          server, pool, and a one-time token.
-        </TextFieldDescription>
-      </TextFieldRoot>
-
-      <TextFieldRoot>
-        <TextFieldLabel>Worker secret</TextFieldLabel>
-        <TextField
-          type='password'
-          placeholder='Issued after joining a pool'
-          value={workerSecret() ?? ''}
-          readOnly
-          class='text-muted-foreground'
-        />
-        <TextFieldDescription>
-          Automatically set when the join flow is completed.
-        </TextFieldDescription>
-      </TextFieldRoot>
-
-      <TextFieldRoot>
-        <TextFieldLabel>Worker ID</TextFieldLabel>
-        <TextField
-          value={workerId() ?? 'Not yet generated'}
-          readOnly
-          class='font-mono text-xs text-muted-foreground'
-        />
-        <TextFieldDescription>
-          Share this with the pool owner when requesting a worker secret.
-        </TextFieldDescription>
-      </TextFieldRoot>
+        <Show
+          when={statefulSites().length > 0}
+          fallback={
+            <div class='flex flex-col items-center gap-3' style={{ padding: '24px 12px' }}>
+              <p class='t-muted text-center'>No sites configured</p>
+              <button
+                type='button'
+                onClick={() => chrome.tabs.create({ url: chrome.runtime.getURL('playground.html') })}
+                class='s-btn s-btn-secondary s-btn-sm'
+              >
+                Open Playground
+              </button>
+            </div>
+          }
+        >
+          <Show
+            when={hasCredentials()}
+            fallback={
+              <For each={statefulSites()}>
+                {({ site, hostAllowed }) => (
+                  <SiteRow
+                    site={site}
+                    hostAllowed={hostAllowed}
+                    onClick={() => requestNewPermissions(site)}
+                  />
+                )}
+              </For>
+            }
+          >
+            <For each={sites()}>
+              {(site) => (
+                <SiteToggleRow
+                  site={site}
+                  enabled={!optedOut().includes(site.site)}
+                  onToggle={(enabled) => toggleSite(site.site, enabled)}
+                />
+              )}
+            </For>
+          </Show>
+        </Show>
+      </div>
     </div>
   )
 }

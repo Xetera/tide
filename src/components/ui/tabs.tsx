@@ -38,7 +38,7 @@ type TabsListProps = {
 
 export function TabsList(props: TabsListProps) {
   return (
-    <div role='tablist' class={cn('flex', props.class)}>
+    <div role='tablist' class={cn('flex border-b', props.class)} style={{ 'border-color': 'var(--hairline)' }}>
       {props.children}
     </div>
   )
@@ -59,7 +59,7 @@ export function TabsTrigger(props: TabsTriggerProps) {
       type='button'
       aria-selected={selected()}
       onClick={() => ctx.onChange(props.value)}
-      class={cn(props.class)}
+      class={cn('pool-tab', selected() && 'pool-tab-active', props.class)}
       data-selected={selected() ? '' : undefined}
     >
       {props.children}

@@ -22,14 +22,13 @@ const mockCst = {
   isValid: vi.fn().mockReturnValue(true),
 }
 
-function makeClient(onResourcesUpdated = vi.fn()) {
+function makeClient(onSitesUpdated = vi.fn()) {
   return new Client({
     cst: mockCst as any,
     pollIntervalSeconds: 1,
     queueIntervalSeconds: 1,
-    enabledResources: async () => sahibindenSmallJobs.map((a) => a.resource_id),
     defaultServers: [serverDefinition],
-    onResourcesUpdated,
+    onSitesUpdated,
   })
 }
 
@@ -40,32 +39,32 @@ describe('client', () => {
     client.stopAll()
   })
 
-  it('gets resources on start', async () => {
-    const onResourcesUpdated = vi.fn()
-    client = makeClient(onResourcesUpdated)
+  it('gets sites on start', async () => {
+    const onSitesUpdated = vi.fn()
+    client = makeClient(onSitesUpdated)
     await client.startAll()
-    expect(onResourcesUpdated).toHaveBeenCalledWith(serverDefinition, [])
+    expect(onSitesUpdated).toHaveBeenCalledWith(serverDefinition, [])
   })
 
-  it('invalidates resources when instructed', async () => {
-    const onResourcesUpdated = vi.fn()
-    client = makeClient(onResourcesUpdated)
+  it('invalidates sites when instructed', async () => {
+    const onSitesUpdated = vi.fn()
+    client = makeClient(onSitesUpdated)
 
     vi.useFakeTimers()
     await client.startAll()
-    expect(onResourcesUpdated).toBeCalledTimes(1)
+    expect(onSitesUpdated).toBeCalledTimes(1)
     server.use(
       http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/worker/jobs`, () => {
         return HttpResponse.json<JobPollResponse>({
           jobs: sahibindenSmallJobs,
-          refetch: ['resources'],
+          refetch: ['sites'],
         })
       }),
     )
 
     vi.advanceTimersByTime(1000)
-    await vi.waitUntil(() => onResourcesUpdated.mock.calls.length === 2)
-    expect(onResourcesUpdated).toBeCalledTimes(2)
+    await vi.waitUntil(() => onSitesUpdated.mock.calls.length === 2)
+    expect(onSitesUpdated).toBeCalledTimes(2)
     vi.useRealTimers()
   })
 })

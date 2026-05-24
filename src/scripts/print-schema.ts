@@ -1,18 +1,26 @@
-import { writeFileSync, mkdirSync } from 'node:fs'
+import { writeFileSync, mkdirSync, readdirSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ImageType, VideoType } from '~/extraction/media-types'
 import { buildEntityRefs, entityKey } from '~/site-spec/site-builder'
-import type { Entity } from '~/site-spec/types'
-import { instagramEntities } from '~/sites/instagram/entities'
-import { robloxEntities } from '~/sites/roblox/entities'
-import { sahibindenEntities } from '~/sites/sahibinden/entities'
-import { twitterEntities } from '~/sites/twitter/entities'
+import type { SiteDefinition, Entity } from '~/site-spec/types'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+const sitesDir = resolve(__dirname, '../sites')
 const outDir = resolve(__dirname, '../../schemas')
 
 mkdirSync(outDir, { recursive: true })
+
+const siteDirs = readdirSync(sitesDir, { withFileTypes: true })
+  .filter((d) => d.isDirectory())
+  .map((d) => d.name)
+
+const siteModules: SiteDefinition[] = await Promise.all(
+  siteDirs.map(async (site) => {
+    const mod = await import(`~/sites/${site}/index`) as { default: SiteDefinition }
+    return mod.default
+  }),
+)
 
 function collectEntityRefs(
   schema: unknown,
@@ -29,12 +37,7 @@ function collectEntityRefs(
   return found
 }
 
-const allEntities: Entity[] = [
-  ...instagramEntities,
-  ...robloxEntities,
-  ...sahibindenEntities,
-  ...twitterEntities,
-].map((e) => e.build())
+const allEntities: Entity[] = siteModules.flatMap((site) => site.entities)
 
 const knownNames = new Set(allEntities.map((e) => e.entity))
 
@@ -59,7 +62,6 @@ const defs: Record<string, unknown> = {
 for (const entity of allEntities) {
   defs[entityKey(entity.entity)] = {
     ...entity.fields,
-    $id: entity.entity,
     'x-version': entity.version,
     ...(entity.canonicalUrl ? { 'x-canonical-url': entity.canonicalUrl } : {}),
     ...(entity.uniqueFields ? { 'x-unique-fields': entity.uniqueFields } : {}),
@@ -82,6 +84,18 @@ const schema = {
 writeFileSync(
   resolve(outDir, 'entities.json'),
   JSON.stringify(schema, null, 2) + '\n',
+)
+
+const sites = siteModules.map((site) => ({
+  hostname: site.hostname,
+  id: site.id,
+  ...(site.icon ? { icon: site.icon } : {}),
+  entities: site.entities.map((e) => e.entity),
+}))
+
+writeFileSync(
+  resolve(outDir, 'sites.json'),
+  JSON.stringify(sites, null, 2) + '\n',
 )
 
 process.stdout.write(`wrote schemas to ${outDir}\n`)
