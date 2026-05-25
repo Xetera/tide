@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, test } from 'vitest'
 import { HtmlegyExpr } from './compiler'
 import type { HtmlegyProvider } from './index'
 
@@ -39,6 +39,15 @@ function matchesSelector(node: TestNode, selector: string): boolean {
   }
   if (selector.startsWith('#')) {
     return node.attrs?.id === selector.slice(1)
+  }
+  const attrMatch = selector.match(/^(\w+)?\[(\w+)(\^=|=)"([^"]+)"\]$/)
+  if (attrMatch) {
+    const [, tag, attr, op, val] = attrMatch
+    if (tag && node.tag !== tag) {
+      return false
+    }
+    const nodeVal = node.attrs?.[attr!] ?? ''
+    return op === '^=' ? nodeVal.startsWith(val!) : nodeVal === val
   }
   return node.tag === selector
 }
@@ -104,6 +113,30 @@ describe('literals', () => {
   it('returns false', () => {
     expect(run('false', root)).toBe(false)
   })
+
+  it('can pipe a string literal into a transform', () => {
+    expect(run('"hello" | lowercase', root)).toBe('hello')
+  })
+
+  it('can pipe a number literal into a transform', () => {
+    expect(run('42 | exists', root)).toBe(true)
+  })
+})
+
+describe('selectors with // in strings', () => {
+  it('selects an element using an attribute value containing //', () => {
+    const node: TestNode = {
+      tag: 'div',
+      children: [
+        {
+          tag: 'a',
+          attrs: { href: 'https://google.com/path' },
+          text: 'Google',
+        },
+      ],
+    }
+    expect(run('$(a[href^="https://google.com"]) | text', node)).toBe('Google')
+  })
 })
 
 describe('| text', () => {
@@ -140,11 +173,16 @@ describe('trailing commas', () => {
   })
 
   it('allows a trailing comma in an array literal', () => {
-    expect(run('[ $(h1) | text, $(a) | text, ]', root)).toEqual(['Hello', 'click'])
+    expect(run('[ $(h1) | text, $(a) | text, ]', root)).toEqual([
+      'Hello',
+      'click',
+    ])
   })
 
   it('allows a trailing comma in a block', () => {
-    expect(run('$(a) { "href": $ | attr(href), "label": $ | text, }', root)).toEqual({
+    expect(
+      run('$(a) { "href": $ | attr(href), "label": $ | text, }', root),
+    ).toEqual({
       href: '/path',
       label: 'click',
     })
@@ -157,9 +195,11 @@ describe('object fields', () => {
   })
 
   it('omits fields when optional selector matches nothing', () => {
-    expect(run('{ "x": $(h1) | text, "y": $(missing)? | text }', root)).toEqual({
-      x: 'Hello',
-    })
+    expect(run('{ "x": $(h1) | text, "y": $(missing)? | text }', root)).toEqual(
+      {
+        x: 'Hello',
+      },
+    )
   })
 
   it('evaluates dynamic field keys', () => {
@@ -174,7 +214,10 @@ describe('object fields', () => {
 
 describe('array expressions', () => {
   it('collects multiple literal items', () => {
-    expect(run('[ $(h1) | text, $(a) | text ]', root)).toEqual(['Hello', 'click'])
+    expect(run('[ $(h1) | text, $(a) | text ]', root)).toEqual([
+      'Hello',
+      'click',
+    ])
   })
 
   it('flattens array-valued items into the result', () => {
@@ -240,12 +283,12 @@ describe('$ single selector optional', () => {
 
 describe('block { }', () => {
   it('evaluates fields in the context of the matched element', () => {
-    expect(run('$(a) { "href":  $ | attr(href), "label":  $ | text }', root)).toEqual(
-      {
-        href: '/path',
-        label: 'click',
-      },
-    )
+    expect(
+      run('$(a) { "href":  $ | attr(href), "label":  $ | text }', root),
+    ).toEqual({
+      href: '/path',
+      label: 'click',
+    })
   })
 
   it('maps fields over each matched element', () => {
@@ -279,7 +322,9 @@ describe('conditional ?', () => {
 
 describe('match expression', () => {
   it('matches the first applicable single-selector arm', () => {
-    expect(run('match { $(h1) =>  $ | text _ => "fallback" }', root)).toBe('Hello')
+    expect(run('match { $(h1) =>  $ | text _ => "fallback" }', root)).toBe(
+      'Hello',
+    )
   })
 
   it('falls through to fallback when no selector arm matches', () => {
@@ -325,7 +370,9 @@ describe('pipe |number', () => {
 
 describe('pipe |url', () => {
   it('resolves a relative URL via the provider', () => {
-    expect(run('$(a) | attr(href) | url', root)).toBe('https://example.com/path')
+    expect(run('$(a) | attr(href) | url', root)).toBe(
+      'https://example.com/path',
+    )
   })
 
   it('omits the field when the attribute value is empty and the selector is optional', () => {
@@ -363,7 +410,9 @@ describe('pipe |regex', () => {
 
 describe('pipe |trim', () => {
   it('trims leading and trailing whitespace with outside', () => {
-    expect(run('$(.desc) | text | trim(outside)', root)).toBe('lots   of   space')
+    expect(run('$(.desc) | text | trim(outside)', root)).toBe(
+      'lots   of   space',
+    )
   })
 
   it('collapses inner whitespace runs with inside', () => {
@@ -410,7 +459,10 @@ describe('pipe |merge', () => {
         { tag: 'li', attrs: { class: 'b' }, text: 'second' },
       ],
     }
-    const result = run('$$(li) { [$(li) | attr(class)]:  $ | text } | merge', ul)
+    const result = run(
+      '$$(li) { [$(li) | attr(class)]:  $ | text } | merge',
+      ul,
+    )
     expect(result).toEqual({ a: 'first', b: 'second' })
   })
 })
@@ -496,6 +548,34 @@ describe('onElement callback', () => {
   })
 })
 
+describe('function call syntax', () => {
+  it('text(x) is equivalent to x | text', () => {
+    expect(run('text($(h1))', root)).toBe('Hello')
+  })
+
+  it('attr(x, name) is equivalent to x | attr(name)', () => {
+    expect(run('attr($(a), href)', root)).toBe('/path')
+  })
+
+  it('can chain further pipe ops after a function call', () => {
+    expect(run('text($(h1)) | lowercase', root)).toBe('hello')
+  })
+
+  it('can nest function calls', () => {
+    expect(run('lowercase(text($(h1)))', root)).toBe('hello')
+  })
+
+  it('number(x) works with kwargs', () => {
+    const node: TestNode = {
+      tag: 'div',
+      children: [{ tag: 'span', text: '1.234,56' }],
+    }
+    expect(run('number(text($(span)), locale: "de")', node)).toBeCloseTo(
+      1234.56,
+    )
+  })
+})
+
 describe('isReactive', () => {
   it('returns false for a static expression', () => {
     expect(new HtmlegyExpr('$(h1) | text', provider).isReactive).toBe(false)
@@ -506,4 +586,18 @@ describe('isReactive', () => {
       new HtmlegyExpr('$(h1) | text', provider).reactive(root),
     ).toThrow()
   })
+})
+
+const node: TestNode = {
+  tag: 'div',
+  attrs: {
+    text: 'https://test.com/in/hi',
+  },
+  children: [{ tag: 'span', text: '1.234,56' }],
+}
+
+test('must be able to extract url from attributes', () => {
+  expect(
+    run('$(div) | attr(text) | regex("https://test.com/in/(.+)", 1)', node),
+  ).toBe('hi')
 })

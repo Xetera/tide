@@ -27,8 +27,9 @@ interface QueuedCapture {
 
 declare global {
   interface Window {
-    __tideQueue: QueuedCapture[]
-    __tideFlush: ((capture: QueuedCapture) => void) | null
+    __tide?: {
+      setFlush: (fn: (capture: QueuedCapture) => void) => void
+    }
   }
 }
 
@@ -49,13 +50,9 @@ window.addEventListener('message', (evt) => {
   }
   if (!funnelsRegistered) {
     funnelsRegistered = true
-    window.__tideFlush = (capture) => {
+    window.__tide?.setFlush((capture) => {
       void processCapture(capture)
-    }
-    for (const capture of window.__tideQueue ?? []) {
-      void processCapture(capture)
-    }
-    window.__tideQueue = []
+    })
   }
 })
 

@@ -65,11 +65,8 @@ export const domProvider: HtmlegyProvider<Element> = {
   },
 
   watch(node, selector, cb) {
-    const target = selector
-      ? (node.querySelector(selector)?.parentElement ?? node)
-      : node
     const observer = new MutationObserver(cb)
-    observer.observe(target, {
+    observer.observe(node, {
       childList: true,
       subtree: true,
       attributes: true,
@@ -92,10 +89,20 @@ export const domProvider: HtmlegyProvider<Element> = {
   },
 
   pipeOps: {
+    ref(value: Element, _args: PipeArg[], _locale: string): unknown {
+      return value == null ? null : { _type: 'ref', _id: String(value) }
+    },
     media: mediaOp(null),
     image: mediaOp('image'),
     video: mediaOp('video'),
-    rich_text(node: Element, _args: PipeArg[], _locale: string): { _type: 'rich_text'; content: ReturnType<ProseMirrorNode['toJSON']> } | null {
+    rich_text(
+      node: Element,
+      _args: PipeArg[],
+      _locale: string,
+    ): {
+      _type: 'rich_text'
+      content: ReturnType<ProseMirrorNode['toJSON']>
+    } | null {
       if (!node) {
         return null
       }

@@ -6,6 +6,7 @@ import {
 import { allSites } from '~/sites'
 import type { RawEntityPatch } from '~/site-spec/types'
 import { createExpr } from '@tide/htmlegy-dom'
+import { parseFrontmatter } from '@tide/frontmatter'
 
 export const validator = new EntityValidator(allSites)
 
@@ -25,7 +26,8 @@ export async function evaluate(
   headers: Record<string, string>,
 ): Promise<EvalResult> {
   try {
-    const expr = new JsonataExpression(expression, {
+    const { body } = parseFrontmatter(expression)
+    const expr = new JsonataExpression(body, {
       request: { url, method, headers },
       response: { url, status: null, headers: {}, body: input },
     })
@@ -79,7 +81,8 @@ export function evaluateHtmlegy(
   root: Element,
 ): EvalResult {
   try {
-    const result = createExpr(expression).run(root)
+    const { body } = parseFrontmatter(expression)
+    const result = createExpr(body).run(root)
     const patches = htmlegyToPatches(entity, result)
     return { patches, validationErrors: [], identityWarnings: [], raw: result }
   } catch (err) {

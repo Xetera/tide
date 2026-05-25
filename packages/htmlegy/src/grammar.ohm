@@ -6,6 +6,8 @@ HTMLegy {
     | Pipeline
     | Literal
 
+  FuncCall = ident "(" Expr ("," PipeArg)* ","? ")"
+
   Array = "[" ListOf<Expr, ","?> ","? "]"
 
   Object = "{" ListOf<Field, ","?> ","? "}"
@@ -28,7 +30,7 @@ HTMLegy {
 
   Source
     = "watch" Source                                       -- watch
-    | "await" "(" SelectorBody ")" Source                 -- awaitCond
+    | "await" "(" selectorBody ")" Source                 -- awaitCond
     | "await" Source                                       -- awaitSelf
     | "@" ident EachSelector                              -- aliasEach
     | "@" ident SingleSelector                            -- aliasSingle
@@ -37,15 +39,19 @@ HTMLegy {
     | EachSelector
     | SingleSelector
     | ContextRef
+    | FuncCall                                            -- funcCall
+    | Literal                                             -- literal
   ContextRef = "$" ~"$" ~"(" ~alnum
 
-  EachSelector   = "$$" "(" SelectorBody ")" "+"?
-  SingleSelector = "$"  "(" SelectorBody ")" (~"??" "?")?
+  EachSelector   = "$$" "(" selectorBody ")" "+"?
+  SingleSelector = "$"  "(" selectorBody ")" (~"??" "?")?
 
-  SelectorBody = SelectorChar*
-  SelectorChar
-    = "(" SelectorBody ")"  -- nested
-    | ~")" any              -- other
+  selectorBody = selectorChar*
+  selectorChar =
+    "\"" (~"\"" any)* "\""     -- doubleStr
+    | "'" (~"'" any)* "'"        -- singleStr
+    | "(" selectorBody ")"       -- nested
+    | ~")" any                   -- other
 
   PipelineTail
     = PipeTransform

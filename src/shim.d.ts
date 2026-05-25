@@ -78,5 +78,15 @@ declare module 'webext-bridge' {
       | { ok: true; expression: string; explanation: string }
       | { ok: false; error: string }
     >
+    'generate-htmlegy': ProtocolWithReturn<
+      {
+        html: string
+        entity: string
+        currentExpression: string
+        userNote?: string
+      },
+      | { ok: true; expression: string }
+      | { ok: false; error: string }
+    >
   }
 }

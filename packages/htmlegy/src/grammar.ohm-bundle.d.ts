@@ -13,6 +13,7 @@ import {
 
 export interface HTMLegyActionDict<T> extends BaseActionDict<T> {
   Expr?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  FuncCall?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: IterationNode, arg4: IterationNode, arg5: IterationNode, arg6: TerminalNode) => T;
   Array?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: IterationNode, arg3: TerminalNode) => T;
   Object?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: IterationNode, arg3: TerminalNode) => T;
   Field_dynamic?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode, arg3: TerminalNode, arg4: NonterminalNode) => T;
@@ -33,14 +34,18 @@ export interface HTMLegyActionDict<T> extends BaseActionDict<T> {
   Source_aliasSingle?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: NonterminalNode) => T;
   Source_aliasRef?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode) => T;
   Source_rootRef?: (this: NonterminalNode, arg0: TerminalNode) => T;
+  Source_funcCall?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  Source_literal?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   Source?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   ContextRef?: (this: NonterminalNode, arg0: TerminalNode) => T;
   EachSelector?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: TerminalNode, arg4: IterationNode) => T;
   SingleSelector?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: TerminalNode, arg4: IterationNode) => T;
-  SelectorBody?: (this: NonterminalNode, arg0: IterationNode) => T;
-  SelectorChar_nested?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode) => T;
-  SelectorChar_other?: (this: NonterminalNode, arg0: NonterminalNode) => T;
-  SelectorChar?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  selectorBody?: (this: NonterminalNode, arg0: IterationNode) => T;
+  selectorChar_doubleStr?: (this: NonterminalNode, arg0: TerminalNode, arg1: IterationNode, arg2: TerminalNode) => T;
+  selectorChar_singleStr?: (this: NonterminalNode, arg0: TerminalNode, arg1: IterationNode, arg2: TerminalNode) => T;
+  selectorChar_nested?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode) => T;
+  selectorChar_other?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  selectorChar?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   PipelineTail?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   ScopedExpr?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode) => T;
   Block?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: IterationNode, arg3: TerminalNode) => T;

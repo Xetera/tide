@@ -1,10 +1,10 @@
 import { defineSite } from '~/site-spec/site-builder'
-import { instagramEntities } from './entities'
+import { linkedinEntities } from './entities'
 
 export const instagramSite = defineSite({
   id: 'linkedin',
   hostname: 'www.linkedin.com',
-  entities: instagramEntities,
+  entities: linkedinEntities,
 })
 
 export default instagramSite

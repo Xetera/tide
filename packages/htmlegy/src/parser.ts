@@ -40,6 +40,8 @@ export type Source =
   | { kind: 'root_ref' }
   | { kind: 'watch'; inner: Source }
   | { kind: 'await'; condition: string | null; inner: Source }
+  | { kind: 'func_call'; name: string; expr: Expr; args: PipeArg[] }
+  | { kind: 'literal'; value: unknown }
 
 export type PipelineTail =
   | { kind: 'pipe_transform'; op: PipeOp }
@@ -194,6 +196,19 @@ const exprActions: HTMLegyActionDict<AstResult> = {
   },
   Source_rootRef(_at) {
     return { kind: 'root_ref' } satisfies Source
+  },
+  Source_literal(lit) {
+    const expr = toAst(lit) as Expr & { kind: 'literal' }
+    return { kind: 'literal', value: expr.value } satisfies Source
+  },
+
+  FuncCall(name, _lp, firstExpr, _commas, restArgs, _trailing, _rp) {
+    return {
+      kind: 'func_call',
+      name: name.sourceString,
+      expr: toAst(firstExpr) as Expr,
+      args: restArgs.children.map((c) => toAst(c) as PipeArg),
+    } satisfies Source
   },
 
   ContextRef(_dollar) {

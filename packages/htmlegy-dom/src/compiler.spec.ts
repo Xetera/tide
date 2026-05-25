@@ -13,7 +13,9 @@ function run(expr: string, html: string) {
 
 describe('text', () => {
   it('extracts text content', () => {
-    expect(run('{ "v": $(h1) | text }', '<h1>hello</h1>')).toEqual({ v: 'hello' })
+    expect(run('{ "v": $(h1) | text }', '<h1>hello</h1>')).toEqual({
+      v: 'hello',
+    })
   })
 })
 
@@ -52,22 +54,27 @@ describe('exists', () => {
 
 describe('url', () => {
   it('resolves a relative url', () => {
-    const result = run('{ "v": $(a) | attr(href) | url }', '<a href="/foo">x</a>')
+    const result = run(
+      '{ "v": $(a) | attr(href) | url }',
+      '<a href="/foo">x</a>',
+    )
     expect((result as any).v).toMatch(/\/foo$/)
   })
 })
 
 describe('number', () => {
   it('casts a string to a number', () => {
-    expect(run('{ "v": $(span) | text | number }', '<span>123</span>')).toEqual({
-      v: 123,
-    })
+    expect(run('{ "v": $(span) | text | number }', '<span>123</span>')).toEqual(
+      {
+        v: 123,
+      },
+    )
   })
 
   it('parses turkish formatted numbers using compile-time locale', () => {
-    const result = createExpr('{ "v": $(span) | text | number }', { locale: 'tr' }).run(
-      dom('<span>1.234,56</span>').body,
-    )
+    const result = createExpr('{ "v": $(span) | text | number }', {
+      locale: 'tr',
+    }).run(dom('<span>1.234,56</span>').body)
     expect(result).toEqual({ v: 1234.56 })
   })
 
@@ -84,7 +91,10 @@ describe('number', () => {
 describe('expandSuffix', () => {
   it('expands K suffix', () => {
     expect(
-      run('{ "v": $(span) | text | expandSuffix | number }', '<span>1.5K</span>'),
+      run(
+        '{ "v": $(span) | text | expandSuffix | number }',
+        '<span>1.5K</span>',
+      ),
     ).toEqual({ v: 1500 })
   })
 
@@ -107,19 +117,23 @@ describe('number locale suffix expansion', () => {
     })
 
     it('expands K', () => {
-      expect(run('{ "v": $(span) | text | number }', '<span>42K</span>')).toEqual(
-        { v: 42000 },
-      )
+      expect(
+        run('{ "v": $(span) | text | number }', '<span>42K</span>'),
+      ).toEqual({ v: 42000 })
     })
 
     it('expands m', () => {
-      expect(run('{ "v": $(span) | text | number }', '<span>2m</span>')).toEqual({
+      expect(
+        run('{ "v": $(span) | text | number }', '<span>2m</span>'),
+      ).toEqual({
         v: 2000000,
       })
     })
 
     it('expands b', () => {
-      expect(run('{ "v": $(span) | text | number }', '<span>1b</span>')).toEqual({
+      expect(
+        run('{ "v": $(span) | text | number }', '<span>1b</span>'),
+      ).toEqual({
         v: 1000000000,
       })
     })
@@ -151,9 +165,9 @@ describe('number locale suffix expansion', () => {
     })
 
     it('expands mn', () => {
-      expect(tr('{ "v": $(span) | text | number }', '<span>3 mn</span>')).toEqual(
-        { v: 3000000 },
-      )
+      expect(
+        tr('{ "v": $(span) | text | number }', '<span>3 mn</span>'),
+      ).toEqual({ v: 3000000 })
     })
 
     it('expands milyar', () => {
@@ -163,15 +177,17 @@ describe('number locale suffix expansion', () => {
     })
 
     it('expands mr', () => {
-      expect(tr('{ "v": $(span) | text | number }', '<span>1 mr</span>')).toEqual(
-        { v: 1000000000 },
-      )
+      expect(
+        tr('{ "v": $(span) | text | number }', '<span>1 mr</span>'),
+      ).toEqual({ v: 1000000000 })
     })
 
     it('does not expand en suffixes', () => {
-      expect(tr('{ "v": $(span) | text | number }', '<span>1b</span>')).toEqual({
-        v: 1000,
-      })
+      expect(tr('{ "v": $(span) | text | number }', '<span>1b</span>')).toEqual(
+        {
+          v: 1000,
+        },
+      )
     })
 
     it('handles decimal with Turkish formatting', () => {
@@ -188,7 +204,10 @@ describe('number locale suffix expansion', () => {
 describe('regex', () => {
   it('extracts full match', () => {
     expect(
-      run('{ "v": $(span) | text | regex("[0-9]+") }', '<span>abc 42 def</span>'),
+      run(
+        '{ "v": $(span) | text | regex("[0-9]+") }',
+        '<span>abc 42 def</span>',
+      ),
     ).toEqual({ v: '42' })
   })
 
@@ -211,7 +230,10 @@ describe('trim', () => {
 
   it('collapses inside whitespace', () => {
     expect(
-      run('{ "v": $(span) | text | trim(inside) }', '<span>hello   world</span>'),
+      run(
+        '{ "v": $(span) | text | trim(inside) }',
+        '<span>hello   world</span>',
+      ),
     ).toEqual({ v: 'hello world' })
   })
 })
@@ -262,7 +284,10 @@ describe('nested fields', () => {
   it('descends into a child context', () => {
     const html =
       '<div class="loc"><span>Istanbul</span><a href="/map">map</a></div>'
-    const result = run('{ "location": $(.loc) { "name": $(span) | text } }', html)
+    const result = run(
+      '{ "location": $(.loc) { "name": $(span) | text } }',
+      html,
+    )
     expect(result).toEqual({ location: { name: 'Istanbul' } })
   })
 })
@@ -458,9 +483,12 @@ describe('watch', () => {
     expect(expr.isReactive).toBe(true)
   })
 
+
   it('emits initial value on subscribe', () => {
     const doc = dom('<ul><li>a</li><li>b</li></ul>')
-    const reactive = createExpr('watch $$(li) { "v": $ | text }').reactive(doc.body)
+    const reactive = createExpr('watch $$(li) { "v": $ | text }').reactive(
+      doc.body,
+    )
     const cb = vi.fn()
     reactive.subscribe(cb)
     expect(cb).toHaveBeenCalledWith([{ v: 'a' }, { v: 'b' }])
@@ -468,7 +496,9 @@ describe('watch', () => {
 
   it('re-emits when DOM mutates', async () => {
     const doc = dom('<ul><li>a</li></ul>')
-    const reactive = createExpr('watch $$(ul > li) { "v": $ | text }').reactive(doc.body)
+    const reactive = createExpr('watch $$(ul > li) { "v": $ | text }').reactive(
+      doc.body,
+    )
     const cb = vi.fn()
     reactive.subscribe(cb)
 
@@ -507,7 +537,9 @@ describe('watch', () => {
 
   it('batches simultaneous appends and removals into one emission', async () => {
     const doc = dom('<ul><li>a</li><li>b</li><li>c</li></ul>')
-    const reactive = createExpr('watch $$(ul > li) { "v": $ | text }').reactive(doc.body)
+    const reactive = createExpr('watch $$(ul > li) { "v": $ | text }').reactive(
+      doc.body,
+    )
     const cb = vi.fn()
     reactive.subscribe(cb)
 
@@ -528,7 +560,9 @@ describe('watch', () => {
 
   it('unsubscribe stops further emissions', async () => {
     const doc = dom('<ul><li>a</li></ul>')
-    const reactive = createExpr('watch $$(ul > li) { "v": $ | text }').reactive(doc.body)
+    const reactive = createExpr('watch $$(ul > li) { "v": $ | text }').reactive(
+      doc.body,
+    )
     const cb = vi.fn()
     const unsub = reactive.subscribe(cb)
     unsub()
@@ -540,6 +574,170 @@ describe('watch', () => {
     await new Promise((r) => setTimeout(r, 0))
     expect(cb).toHaveBeenCalledTimes(1)
   })
+
+  it('re-emits when text content of a matched element changes', async () => {
+    const doc = dom('<ul><li>a</li></ul>')
+    const reactive = createExpr('watch $$(ul > li) { "v": $ | text }').reactive(
+      doc.body,
+    )
+    const cb = vi.fn()
+    reactive.subscribe(cb)
+
+    doc.body.querySelector('li')!.textContent = 'changed'
+
+    await new Promise((r) => setTimeout(r, 0))
+    expect(cb).toHaveBeenLastCalledWith([{ v: 'changed' }])
+  })
+
+
+  it('re-emits when a matched element attribute changes', async () => {
+    const doc = dom('<ul><li data-val="x">a</li></ul>')
+    const reactive = createExpr(
+      'watch $$(ul > li) { "v": $ | data(val) }',
+    ).reactive(doc.body)
+    const cb = vi.fn()
+    reactive.subscribe(cb)
+
+    doc.body.querySelector('li')!.setAttribute('data-val', 'y')
+
+    await new Promise((r) => setTimeout(r, 0))
+    expect(cb).toHaveBeenLastCalledWith([{ v: 'y' }])
+  })
+
+  it('get() returns the last emitted value', async () => {
+    const doc = dom('<ul><li>a</li></ul>')
+    const reactive = createExpr('watch $$(ul > li) { "v": $ | text }').reactive(
+      doc.body,
+    )
+    reactive.subscribe(() => {})
+    expect(reactive.get()).toEqual([{ v: 'a' }])
+
+    const li = doc.createElement('li')
+    li.textContent = 'b'
+    doc.body.querySelector('ul')!.appendChild(li)
+
+    await new Promise((r) => setTimeout(r, 0))
+    expect(reactive.get()).toEqual([{ v: 'a' }, { v: 'b' }])
+  })
+
+  it('notifies all active subscribers independently', async () => {
+    const doc = dom('<ul><li>a</li></ul>')
+    const reactive = createExpr('watch $$(ul > li) { "v": $ | text }').reactive(
+      doc.body,
+    )
+    const cb1 = vi.fn()
+    const cb2 = vi.fn()
+    reactive.subscribe(cb1)
+    reactive.subscribe(cb2)
+
+    const li = doc.createElement('li')
+    li.textContent = 'b'
+    doc.body.querySelector('ul')!.appendChild(li)
+
+    await new Promise((r) => setTimeout(r, 0))
+    expect(cb1).toHaveBeenLastCalledWith([{ v: 'a' }, { v: 'b' }])
+    expect(cb2).toHaveBeenLastCalledWith([{ v: 'a' }, { v: 'b' }])
+  })
+
+  it('resumes observation after all subscribers resubscribe', async () => {
+    const doc = dom('<ul><li>a</li></ul>')
+    const reactive = createExpr('watch $$(ul > li) { "v": $ | text }').reactive(
+      doc.body,
+    )
+    const cb = vi.fn()
+    const unsub = reactive.subscribe(cb)
+    unsub()
+
+    const cb2 = vi.fn()
+    reactive.subscribe(cb2)
+    expect(cb2).toHaveBeenCalledWith([{ v: 'a' }])
+
+    const li = doc.createElement('li')
+    li.textContent = 'b'
+    doc.body.querySelector('ul')!.appendChild(li)
+
+    await new Promise((r) => setTimeout(r, 0))
+    expect(cb2).toHaveBeenLastCalledWith([{ v: 'a' }, { v: 'b' }])
+    expect(cb).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-emits when the observed parent is replaced with a new node containing new children', async () => {
+    const doc = dom('<div id="wrap"><ul><li>a</li></ul></div>')
+    const reactive = createExpr('watch $$(ul > li) { "v": $ | text }').reactive(
+      doc.body,
+    )
+    const cb = vi.fn()
+    reactive.subscribe(cb)
+
+    const newWrap = doc.createElement('div')
+    newWrap.id = 'wrap'
+    const newUl = doc.createElement('ul')
+    const newLi = doc.createElement('li')
+    newLi.textContent = 'b'
+    newUl.appendChild(newLi)
+    newWrap.appendChild(newUl)
+    doc.body.replaceChild(newWrap, doc.body.querySelector('#wrap')!)
+
+    await new Promise((r) => setTimeout(r, 0))
+    expect(cb).toHaveBeenLastCalledWith([{ v: 'b' }])
+  })
+
+  it('re-emits after observed parent node is removed and re-added', async () => {
+    const doc = dom('<div id="wrap"><ul><li>a</li></ul></div>')
+    const reactive = createExpr('watch $$(ul > li) { "v": $ | text }').reactive(
+      doc.body,
+    )
+    const cb = vi.fn()
+    reactive.subscribe(cb)
+
+    const wrap = doc.body.querySelector('#wrap')!
+    doc.body.removeChild(wrap)
+    doc.body.appendChild(wrap)
+
+    const li = doc.createElement('li')
+    li.textContent = 'b'
+    wrap.querySelector('ul')!.appendChild(li)
+
+    await new Promise((r) => setTimeout(r, 0))
+    expect(cb).toHaveBeenLastCalledWith([{ v: 'a' }, { v: 'b' }])
+  })
+
+  it('re-emits after selector target parent is removed and re-added', async () => {
+    const doc = dom('<div id="wrap"><ul id="list"><li>a</li></ul></div>')
+    const reactive = createExpr(
+      'watch $$(#list > li) { "v": $ | text }',
+    ).reactive(doc.body)
+    const cb = vi.fn()
+    reactive.subscribe(cb)
+
+    const list = doc.body.querySelector('#list')!
+    const wrap = doc.body.querySelector('#wrap')!
+    wrap.removeChild(list)
+    wrap.appendChild(list)
+
+    const li = doc.createElement('li')
+    li.textContent = 'b'
+    list.appendChild(li)
+
+    await new Promise((r) => setTimeout(r, 0))
+    expect(cb).toHaveBeenLastCalledWith([{ v: 'a' }, { v: 'b' }])
+  })
+
+  it('watch on a single $ selector re-emits on child DOM mutation', async () => {
+    const doc = dom('<div><span>hello</span></div>')
+    const reactive = createExpr(
+      'watch $(div) { "v": $(span) | text }',
+    ).reactive(doc.body)
+    const cb = vi.fn()
+    reactive.subscribe(cb)
+
+    expect(cb).toHaveBeenCalledWith({ v: 'hello' })
+
+    doc.body.querySelector('span')!.textContent = 'world'
+
+    await new Promise((r) => setTimeout(r, 0))
+    expect(cb).toHaveBeenLastCalledWith({ v: 'world' })
+  })
 })
 
 describe('await', () => {
@@ -550,7 +748,9 @@ describe('await', () => {
 
   it('evaluates immediately when condition already exists (self-await)', () => {
     const doc = dom('<ul><li>a</li></ul>')
-    const reactive = createExpr('await $$(li) { "v": $ | text }').reactive(doc.body)
+    const reactive = createExpr('await $$(li) { "v": $ | text }').reactive(
+      doc.body,
+    )
     const cb = vi.fn()
     reactive.subscribe(cb)
     expect(cb).toHaveBeenCalledWith([{ v: 'a' }])
@@ -558,7 +758,9 @@ describe('await', () => {
 
   it('waits for sentinel condition before evaluating', async () => {
     const doc = dom('<div id="loading"></div>')
-    const reactive = createExpr('await(#ready) $$(li) { "v": $ | text }').reactive(doc.body)
+    const reactive = createExpr(
+      'await(#ready) $$(li) { "v": $ | text }',
+    ).reactive(doc.body)
     const cb = vi.fn()
     reactive.subscribe(cb)
 
@@ -576,9 +778,46 @@ describe('await', () => {
     expect(cb).toHaveBeenCalledWith([{ v: 'x' }])
   })
 
+  it('await watch: waits for first li > .item to appear, then tracks subsequent additions', async () => {
+    const doc = dom('<div id="app"></div>')
+    const reactive = createExpr(
+      'await watch $$(li > .item)+ { "v": $ | text }',
+    ).reactive(doc.body)
+    const cb = vi.fn()
+    reactive.subscribe(cb)
+
+    expect(cb).not.toHaveBeenCalled()
+
+    await new Promise((r) => setTimeout(r, 10))
+
+    const ul = doc.createElement('ul')
+    const li = doc.createElement('li')
+    const item = doc.createElement('span')
+    item.className = 'item'
+    item.textContent = 'first'
+    li.appendChild(item)
+    ul.appendChild(li)
+    doc.body.querySelector('#app')!.appendChild(ul)
+
+    await new Promise((r) => setTimeout(r, 0))
+    expect(cb).toHaveBeenCalledWith([{ v: 'first' }])
+
+    const li2 = doc.createElement('li')
+    const item2 = doc.createElement('span')
+    item2.className = 'item'
+    item2.textContent = 'second'
+    li2.appendChild(item2)
+    ul.appendChild(li2)
+
+    await new Promise((r) => setTimeout(r, 0))
+    expect(cb).toHaveBeenLastCalledWith([{ v: 'first' }, { v: 'second' }])
+  })
+
   it('resolves only once (not on subsequent mutations)', async () => {
     const doc = dom('')
-    const reactive = createExpr('await(#ready) $$(li) { "v": $ | text }').reactive(doc.body)
+    const reactive = createExpr(
+      'await(#ready) $$(li) { "v": $ | text }',
+    ).reactive(doc.body)
     const cb = vi.fn()
     reactive.subscribe(cb)
 
@@ -667,7 +906,10 @@ describe('scoped expression .( )', () => {
 
   it('re-scopes into a nested element', () => {
     expect(
-      run('{ "v": $(div).( $(span) | text ) }', '<div><span>hello</span></div>'),
+      run(
+        '{ "v": $(div).( $(span) | text ) }',
+        '<div><span>hello</span></div>',
+      ),
     ).toEqual({ v: 'hello' })
   })
 
@@ -750,5 +992,17 @@ describe('onElement highlight callback', () => {
     expect(() =>
       createExpr('{ "v": $(h1) | text }').run(dom('<h1>x</h1>').body),
     ).not.toThrow()
+  })
+})
+
+describe('ref', () => {
+  it('wraps a value in a ref object', () => {
+    expect(
+      run('$(span) | data(id) | ref', '<span data-id="42"></span>'),
+    ).toEqual({ _type: 'ref', _id: '42' })
+  })
+
+  it('returns null when value is null', () => {
+    expect(run('"x" | ref', '<div></div>')).toEqual({ _type: 'ref', _id: 'x' })
   })
 })

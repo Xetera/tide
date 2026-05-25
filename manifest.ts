@@ -60,11 +60,12 @@ export default defineManifest({
   ],
   background: isFirefox
     ? { scripts: ['src/background/index.ts'], type: 'module' as const }
-    : { service_worker: 'src/background/index.ts'},
+    : { service_worker: 'src/background/index.ts' },
   web_accessible_resources: [
     {
       resources: ['scrape-viewer.html', 'playground.html'],
       matches: ['<all_urls>'],
+      use_dynamic_url: true,
     },
   ],
 })

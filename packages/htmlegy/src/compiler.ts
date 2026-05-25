@@ -298,6 +298,17 @@ class Evaluator<N> {
         }
         break
       }
+      case 'func_call': {
+        const inner = this.evalExpr(expr.source.expr, el, currentEnv, ctx)
+        current = this.applyPipeOp(
+          { name: expr.source.name, args: expr.source.args },
+          inner,
+        )
+        break
+      }
+      case 'literal':
+        current = expr.source.value
+        break
     }
 
     for (const step of expr.tail) {

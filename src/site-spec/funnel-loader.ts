@@ -244,7 +244,7 @@ export class FunnelProvider {
         funnel: entry.funnel,
         file: entry.file,
         path: entry.path,
-        expression: entry.body,
+        expression: entry.expression,
         format,
         fixtures,
         request,

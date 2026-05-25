@@ -197,6 +197,13 @@ function Page() {
           <TabsTrigger value='dashboard'>Activity</TabsTrigger>
           <TabsTrigger value='pool'>Pool</TabsTrigger>
           <TabsTrigger value='settings'>Settings</TabsTrigger>
+          <button
+            type='button'
+            class='tab ml-auto'
+            onClick={() => chrome.tabs.create({ url: chrome.runtime.getURL('playground.html') })}
+          >
+            Playground
+          </button>
         </TabsList>
 
         <TabsContent value='dashboard'>

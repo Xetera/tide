@@ -21,7 +21,7 @@ import {
 import { EntityValidator } from '~/extraction/entity-validator'
 import { JsonataExpression } from '~/extraction/jsonata-bindings'
 import type { CaptureEntry, FunnelMatchResult } from '~/generation/types'
-import { runGenerationLoop } from '~/generation/llm'
+import { runGenerationLoop, runHtmlegyGenerationLoop } from '~/generation/llm'
 import {
   funnelProvider,
   matchesGlob,
@@ -446,6 +446,37 @@ function emitUrlUpdate(
         expression: result.jsonataExpression,
         explanation: result.potentialEntities,
       } as const
+    })
+
+    onMessage('generate-htmlegy', async ({ data }) => {
+      console.log('[tide] generate-htmlegy handler reached')
+      const geminiKey = await storage.get('gemini:api-key', '')
+      const zaiKey = await storage.get('zai:api-key', '')
+      if (!geminiKey && !zaiKey) {
+        return {
+          ok: false,
+          error: 'No API key configured in settings (Gemini or z.ai)',
+        } as const
+      }
+      const result = await runHtmlegyGenerationLoop({
+        html: data.html,
+        entity: data.entity,
+        geminiKey: geminiKey ?? '',
+        zaiKey: zaiKey ?? '',
+        initialExpression: data.currentExpression || undefined,
+        userNote: data.userNote,
+        onProgress: async ({ stage, attempt }) => {
+          await storage.set('generation:progress', {
+            stage: stage as never,
+            attempt,
+            timestamp: Date.now(),
+          })
+        },
+      })
+      if (!result.success) {
+        return { ok: false, error: result.error } as const
+      }
+      return { ok: true, expression: result.expression } as const
     })
 
     onMessage('generate-spec', async ({ data }) => {

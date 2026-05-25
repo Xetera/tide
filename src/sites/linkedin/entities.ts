@@ -6,9 +6,9 @@ const LinkedinImage = Image.offload().ephemeral()
 
 const LinkedinVideo = Video.offload().ephemeral()
 
-export const instagramEntities = [
+export const linkedinEntities = [
   new EntityBuilder('@linkedin/user')
-    .canonicalUrl('https://www.linkedin.com/{username}')
+    .canonicalUrl('https://www.linkedin.com/in/{username}')
     .fields({
       username: Type.String(),
       nickname: Type.String(),
@@ -30,26 +30,50 @@ export const instagramEntities = [
     })
     .display('username')
     .version(0),
-  new EntityBuilder('@linkedin/post')
-    .canonicalUrl('https://www.linkedin.com/p/{code}')
+  new EntityBuilder('@linkedin/company')
+    .canonicalUrl('https://www.linkedin.com/company/{username}')
     .fields({
-      code: Type.String(),
-      title: Type.String(),
+      username: Type.String(),
+      // nickname: Type.String(),
+      // profilePic: LinkedinImage,
+      // followerCount: Type.Integer(),
+      // followingCount: Type.Integer(),
+      // postCount: Type.Integer(),
+      // isPrivate: Type.Boolean(),
+      // isVerified: Type.Boolean(),
+      // bio: Type.String(),
+      // posts: Many('@linkedin/post'),
+      // bioLinks: Type.Array(
+      //   Type.Object({
+      //     title: Type.String(),
+      //     linkType: Type.String(),
+      //     url: Type.String({ format: 'url' }),
+      //   }),
+      // ),
+    })
+    .display('username')
+    .version(0),
+  new EntityBuilder('@linkedin/post')
+    // .canonicalUrl('https://www.linkedin.com/p/{code}')
+    .fields({
       content: RichText,
-      media: Type.Union([
-        Type.Object({ kind: Type.Literal('video'), video: LinkedinVideo }),
-        Type.Object({
-          kind: Type.Literal('carousel'),
-          images: Type.Array(LinkedinImage.sized()),
-        }),
-        Type.Object({
-          kind: Type.Literal('image'),
-          image: LinkedinImage.sized(),
-        }),
-      ]),
+      // media: Type.Union([
+      //   Type.Object({ kind: Type.Literal('video'), video: LinkedinVideo }),
+      //   Type.Object({
+      //     kind: Type.Literal('carousel'),
+      //     images: Type.Array(LinkedinImage.sized()),
+      //   }),
+      //   Type.Object({
+      //     kind: Type.Literal('image'),
+      //     image: LinkedinImage.sized(),
+      //   }),
+      // ]),
       commentsDisabled: Type.Boolean(),
       likeCount: Type.Integer(),
-      author: One('@linkedin/user'),
+      author: Type.Union([
+        Type.Object({ type: 'user', user: One('@linkedin/user') }),
+        Type.Object({ type: 'company', company: One('@linkedin/company') }),
+      ]),
     })
     .unique(['code'])
     .display('title'),

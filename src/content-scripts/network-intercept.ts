@@ -9,21 +9,33 @@
     status: number
     capturedAt: number
   }
-  const w = window as typeof window & {
-    __tideQueue: QueuedCapture[]
-    __tideFlush: ((c: QueuedCapture) => void) | null
-  }
-  if (w.__tideQueue) {
+
+  const w = window as typeof window & { __tide?: { setFlush: (fn: (c: QueuedCapture) => void) => void } }
+  if (w.__tide) {
     return
   }
-  w.__tideQueue = []
-  w.__tideFlush = null
+
+  let queue: QueuedCapture[] = []
+  let flush: ((c: QueuedCapture) => void) | null = null
+
+  Object.defineProperty(window, '__tide', {
+    value: {
+      setFlush(fn: (c: QueuedCapture) => void) {
+        flush = fn
+        queue.forEach(fn)
+        queue = []
+      },
+    },
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  })
 
   function enqueue(capture: QueuedCapture) {
-    if (w.__tideFlush) {
-      w.__tideFlush(capture)
+    if (flush) {
+      flush(capture)
     } else {
-      w.__tideQueue.push(capture)
+      queue.push(capture)
     }
   }
 

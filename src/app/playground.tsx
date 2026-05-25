@@ -63,6 +63,8 @@ interface PlaygroundState {
   dismissGeneration: () => void
   canGenerate: () => boolean
   generateJsonata: () => void
+  canGenerateHtmlegy: () => boolean
+  generateHtmlegy: () => void
   evalResult: () => EvalResult | null
   inputTab: () => 'fixture' | 'capture'
   setInputTab: (v: 'fixture' | 'capture') => void
@@ -357,7 +359,10 @@ function EditorPanel() {
     dismissGeneration,
     canGenerate,
     generateJsonata,
+    canGenerateHtmlegy,
+    generateHtmlegy,
     evalResult,
+    isHtmlegy,
   } = usePlayground()
   const evalError = () => evalResult()?.error
   const errorPosition = () => parseErrorPosition(evalResult()?.error ?? '')
@@ -424,22 +429,43 @@ function EditorPanel() {
           class='w-full px-3 py-2 text-xs bg-transparent resize-none outline-none text-foreground placeholder:text-muted-foreground border-b border-border'
         />
         <div class='px-3 py-2 flex items-center justify-between'>
-          <Show
-            when={canGenerate()}
-            fallback={
-              <span class='text-xs text-muted-foreground'>
-                Select a capture to generate
-              </span>
-            }
-          >
-            <button
-              type='button'
-              onClick={generateJsonata}
-              disabled={llmStatus() === 'loading'}
-              class='text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors disabled:opacity-50'
+          <Show when={isHtmlegy()}>
+            <Show
+              when={canGenerateHtmlegy()}
+              fallback={
+                <span class='text-xs text-muted-foreground'>
+                  Load HTML to generate
+                </span>
+              }
             >
-              {llmStatus() === 'loading' ? 'Generating...' : '✦ Generate'}
-            </button>
+              <button
+                type='button'
+                onClick={generateHtmlegy}
+                disabled={llmStatus() === 'loading'}
+                class='text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors disabled:opacity-50'
+              >
+                {llmStatus() === 'loading' ? 'Generating...' : '✦ Generate'}
+              </button>
+            </Show>
+          </Show>
+          <Show when={!isHtmlegy()}>
+            <Show
+              when={canGenerate()}
+              fallback={
+                <span class='text-xs text-muted-foreground'>
+                  Select a capture to generate
+                </span>
+              }
+            >
+              <button
+                type='button'
+                onClick={generateJsonata}
+                disabled={llmStatus() === 'loading'}
+                class='text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors disabled:opacity-50'
+              >
+                {llmStatus() === 'loading' ? 'Generating...' : '✦ Generate'}
+              </button>
+            </Show>
           </Show>
         </div>
       </div>
@@ -1491,6 +1517,43 @@ function Playground() {
     }
   }
 
+  const canGenerateHtmlegy = () => {
+    if (!isHtmlegy()) {
+      return false
+    }
+    return !!htmlInput().trim()
+  }
+
+  async function generateHtmlegy() {
+    const funnel = selectedFunnel()
+    if (!funnel) {
+      return
+    }
+    const html = htmlInput()
+    if (!html.trim()) {
+      return
+    }
+    setLlmStatus('loading')
+    setGenerationAttempts([])
+    const res = await sendMessage(
+      'generate-htmlegy',
+      {
+        html,
+        entity: funnel.funnel,
+        currentExpression: expression(),
+        userNote: llmNote() || undefined,
+      },
+      { context: 'background', tabId: 0 },
+    )
+    console.log('[tide] generate-htmlegy response', res)
+    if (res.ok) {
+      setExpression(res.expression)
+      setLlmStatus('done')
+    } else {
+      setLlmStatus('error')
+    }
+  }
+
   function openNewFunnelForm(site: string) {
     setSelectedFunnel(null)
     setNewFunnelForm({
@@ -1624,6 +1687,8 @@ function Playground() {
     },
     canGenerate: () => selectedCapture() !== null,
     generateJsonata,
+    canGenerateHtmlegy,
+    generateHtmlegy,
     evalResult,
     inputTab,
     setInputTab,
