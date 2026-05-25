@@ -1,5 +1,5 @@
 import { createDateFormatter } from '@kobalte/core/i18n'
-import { For, Show, createSignal } from 'solid-js'
+import { For, Show, createMemo, createResource, createSignal } from 'solid-js'
 /* @refresh reload */
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { Badge } from '~/components/ui/badge'
@@ -8,6 +8,7 @@ import type { Log, PlainLog, ScrapeLog } from '~/shared/log'
 import { AddServer } from './add-server'
 import { useLogs } from './hooks'
 import { Pool } from './pool'
+import { sendMessage } from 'webext-bridge/popup'
 
 const formatter = createDateFormatter({
   timeStyle: 'medium',
@@ -45,39 +46,39 @@ function ScrapeLogEntry({ log }: { log: ScrapeLog }) {
   }
 
   const statusClass = () => {
-    if (log.status === 'submitted') return 's-log-ok'
-    if (log.status === 'failed') return 's-log-err'
-    return 's-log-mute'
+    if (log.status === 'submitted') return 'log-ok'
+    if (log.status === 'failed') return 'log-err'
+    return 'log-mute'
   }
 
   return (
-    <div data-index={log.id} class='s-log' style={{ display: 'block', padding: '0' }}>
+    <div data-index={log.id} class='log' style={{ display: 'block', padding: '0' }}>
       <details>
-        <summary class='s-log cursor-pointer select-none' style={{ 'border-bottom': 'none' }}>
-          <span class='s-log-time'>{time}</span>
-          <span class='s-log-kind'>scrape</span>
-          <span class='s-log-title'>{title}</span>
-          <span class={`s-log-status ${statusClass()}`}>
+        <summary class='log cursor-pointer select-none' style={{ 'border-bottom': 'none' }}>
+          <span class='log-time'>{time}</span>
+          <span class='log-kind'>scrape</span>
+          <span class='log-title'>{title}</span>
+          <span class={`log-status ${statusClass()}`}>
             {log.status ?? 'pending'}
           </span>
         </summary>
         <div style={{ 'border-top': '1px solid var(--hairline)' }}>
-          <div class='s-log' style={{ 'flex-direction': 'column', 'align-items': 'flex-start', 'border-bottom': 'none' }}>
-            <span class='s-log-mute t-eyebrow'>patches</span>
+          <div class='log' style={{ 'flex-direction': 'column', 'align-items': 'flex-start', 'border-bottom': 'none' }}>
+            <span class='log-mute t-eyebrow'>patches</span>
             <div class='t-mono-xs flex flex-col gap-0.5'>
               {patchesByEntity.map(([entity, count]) => (
                 <div class='flex gap-2'>
-                  <span class='s-log-mute'>{entity}</span>
+                  <span class='log-mute'>{entity}</span>
                   <span>{count}</span>
                 </div>
               ))}
             </div>
           </div>
           <div class='flex gap-2' style={{ padding: '6px 16px 10px' }}>
-            <button type='button' onClick={openViewer} class='s-btn s-btn-secondary s-btn-sm'>
+            <button type='button' onClick={openViewer} class='btn btn-secondary btn-sm'>
               Open
             </button>
-            <button type='button' onClick={copyToClipboard} class='s-btn s-btn-secondary s-btn-sm'>
+            <button type='button' onClick={copyToClipboard} class='btn btn-secondary btn-sm'>
               Copy
             </button>
           </div>
@@ -91,27 +92,27 @@ function PlainLogEntry({ log }: { log: Exclude<Log, ScrapeLog> }) {
   const time = formatter.format(new Date(log.date))
 
   const rowClass = () => {
-    if (log.severity === 'error') return 's-log s-log-row-err'
-    if (log.severity === 'warning') return 's-log s-log-row-warn'
-    return 's-log'
+    if (log.severity === 'error') return 'log log-row-err'
+    if (log.severity === 'warning') return 'log log-row-warn'
+    return 'log'
   }
 
   return (
     <div data-index={log.id} class={rowClass()} style={{ display: 'block', padding: '0' }}>
       {log.data ? (
         <details>
-          <summary class='s-log cursor-pointer select-none' style={{ 'border-bottom': 'none' }}>
-            <span class='s-log-time'>{time}</span>
-            <span class='s-log-title'>{log.text}</span>
+          <summary class='log cursor-pointer select-none' style={{ 'border-bottom': 'none' }}>
+            <span class='log-time'>{time}</span>
+            <span class='log-title'>{log.text}</span>
           </summary>
           <code class='block t-mono-xs whitespace-pre text-wrap' style={{ padding: '4px 16px 10px' }}>
             {JSON.stringify(log.data, null, 2)}
           </code>
         </details>
       ) : (
-        <div class='s-log' style={{ 'border-bottom': 'none' }}>
-          <span class='s-log-time'>{time}</span>
-          <span class='s-log-title'>{log.text}</span>
+        <div class='log' style={{ 'border-bottom': 'none' }}>
+          <span class='log-time'>{time}</span>
+          <span class='log-title'>{log.text}</span>
         </div>
       )}
     </div>
@@ -121,9 +122,9 @@ function PlainLogEntry({ log }: { log: Exclude<Log, ScrapeLog> }) {
 function PoolLogs({ logs }: { logs: PlainLog[] }) {
   return (
     <details style={{ 'border-top': '1px solid var(--hairline)' }}>
-      <summary class='s-log cursor-pointer select-none' style={{ 'border-bottom': 'none' }}>
-        <span class='s-log-kind'>Pool logs</span>
-        <span class='s-log-mute ml-auto'>{logs.length}</span>
+      <summary class='log cursor-pointer select-none' style={{ 'border-bottom': 'none' }}>
+        <span class='log-kind'>Pool logs</span>
+        <span class='log-mute ml-auto'>{logs.length}</span>
       </summary>
       <div>
         <For each={logs}>{(log) => <PlainLogEntry log={log} />}</For>
@@ -145,13 +146,55 @@ function Page() {
     undefined,
   )
 
+  const { value: serverUrl } = useBrowserStorage('server:url', '')
+  const { value: poolId } = useBrowserStorage('server:pool-id', '')
+  const { value: workerSecret } = useBrowserStorage('server:worker-secret', '')
+
+  const hasCredentials = createMemo(() => !!(serverUrl() && poolId() && workerSecret()))
+
+  const [reachable] = createResource(
+    () => (hasCredentials() ? true : null),
+    async () => {
+      try {
+        const result = await sendMessage('heartbeat', null, { context: 'background', tabId: 0 }) as { ok: boolean } | null
+        return result?.ok ?? false
+      } catch {
+        return false
+      }
+    },
+  )
+
+  const statusTone = () => {
+    if (!hasCredentials() || reachable.loading) {
+      return 'pill-mute'
+    }
+    return reachable() ? 'pill-ok' : 'pill-warn'
+  }
+
+  const statusLabel = () => {
+    if (!hasCredentials()) {
+      return 'Not connected'
+    }
+    if (reachable.loading) {
+      return 'Checking...'
+    }
+    return reachable() ? 'Connected' : 'Unreachable'
+  }
+
   const [tab, setTab] = createSignal('dashboard')
 
   return (
     <div class='w-[400px] bg-[var(--background)] text-[var(--foreground)] overflow-y-scroll'>
+      <div class='flex items-center justify-between' style={{ padding: '10px 16px', 'border-bottom': '1px solid var(--hairline)' }}>
+        <span style={{ font: '600 13px/1 var(--font-sans)', 'letter-spacing': 'var(--letter-base)', color: 'var(--foreground)' }}>Tide</span>
+        <span class={`pill ${statusTone()}`}>
+          <span class='dot' />
+          {statusLabel()}
+        </span>
+      </div>
       <Tabs value={tab()} onChange={setTab}>
         <TabsList>
-          <TabsTrigger value='dashboard'>Dashboard</TabsTrigger>
+          <TabsTrigger value='dashboard'>Activity</TabsTrigger>
           <TabsTrigger value='pool'>Pool</TabsTrigger>
           <TabsTrigger value='settings'>Settings</TabsTrigger>
         </TabsList>
@@ -162,8 +205,8 @@ function Page() {
               {(scrape) => (
                 <div style={{ 'border-bottom': '1px solid var(--hairline)' }}>
                   <details>
-                    <summary class='s-log cursor-pointer select-none' style={{ 'border-bottom': 'none' }}>
-                      <span class='s-log-kind'>
+                    <summary class='log cursor-pointer select-none' style={{ 'border-bottom': 'none' }}>
+                      <span class='log-kind'>
                         Last scrape{scrape().scrapeSource ? ` · ${scrape().scrapeSource?.funnel}` : ''}
                       </span>
                       <Badge variant='muted' class='ml-auto shrink-0'>

@@ -121,7 +121,7 @@ export class Client {
     }
     try {
       const url = new URL(
-        `/api/pool/${server.poolId}/worker/heartbeat`,
+        `/api/pool/${server.poolId}/workers/me/heartbeat`,
         server.url,
       )
       const request = await this.#requestBase(
@@ -211,7 +211,7 @@ export class Client {
     }
     try {
       const request = await this.#requestBase(
-        new Request(new URL(`/api/pool/${server.poolId}/sites`, server.url), {
+        new Request(new URL(`/api/pool/${server.poolId}/workers/me/sites`, server.url), {
           method: 'PUT',
           body: JSON.stringify({ sites: siteNames }),
           headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -538,13 +538,13 @@ export class Client {
   }
 
   #requestSites(base: string, poolId: string) {
-    return new Request(new URL(`/api/pool/${poolId}/sites`, base), {
+    return new Request(new URL(`/api/pool/${poolId}/workers/me/sites`, base), {
       method: 'GET',
     })
   }
 
   #requestJobs(base: string, poolId: string, options: JobPollParameters) {
-    const url = new URL(`/api/pool/${poolId}/worker/jobs`, base)
+    const url = new URL(`/api/pool/${poolId}/workers/me/jobs`, base)
     url.searchParams.set('autonomy', options.autonomy)
     return new Request(url, { method: 'GET' })
   }
@@ -555,7 +555,7 @@ export class Client {
     resourceHash: string,
     data: JobResult,
   ) {
-    return new Request(new URL(`/api/pool/${poolId}/worker/jobs`, base), {
+    return new Request(new URL(`/api/pool/${poolId}/workers/me/jobs`, base), {
       method: 'POST',
       body: JSON.stringify(data),
       headers: {

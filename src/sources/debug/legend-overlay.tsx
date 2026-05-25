@@ -116,6 +116,12 @@ const LEGEND_CSS = `
     line-height: 1; display: flex; align-items: center;
   }
   .files-btn:hover { color: light-dark(oklch(0.2 0 0), oklch(0.9 0 0)); }
+  .playground-btn {
+    background: none; border: none; padding: 0 2px; cursor: pointer;
+    color: light-dark(oklch(0.45 0 0), oklch(0.6 0 0)); font: 10px monospace;
+    line-height: 1; display: flex; align-items: center;
+  }
+  .playground-btn:hover { color: light-dark(oklch(0.2 0 0), oklch(0.9 0 0)); }
   .files-dropdown {
     border-top: 1px solid light-dark(oklch(0.75 0 0 / 0.4), oklch(0.4 0 0 / 0.4));
     padding: 0 0 4px; display: flex; flex-direction: column; gap: 2px;
@@ -376,6 +382,20 @@ function LegendComponent(props: {
             <i />
           </span>
         </div>
+        <button
+          class='playground-btn'
+          on:mousedown={(e: MouseEvent) => e.stopPropagation()}
+          on:click={(e: MouseEvent) => {
+            e.stopPropagation()
+            const url = chrome.runtime.getURL('playground.html')
+            sendMessage('open-tab', { url }, { context: 'background', tabId: 0 }).catch(
+              (err) => console.error('[tide] open-tab failed', err),
+            )
+          }}
+          title='Open playground'
+        >
+          {'▶'}
+        </button>
         {props.networkFunnels().length > 0 && (
           <button
             class='files-btn'

@@ -4,31 +4,31 @@ url: "/ilan/*/detay"
 [
   {
     "_entity": "@sahibinden/listing",
-    "_id": $(.classifiedId):data(classifiedid) ?? $(#classifiedId):text,
-    "name": $(.classifiedDetailTitle h1):text | trim,
+    "_id": $(.classifiedId) | data(classifiedid) ?? $(#classifiedId) | text,
+    "name": $(.classifiedDetailTitle h1) | text | trim,
     "price":
-      $(.classified-price-wrapper):text | regex("(.+) TL", 1)
+      $(.classified-price-wrapper) | text | regex("(.+) TL", 1)
       | trim
       | number(locale: 'tr'),
-    "description": $(#classifiedDescription):text | trim,
+    "description": $(#classifiedDescription) | rich_text,
     "attributes": $$(.classifiedInfoList li, .classified-info-list li) {
-      [$(strong):text | trim]: $(span):text | trim
+      [$(strong) | text | trim]: $(span) | text | trim
     } | merge,
     ($(#gmap) {
-      "latitude": $:data(lat) | number(locale: 'en'),
-      "longitude": $:data(lon) | number(locale: 'en')
+      "latitude": $ | data(lat) | number(locale: 'en'),
+      "longitude": $ | data(lon) | number(locale: 'en')
     }),
     "images":
       match {
         // mobile
         $$([data-extra-class="mega-image"] ul > li) => {
           "_type": "image",
-          "url": $(source[type="image/png"]):attr(srcset) | url
+          "url": $(source[type="image/png"]) | attr(srcset) | url
         }
         // desktop
         $$(.megaPhotoThmbItem) => {
           "_type": "image",
-          "url": $(img):data(source) | url
+          "url": $(img) | data(source) | url
         }
       }
 
@@ -36,9 +36,9 @@ url: "/ilan/*/detay"
 
   $(.classifiedUserBox:has(.storeInfo)) {
     "_entity": "@sahibinden/agency",
-    "_id": $(.storeBox a):attr(href) | url,
-    "name": $(.storeInfo):text | trim,
-    "link": $(.storeBox a):attr(href) | url,
+    "_id": $(.storeBox a) | attr(href) | url,
+    "name": $(.storeInfo) | text | trim,
+    "link": $(.storeBox a) | attr(href) | url,
     "logo": $(img) | media
   }
 ]

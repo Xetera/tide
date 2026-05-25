@@ -7,7 +7,6 @@ import type {
   Source,
   SimplePipeline,
   PipelineTail,
-  ColonOp,
   PipeOp,
   PipeArg,
 } from './parser'
@@ -303,13 +302,6 @@ class Evaluator<N> {
 
     for (const step of expr.tail) {
       switch (step.kind) {
-        case 'colon_transform':
-          if (current == null && omitOnNull) {
-            return OMIT
-          }
-          current = this.applyColonOp(step.op, current)
-          break
-
         case 'pipe_transform':
           if (current == null && omitOnNull) {
             return OMIT
@@ -381,27 +373,22 @@ class Evaluator<N> {
     return current
   }
 
-  private applyColonOp(op: ColonOp, value: unknown): unknown {
-    switch (op.name) {
-      case 'text':
-        return value != null ? this.#provider.getText(value as N) : null
-      case 'attr':
-        return value != null
-          ? this.#provider.getAttribute(value as N, op.arg)
-          : null
-      case 'data':
-        return value != null
-          ? this.#provider.getAttribute(value as N, `data-${op.arg}`)
-          : null
-      case 'exists':
-        return value != null
-    }
-  }
-
   private applyPipeOp(op: PipeOp, value: unknown): unknown {
     const { name, args } = op
 
     switch (name) {
+      case 'text':
+        return value != null ? this.#provider.getText(value as N) : null
+      case 'attr': {
+        const attrName = args[0] as string
+        return value != null ? this.#provider.getAttribute(value as N, attrName) : null
+      }
+      case 'data': {
+        const dataKey = args[0] as string
+        return value != null ? this.#provider.getAttribute(value as N, `data-${dataKey}`) : null
+      }
+      case 'exists':
+        return value != null
       case 'number': {
         if (value == null) {
           return null

@@ -9,7 +9,13 @@
     "test": "vitest --no-isolate"
   },
   "dependencies": {
-    "@tide/htmlegy": "workspace:*"
+    "@tide/htmlegy": "workspace:*",
+    "@types/mdast": "^4.0.4",
+    "prosemirror-model": "^1.25.7",
+    "prosemirror-schema-basic": "^1.2.4",
+    "rehype-parse": "^9.0.1",
+    "rehype-remark": "^10.0.1",
+    "unified": "^11.0.5"
   },
   "devDependencies": {
     "@tide/frontmatter": "workspace:*",

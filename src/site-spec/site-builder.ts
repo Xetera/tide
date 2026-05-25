@@ -11,10 +11,10 @@ import {
   TRecord,
   TNumber,
 } from 'typebox'
-import { SiteDefinition } from '~/site-spec/types'
-import type { Entity } from '~/site-spec/types'
+import { SiteDefinition, PageFunnel, NetworkFunnel, NetworkFunnelGroup } from '~/site-spec/types'
+import type { Entity, RequestMatcher } from '~/site-spec/types'
 import { MediaBuilder } from '~/extraction/media-types'
-import type { FunnelProvider } from '~/site-spec/funnel-loader'
+import { pageEntries as _allPageEntries, networkEntries as _allNetworkEntries } from '~/site-spec/funnel-loader'
 
 // just a type to correlate unsafe references
 type TReference = symbol
@@ -138,6 +138,14 @@ export function buildEntityRefs() {
   return defs
 }
 
+export const RichText = Type.Object({
+  _type: Type.Literal('rich_text'),
+  content: Type.Object({
+    type: Type.String(),
+    content: Type.Optional(Type.Array(Type.Unknown())),
+  }),
+})
+
 export function One(entityName: string) {
   return Type.Unsafe<TReference>({
     $ref: `#/$defs/EntityRef`,
@@ -159,15 +167,58 @@ type SiteInput = {
   id: string
   icon?: string
   entities: EntityBuilder[]
-  funnelProvider: FunnelProvider
 }
 
 export function defineSite(input: SiteInput): SiteDefinition {
+  const pageEntries = _allPageEntries.filter((e) => e.site === input.id)
+  const networkEntries = _allNetworkEntries.filter((e) => e.site === input.id)
+
+  const pageFunnels: PageFunnel[] = pageEntries.flatMap((e) => {
+    const url = e.frontmatter.url
+    if (!url || (typeof url !== 'string' && !Array.isArray(url))) {
+      return []
+    }
+    return [
+      new PageFunnel({
+        name: e.funnel,
+        site: input.id,
+        file: e.file,
+        path: e.path,
+        url: url as string | string[],
+        hostname: input.hostname,
+        entry: e,
+      }),
+    ]
+  })
+
+  const grouped = new Map<string, { matcher: RequestMatcher; entries: typeof networkEntries }>()
+  for (const entry of networkEntries) {
+    const url = entry.frontmatter.url as string | string[]
+    const method = typeof entry.frontmatter.method === 'string' ? entry.frontmatter.method : 'GET'
+    const matcher: RequestMatcher = { method: method as RequestMatcher['method'], url }
+    const group = grouped.get(entry.funnel) ?? { matcher, entries: [] }
+    group.entries.push(entry)
+    grouped.set(entry.funnel, group)
+  }
+
+  const networkFunnels: NetworkFunnelGroup[] = Array.from(grouped.entries()).map(
+    ([name, { matcher, entries }]) =>
+      new NetworkFunnelGroup({
+        name,
+        hostname: input.hostname,
+        request: matcher,
+        funnels: entries.map(
+          (e) => new NetworkFunnel({ name, file: e.file, path: e.path, request: matcher, entry: e }),
+        ),
+      }),
+  )
+
   return new SiteDefinition({
     hostname: input.hostname,
     id: input.id,
     icon: input.icon,
     entities: input.entities.map((e) => e.build()),
-    provider: input.funnelProvider,
+    pageFunnels,
+    networkFunnels,
   })
 }

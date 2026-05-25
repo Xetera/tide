@@ -331,6 +331,10 @@ function emitUrlUpdate(
       return allSites.map((s) => ({ site: s.id, hostname: s.hostname }))
     })
 
+    onMessage('put-sites', async ({ data }: { data: string[] }) => {
+      await client!.putSites(data)
+    })
+
     onMessage('get-funnels', () => {
       return funnelProvider.buildFunnelInfos(allSites)
     })

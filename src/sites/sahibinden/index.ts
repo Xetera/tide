@@ -1,5 +1,4 @@
 import { defineSite } from '~/site-spec/site-builder'
-import { funnelProvider } from '~/site-spec/funnel-loader'
 import type { JobParameters } from '~/site-spec/types'
 import { sahibindenEntities } from './entities'
 
@@ -15,7 +14,6 @@ export const sahibindenSmallJobs: JobParameters[] = [
 
 export const sahibindenSite = defineSite({
   id: 'sahibinden',
-  funnelProvider,
   hostname: 'www.sahibinden.com',
   entities: sahibindenEntities,
 })

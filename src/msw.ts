@@ -4,13 +4,13 @@ import type { JobPollResponse, SitesResponse } from './site-spec/types'
 import { TEST_URL_ENDPOINT } from './setup-tools'
 
 export const restHandlers = [
-  http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/sites`, () => {
+  http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/workers/me/sites`, () => {
     return HttpResponse.json<SitesResponse>({
       name: 'test',
       sites: [],
     })
   }),
-  http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/worker/jobs`, () => {
+  http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/workers/me/jobs`, () => {
     return HttpResponse.json<JobPollResponse>({
       jobs: [],
     })

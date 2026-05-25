@@ -9,7 +9,6 @@ export type {
   Source,
   SimplePipeline,
   PipelineTail,
-  ColonOp,
   PipeOp,
   PipeArg,
 } from './parser'

@@ -21,7 +21,7 @@ export const SwitchControl = <T extends ValidComponent = 'button'>(
     <>
       <SwitchPrimitive.Input class='[&:focus-visible+button]:shadow-[var(--shadow-focus)] [&:focus-visible+button]:outline-none' />
       <SwitchPrimitive.Control
-        class={cn('s-switch s-switch-child', local.class)}
+        class={cn('switch switch-child', local.class)}
         {...rest}
       >
         <SwitchPrimitive.Thumb class='pointer-events-none block h-4 w-4 rounded-full bg-[var(--surface)] shadow-[0_2px_4px_rgba(20,25,50,0.18)] ring-0 transition-transform data-[checked]:translate-x-4 translate-x-0' />

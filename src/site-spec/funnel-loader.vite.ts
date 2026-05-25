@@ -28,7 +28,7 @@ const rawFixtureModules = import.meta.glob('../sites/*/funnels/*.json', {
   import: 'default',
 }) as Record<string, unknown>
 
-const { page: pageEntries, network: networkEntries } = parseAllEntries(
+export const { page: pageEntries, network: networkEntries } = parseAllEntries(
   rawJsonataModules,
   rawHtmlegyModules,
 )

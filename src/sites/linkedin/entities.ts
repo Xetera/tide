@@ -1,33 +1,25 @@
 import { Type } from 'typebox'
-import { EntityBuilder, Many, One } from '~/site-spec/site-builder'
+import { EntityBuilder, Many, One, RichText } from '~/site-spec/site-builder'
 import { Image, Video } from '~/extraction/media-types'
-import {
-  instagram_image_identity,
-  instagram_video_identity,
-} from '~gleam/media/identity.mjs'
 
-const InstagramImage = Image.offload()
-  .ephemeral()
-  .identity({ fn: instagram_image_identity })
+const LinkedinImage = Image.offload().ephemeral()
 
-const InstagramVideo = Video.offload()
-  .ephemeral()
-  .identity({ fn: instagram_video_identity })
+const LinkedinVideo = Video.offload().ephemeral()
 
 export const instagramEntities = [
-  new EntityBuilder('@instagram/user')
-    .canonicalUrl('https://instagram.com/{username}')
+  new EntityBuilder('@linkedin/user')
+    .canonicalUrl('https://www.linkedin.com/{username}')
     .fields({
       username: Type.String(),
       nickname: Type.String(),
-      profilePic: InstagramImage,
+      profilePic: LinkedinImage,
       followerCount: Type.Integer(),
       followingCount: Type.Integer(),
       postCount: Type.Integer(),
       isPrivate: Type.Boolean(),
       isVerified: Type.Boolean(),
       bio: Type.String(),
-      posts: Many('@instagram/post'),
+      posts: Many('@linkedin/post'),
       bioLinks: Type.Array(
         Type.Object({
           title: Type.String(),
@@ -38,34 +30,35 @@ export const instagramEntities = [
     })
     .display('username')
     .version(0),
-  new EntityBuilder('@instagram/post')
-    .canonicalUrl('https://instagram.com/p/{code}')
+  new EntityBuilder('@linkedin/post')
+    .canonicalUrl('https://www.linkedin.com/p/{code}')
     .fields({
       code: Type.String(),
       title: Type.String(),
+      content: RichText,
       media: Type.Union([
-        Type.Object({ kind: Type.Literal('video'), video: InstagramVideo }),
+        Type.Object({ kind: Type.Literal('video'), video: LinkedinVideo }),
         Type.Object({
           kind: Type.Literal('carousel'),
-          images: Type.Array(InstagramImage.sized()),
+          images: Type.Array(LinkedinImage.sized()),
         }),
         Type.Object({
           kind: Type.Literal('image'),
-          image: InstagramImage.sized(),
+          image: LinkedinImage.sized(),
         }),
       ]),
       commentsDisabled: Type.Boolean(),
       likeCount: Type.Integer(),
-      author: One('@instagram/user'),
+      author: One('@linkedin/user'),
     })
     .unique(['code'])
     .display('title'),
-  new EntityBuilder('@instagram/comment')
+  new EntityBuilder('@linkedin/comment')
     .fields({
       text: Type.String(),
       likeCount: Type.Integer(),
-      author: One('@instagram/user'),
-      post: One('@instagram/post'),
+      author: One('@linkedin/user'),
+      post: One('@linkedin/post'),
     })
     .display('text'),
 ]

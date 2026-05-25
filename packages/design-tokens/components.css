@@ -808,7 +808,10 @@ body {
   color: var(--foreground);
 }
 .t-mono-xs {
-  font: 400 var(--font-size-xs) / 1.5 var(--font-mono);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  line-height: 1.5;
   color: var(--foreground-muted);
 }
 .t-num {

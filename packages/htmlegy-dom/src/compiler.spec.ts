@@ -13,13 +13,13 @@ function run(expr: string, html: string) {
 
 describe('text', () => {
   it('extracts text content', () => {
-    expect(run('{ "v": $(h1):text }', '<h1>hello</h1>')).toEqual({ v: 'hello' })
+    expect(run('{ "v": $(h1) | text }', '<h1>hello</h1>')).toEqual({ v: 'hello' })
   })
 })
 
 describe('attr', () => {
   it('extracts an attribute', () => {
-    expect(run('{ "v": $(a):attr(href) }', '<a href="/foo">x</a>')).toEqual({
+    expect(run('{ "v": $(a) | attr(href) }', '<a href="/foo">x</a>')).toEqual({
       v: '/foo',
     })
   })
@@ -28,7 +28,7 @@ describe('attr', () => {
 describe('data', () => {
   it('extracts a data attribute', () => {
     expect(
-      run('{ "v": $(div):data(age) | number }', '<div data-age="42"></div>'),
+      run('{ "v": $(div) | data(age) | number }', '<div data-age="42"></div>'),
     ).toEqual({ v: 42 })
   })
 })
@@ -37,7 +37,7 @@ describe('exists', () => {
   it('returns true when element is present', () => {
     expect(
       run(
-        '{ "v": $([aria-label=Verified]):exists }',
+        '{ "v": $([aria-label=Verified]) | exists }',
         '<span aria-label="Verified"></span>',
       ),
     ).toEqual({ v: true })
@@ -45,27 +45,27 @@ describe('exists', () => {
 
   it('returns false when element is absent', () => {
     expect(
-      run('{ "v": $([aria-label=Verified]):exists }', '<div></div>'),
+      run('{ "v": $([aria-label=Verified]) | exists }', '<div></div>'),
     ).toEqual({ v: false })
   })
 })
 
 describe('url', () => {
   it('resolves a relative url', () => {
-    const result = run('{ "v": $(a):attr(href) | url }', '<a href="/foo">x</a>')
+    const result = run('{ "v": $(a) | attr(href) | url }', '<a href="/foo">x</a>')
     expect((result as any).v).toMatch(/\/foo$/)
   })
 })
 
 describe('number', () => {
   it('casts a string to a number', () => {
-    expect(run('{ "v": $(span):text | number }', '<span>123</span>')).toEqual({
+    expect(run('{ "v": $(span) | text | number }', '<span>123</span>')).toEqual({
       v: 123,
     })
   })
 
   it('parses turkish formatted numbers using compile-time locale', () => {
-    const result = createExpr('{ "v": $(span):text | number }', { locale: 'tr' }).run(
+    const result = createExpr('{ "v": $(span) | text | number }', { locale: 'tr' }).run(
       dom('<span>1.234,56</span>').body,
     )
     expect(result).toEqual({ v: 1234.56 })
@@ -74,7 +74,7 @@ describe('number', () => {
   it('parses turkish formatted numbers using inline locale kwarg', () => {
     expect(
       run(
-        '{ "v": $(span):text | number(locale: \'tr\') }',
+        '{ "v": $(span) | text | number(locale: \'tr\') }',
         '<span>1.234,56</span>',
       ),
     ).toEqual({ v: 1234.56 })
@@ -84,13 +84,13 @@ describe('number', () => {
 describe('expandSuffix', () => {
   it('expands K suffix', () => {
     expect(
-      run('{ "v": $(span):text | expandSuffix | number }', '<span>1.5K</span>'),
+      run('{ "v": $(span) | text | expandSuffix | number }', '<span>1.5K</span>'),
     ).toEqual({ v: 1500 })
   })
 
   it('expands M suffix', () => {
     expect(
-      run('{ "v": $(span):text | expandSuffix | number }', '<span>2M</span>'),
+      run('{ "v": $(span) | text | expandSuffix | number }', '<span>2M</span>'),
     ).toEqual({ v: 2000000 })
   })
 })
@@ -102,31 +102,31 @@ describe('number locale suffix expansion', () => {
   describe('en', () => {
     it('expands k', () => {
       expect(
-        run('{ "v": $(span):text | number }', '<span>1.5k</span>'),
+        run('{ "v": $(span) | text | number }', '<span>1.5k</span>'),
       ).toEqual({ v: 1500 })
     })
 
     it('expands K', () => {
-      expect(run('{ "v": $(span):text | number }', '<span>42K</span>')).toEqual(
+      expect(run('{ "v": $(span) | text | number }', '<span>42K</span>')).toEqual(
         { v: 42000 },
       )
     })
 
     it('expands m', () => {
-      expect(run('{ "v": $(span):text | number }', '<span>2m</span>')).toEqual({
+      expect(run('{ "v": $(span) | text | number }', '<span>2m</span>')).toEqual({
         v: 2000000,
       })
     })
 
     it('expands b', () => {
-      expect(run('{ "v": $(span):text | number }', '<span>1b</span>')).toEqual({
+      expect(run('{ "v": $(span) | text | number }', '<span>1b</span>')).toEqual({
         v: 1000000000,
       })
     })
 
     it('does not expand tr suffixes', () => {
       expect(
-        run('{ "v": $(span):text | number }', '<span>100 bin</span>'),
+        run('{ "v": $(span) | text | number }', '<span>100 bin</span>'),
       ).toEqual({ v: 100 })
     })
   })
@@ -134,42 +134,42 @@ describe('number locale suffix expansion', () => {
   describe('tr', () => {
     it('expands bin', () => {
       expect(
-        tr('{ "v": $(span):text | number }', '<span>100 bin</span>'),
+        tr('{ "v": $(span) | text | number }', '<span>100 bin</span>'),
       ).toEqual({ v: 100000 })
     })
 
     it('expands B as bin', () => {
       expect(
-        tr('{ "v": $(span):text | number }', '<span>2,5 B</span>'),
+        tr('{ "v": $(span) | text | number }', '<span>2,5 B</span>'),
       ).toEqual({ v: 2500 })
     })
 
     it('expands milyon', () => {
       expect(
-        tr('{ "v": $(span):text | number }', '<span>1,5 milyon</span>'),
+        tr('{ "v": $(span) | text | number }', '<span>1,5 milyon</span>'),
       ).toEqual({ v: 1500000 })
     })
 
     it('expands mn', () => {
-      expect(tr('{ "v": $(span):text | number }', '<span>3 mn</span>')).toEqual(
+      expect(tr('{ "v": $(span) | text | number }', '<span>3 mn</span>')).toEqual(
         { v: 3000000 },
       )
     })
 
     it('expands milyar', () => {
       expect(
-        tr('{ "v": $(span):text | number }', '<span>2 milyar</span>'),
+        tr('{ "v": $(span) | text | number }', '<span>2 milyar</span>'),
       ).toEqual({ v: 2000000000 })
     })
 
     it('expands mr', () => {
-      expect(tr('{ "v": $(span):text | number }', '<span>1 mr</span>')).toEqual(
+      expect(tr('{ "v": $(span) | text | number }', '<span>1 mr</span>')).toEqual(
         { v: 1000000000 },
       )
     })
 
     it('does not expand en suffixes', () => {
-      expect(tr('{ "v": $(span):text | number }', '<span>1b</span>')).toEqual({
+      expect(tr('{ "v": $(span) | text | number }', '<span>1b</span>')).toEqual({
         v: 1000,
       })
     })
@@ -177,7 +177,7 @@ describe('number locale suffix expansion', () => {
     it('handles decimal with Turkish formatting', () => {
       expect(
         tr(
-          '{ "v": $(span):text | number(locale: \'tr\') }',
+          '{ "v": $(span) | text | number(locale: \'tr\') }',
           '<span>1.234 bin</span>',
         ),
       ).toEqual({ v: 1234000 })
@@ -188,14 +188,14 @@ describe('number locale suffix expansion', () => {
 describe('regex', () => {
   it('extracts full match', () => {
     expect(
-      run('{ "v": $(span):text | regex("[0-9]+") }', '<span>abc 42 def</span>'),
+      run('{ "v": $(span) | text | regex("[0-9]+") }', '<span>abc 42 def</span>'),
     ).toEqual({ v: '42' })
   })
 
   it('extracts a capture group', () => {
     expect(
       run(
-        '{ "v": $(span):text | regex("(.+) TL", 1) | number }',
+        '{ "v": $(span) | text | regex("(.+) TL", 1) | number }',
         '<span>1,250 TL</span>',
       ),
     ).toEqual({ v: 1250 })
@@ -205,13 +205,13 @@ describe('regex', () => {
 describe('trim', () => {
   it('trims outside whitespace', () => {
     expect(
-      run('{ "v": $(span):text | trim(outside) }', '<span>  hello  </span>'),
+      run('{ "v": $(span) | text | trim(outside) }', '<span>  hello  </span>'),
     ).toEqual({ v: 'hello' })
   })
 
   it('collapses inside whitespace', () => {
     expect(
-      run('{ "v": $(span):text | trim(inside) }', '<span>hello   world</span>'),
+      run('{ "v": $(span) | text | trim(inside) }', '<span>hello   world</span>'),
     ).toEqual({ v: 'hello world' })
   })
 })
@@ -219,7 +219,7 @@ describe('trim', () => {
 describe('date', () => {
   it('parses a datetime attribute', () => {
     const result = run(
-      '{ "v": $(time):attr(datetime) | date }',
+      '{ "v": $(time) | attr(datetime) | date }',
       '<time datetime="2024-06-15T12:00:00Z"></time>',
     )
     expect((result as any).v).toBeInstanceOf(Date)
@@ -262,7 +262,7 @@ describe('nested fields', () => {
   it('descends into a child context', () => {
     const html =
       '<div class="loc"><span>Istanbul</span><a href="/map">map</a></div>'
-    const result = run('{ "location": $(.loc) { "name": $(span):text } }', html)
+    const result = run('{ "location": $(.loc) { "name": $(span) | text } }', html)
     expect(result).toEqual({ location: { name: 'Istanbul' } })
   })
 })
@@ -270,43 +270,43 @@ describe('nested fields', () => {
 describe('$$', () => {
   it('produces an array', () => {
     const html = '<ul><li><p>Homer</p></li><li><p>Bart</p></li></ul>'
-    const result = run('{ "names": $$(ul > li) { "name": $(p):text } }', html)
+    const result = run('{ "names": $$(ul > li) { "name": $(p) | text } }', html)
     expect(result).toEqual({ names: [{ name: 'Homer' }, { name: 'Bart' }] })
   })
 
   it('returns empty array when no elements match', () => {
     expect(
-      run('{ "names": $$(li) { "name": $:text } }', '<div></div>'),
+      run('{ "names": $$(li) { "name": $ | text } }', '<div></div>'),
     ).toEqual({ names: [] })
   })
 
   it('throws when + selector matches nothing', () => {
     expect(() =>
-      run('{ "names": $$(li)+ { "name": $:text } }', '<div></div>'),
+      run('{ "names": $$(li)+ { "name": $ | text } }', '<div></div>'),
     ).toThrow()
   })
 
   it('does not throw when + selector matches at least one element', () => {
     expect(() =>
-      run('{ "names": $$(li)+ { "name": $:text } }', '<ul><li>a</li></ul>'),
+      run('{ "names": $$(li)+ { "name": $ | text } }', '<ul><li>a</li></ul>'),
     ).not.toThrow()
   })
 })
 
 describe('required single selector', () => {
   it('throws when a required selector matches nothing', () => {
-    expect(() => run('{ "v": $(h1):text }', '<div></div>')).toThrow(
+    expect(() => run('{ "v": $(h1) | text }', '<div></div>')).toThrow(
       '$(h1) matched nothing',
     )
   })
 
   it('does not throw when required selector matches', () => {
-    expect(() => run('{ "v": $(h1):text }', '<h1>hello</h1>')).not.toThrow()
+    expect(() => run('{ "v": $(h1) | text }', '<h1>hello</h1>')).not.toThrow()
   })
 
   it('uses fallback when required primary selector misses', () => {
     expect(
-      run('{ "v": $(h1):text ?? $(h2):text }', '<h2>fallback</h2>'),
+      run('{ "v": $(h1) | text ?? $(h2) | text }', '<h2>fallback</h2>'),
     ).toEqual({ v: 'fallback' })
   })
 })
@@ -316,7 +316,7 @@ describe('merge', () => {
     const html =
       '<ul><li><p>Homer</p><span>42</span></li><li><p>Bart</p><span>10</span></li></ul>'
     const result = run(
-      '{ "users": $$(ul > li) { [$(p):text]: $(span):text | number } | merge }',
+      '{ "users": $$(ul > li) { [$(p) | text]: $(span) | text | number } | merge }',
       html,
     )
     expect(result).toEqual({ users: { Homer: 42, Bart: 10 } })
@@ -325,13 +325,13 @@ describe('merge', () => {
 
 describe('omit with ?', () => {
   it('omits the key when element is missing', () => {
-    const result = run('{ "v": $(.missing)? :text }', '<div></div>')
+    const result = run('{ "v": $(.missing)? | text }', '<div></div>')
     expect(result).not.toHaveProperty('v')
   })
 
   it('includes the key when element is present', () => {
     const result = run(
-      '{ "v": $(.present)? :text }',
+      '{ "v": $(.present)? | text }',
       '<div class="present">hi</div>',
     )
     expect(result).toHaveProperty('v', 'hi')
@@ -342,7 +342,7 @@ describe('?? selector fallback', () => {
   it('uses first matching selector', () => {
     const html = '<span class="a">42K</span>'
     const result = run(
-      '{ "v": $(.a):text | expandSuffix | number ?? $(.b):text | expandSuffix | number }',
+      '{ "v": $(.a) | text | expandSuffix | number ?? $(.b) | text | expandSuffix | number }',
       html,
     )
     expect(result).toEqual({ v: 42000 })
@@ -351,7 +351,7 @@ describe('?? selector fallback', () => {
   it('falls back to second selector when first is absent', () => {
     const html = '<span class="b">42K</span>'
     const result = run(
-      '{ "v": $(.a):text | expandSuffix | number ?? $(.b):text | expandSuffix | number }',
+      '{ "v": $(.a) | text | expandSuffix | number ?? $(.b) | text | expandSuffix | number }',
       html,
     )
     expect(result).toEqual({ v: 42000 })
@@ -360,7 +360,7 @@ describe('?? selector fallback', () => {
   it('applies the pipeline once to whichever matched', () => {
     const html = '<span class="b">1.2M</span>'
     const result = run(
-      '{ "v": $(.a):text | expandSuffix | number ?? $(.b):text | expandSuffix | number }',
+      '{ "v": $(.a) | text | expandSuffix | number ?? $(.b) | text | expandSuffix | number }',
       html,
     )
     expect(result).toEqual({ v: 1200000 })
@@ -369,7 +369,7 @@ describe('?? selector fallback', () => {
   it('does not apply post-fallback transforms when primary already produced a value', () => {
     const html =
       '<span class="a" data-id="123"></span><span class="b">456</span>'
-    const result = run('{ "v": $(.a):data(id) ?? $(.b):text }', html)
+    const result = run('{ "v": $(.a) | data(id) ?? $(.b) | text }', html)
     expect(result).toEqual({ v: '123' })
   })
 })
@@ -417,7 +417,7 @@ describe('alias @', () => {
     const html =
       '<ul><li data-list-id="42"><a href="/posts/1">First</a><a href="/posts/2">Second</a></li></ul>'
     const result = run(
-      '{ "links": @row $$(ul > li) { "items": $$(a) { "href": $:attr(href), "listId": @row:data(list-id) } } }',
+      '{ "links": @row $$(ul > li) { "items": $$(a) { "href": $ | attr(href), "listId": @row | data(list-id) } } }',
       html,
     )
     expect(result).toEqual({
@@ -435,32 +435,32 @@ describe('alias @', () => {
 
 describe('conditional ?', () => {
   it('returns true branch when condition is truthy', () => {
-    expect(run('{ "v": $(p):text ? "yes" : "no" }', '<p>hello</p>')).toEqual({
+    expect(run('{ "v": $(p) | text ? "yes" : "no" }', '<p>hello</p>')).toEqual({
       v: 'yes',
     })
   })
 
   it('returns false branch when condition is falsy', () => {
-    expect(run('{ "v": $(p):text ? "yes" : "no" }', '<div></div>')).toEqual({
+    expect(run('{ "v": $(p) | text ? "yes" : "no" }', '<div></div>')).toEqual({
       v: 'no',
     })
   })
 
   it('omits key when single-arm conditional has no match', () => {
-    const result = run('{ "v": $(p):text ? "yes" }', '<div></div>')
+    const result = run('{ "v": $(p) | text ? "yes" }', '<div></div>')
     expect(result).not.toHaveProperty('v')
   })
 })
 
 describe('watch', () => {
   it('exposes reactive interface', () => {
-    const expr = createExpr('watch $$(li) { "v": $:text }')
+    const expr = createExpr('watch $$(li) { "v": $ | text }')
     expect(expr.isReactive).toBe(true)
   })
 
   it('emits initial value on subscribe', () => {
     const doc = dom('<ul><li>a</li><li>b</li></ul>')
-    const reactive = createExpr('watch $$(li) { "v": $:text }').reactive(doc.body)
+    const reactive = createExpr('watch $$(li) { "v": $ | text }').reactive(doc.body)
     const cb = vi.fn()
     reactive.subscribe(cb)
     expect(cb).toHaveBeenCalledWith([{ v: 'a' }, { v: 'b' }])
@@ -468,7 +468,7 @@ describe('watch', () => {
 
   it('re-emits when DOM mutates', async () => {
     const doc = dom('<ul><li>a</li></ul>')
-    const reactive = createExpr('watch $$(ul > li) { "v": $:text }').reactive(doc.body)
+    const reactive = createExpr('watch $$(ul > li) { "v": $ | text }').reactive(doc.body)
     const cb = vi.fn()
     reactive.subscribe(cb)
 
@@ -483,7 +483,7 @@ describe('watch', () => {
   it('re-emits with alias referencing parent element', async () => {
     const doc = dom('<ul><li data-id="1"><a href="/a">x</a></li></ul>')
     const reactive = createExpr(
-      'watch @row $$(ul > li) { "id": @row:data(id), "link": $(a):attr(href) }',
+      'watch @row $$(ul > li) { "id": @row | data(id), "link": $(a) | attr(href) }',
     ).reactive(doc.body)
     const cb = vi.fn()
     reactive.subscribe(cb)
@@ -507,7 +507,7 @@ describe('watch', () => {
 
   it('batches simultaneous appends and removals into one emission', async () => {
     const doc = dom('<ul><li>a</li><li>b</li><li>c</li></ul>')
-    const reactive = createExpr('watch $$(ul > li) { "v": $:text }').reactive(doc.body)
+    const reactive = createExpr('watch $$(ul > li) { "v": $ | text }').reactive(doc.body)
     const cb = vi.fn()
     reactive.subscribe(cb)
 
@@ -528,7 +528,7 @@ describe('watch', () => {
 
   it('unsubscribe stops further emissions', async () => {
     const doc = dom('<ul><li>a</li></ul>')
-    const reactive = createExpr('watch $$(ul > li) { "v": $:text }').reactive(doc.body)
+    const reactive = createExpr('watch $$(ul > li) { "v": $ | text }').reactive(doc.body)
     const cb = vi.fn()
     const unsub = reactive.subscribe(cb)
     unsub()
@@ -544,13 +544,13 @@ describe('watch', () => {
 
 describe('await', () => {
   it('exposes reactive interface', () => {
-    const expr = createExpr('await $$(li) { "v": $:text }')
+    const expr = createExpr('await $$(li) { "v": $ | text }')
     expect(expr.isReactive).toBe(true)
   })
 
   it('evaluates immediately when condition already exists (self-await)', () => {
     const doc = dom('<ul><li>a</li></ul>')
-    const reactive = createExpr('await $$(li) { "v": $:text }').reactive(doc.body)
+    const reactive = createExpr('await $$(li) { "v": $ | text }').reactive(doc.body)
     const cb = vi.fn()
     reactive.subscribe(cb)
     expect(cb).toHaveBeenCalledWith([{ v: 'a' }])
@@ -558,7 +558,7 @@ describe('await', () => {
 
   it('waits for sentinel condition before evaluating', async () => {
     const doc = dom('<div id="loading"></div>')
-    const reactive = createExpr('await(#ready) $$(li) { "v": $:text }').reactive(doc.body)
+    const reactive = createExpr('await(#ready) $$(li) { "v": $ | text }').reactive(doc.body)
     const cb = vi.fn()
     reactive.subscribe(cb)
 
@@ -578,7 +578,7 @@ describe('await', () => {
 
   it('resolves only once (not on subsequent mutations)', async () => {
     const doc = dom('')
-    const reactive = createExpr('await(#ready) $$(li) { "v": $:text }').reactive(doc.body)
+    const reactive = createExpr('await(#ready) $$(li) { "v": $ | text }').reactive(doc.body)
     const cb = vi.fn()
     reactive.subscribe(cb)
 
@@ -599,7 +599,7 @@ describe('expression field', () => {
   it('merges fields into parent object', () => {
     expect(
       run(
-        '{ "a": $(h1):text, ($(div) { "b": $(span):text }) }',
+        '{ "a": $(h1) | text, ($(div) { "b": $(span) | text }) }',
         '<h1>hello</h1><div><span>world</span></div>',
       ),
     ).toEqual({ a: 'hello', b: 'world' })
@@ -608,7 +608,7 @@ describe('expression field', () => {
   it('contributes zero keys when selector is missing', () => {
     expect(
       run(
-        '{ "a": $(h1):text, ($(#missing) { "b": $:text }) }',
+        '{ "a": $(h1) | text, ($(#missing) { "b": $ | text }) }',
         '<h1>hello</h1>',
       ),
     ).toEqual({ a: 'hello' })
@@ -617,7 +617,7 @@ describe('expression field', () => {
   it('contributes zero keys with omit selector', () => {
     expect(
       run(
-        '{ "a": $(h1):text, ($(#missing)? { "b": $:text }) }',
+        '{ "a": $(h1) | text, ($(#missing)? { "b": $ | text }) }',
         '<h1>hello</h1>',
       ),
     ).toEqual({ a: 'hello' })
@@ -626,7 +626,7 @@ describe('expression field', () => {
   it('coexists with dynamic and static fields', () => {
     expect(
       run(
-        '{ "x": $(h1):text, ($(div) { "y": $(span):text }), [$(h2):text]: $(p):text }',
+        '{ "x": $(h1) | text, ($(div) { "y": $(span) | text }), [$(h2) | text]: $(p) | text }',
         '<h1>a</h1><div><span>b</span></div><h2>key</h2><p>val</p>',
       ),
     ).toEqual({ x: 'a', y: 'b', key: 'val' })
@@ -635,7 +635,7 @@ describe('expression field', () => {
 
 describe('root ref @', () => {
   it('refers to the top-level root element', () => {
-    expect(run('{ "v": @.($(h1):text) }', '<h1>hello</h1>')).toEqual({
+    expect(run('{ "v": @.($(h1) | text) }', '<h1>hello</h1>')).toEqual({
       v: 'hello',
     })
   })
@@ -643,7 +643,7 @@ describe('root ref @', () => {
   it('escapes iteration context inside $$ block', () => {
     expect(
       run(
-        '{ "items": $$(li) { "li": $:text, "h1": @.($(h1):text) } }',
+        '{ "items": $$(li) { "li": $ | text, "h1": @.($(h1) | text) } }',
         '<h1>title</h1><ul><li>a</li><li>b</li></ul>',
       ),
     ).toEqual({
@@ -659,7 +659,7 @@ describe('scoped expression .( )', () => {
   it('evaluates inner expr with current element as context', () => {
     expect(
       run(
-        '{ "v": $(div).($(.inner):text) }',
+        '{ "v": $(div).($(.inner) | text) }',
         '<div><span class="inner">hello</span></div>',
       ),
     ).toEqual({ v: 'hello' })
@@ -667,12 +667,12 @@ describe('scoped expression .( )', () => {
 
   it('re-scopes into a nested element', () => {
     expect(
-      run('{ "v": $(div).( $(span):text ) }', '<div><span>hello</span></div>'),
+      run('{ "v": $(div).( $(span) | text ) }', '<div><span>hello</span></div>'),
     ).toEqual({ v: 'hello' })
   })
 
   it('returns null when source is null', () => {
-    expect(run('{ "v": $(#missing).($:text) }', '<div>x</div>')).toEqual({
+    expect(run('{ "v": $(#missing).($ | text) }', '<div>x</div>')).toEqual({
       v: null,
     })
   })
@@ -696,7 +696,7 @@ describe('onElement highlight callback', () => {
 
   it('fires for a single selector with the field label', () => {
     const { doc, highlights } = runWithHighlights(
-      '{ "title": $(h1):text }',
+      '{ "title": $(h1) | text }',
       '<h1>hello</h1>',
     )
     expect(highlights).toHaveLength(1)
@@ -707,7 +707,7 @@ describe('onElement highlight callback', () => {
 
   it('fires for fields inside an each block with isArrayItem true', () => {
     const { doc, highlights } = runWithHighlights(
-      '{ "items": $$(li) { "name": $(span):text } }',
+      '{ "items": $$(li) { "name": $(span) | text } }',
       '<ul><li><span>a</span></li><li><span>b</span></li></ul>',
     )
     const spans = Array.from(doc.body.querySelectorAll('span'))
@@ -719,7 +719,7 @@ describe('onElement highlight callback', () => {
 
   it('uses dotted path label for nested fields', () => {
     const { doc, highlights } = runWithHighlights(
-      '{ "author": $(div) { "name": $(span):text } }',
+      '{ "author": $(div) { "name": $(span) | text } }',
       '<div><span>Alice</span></div>',
     )
     const div = doc.body.querySelector('div')!
@@ -732,7 +732,7 @@ describe('onElement highlight callback', () => {
 
   it('throws when a required selector matches nothing', () => {
     expect(() =>
-      runWithHighlights('{ "v": $(#missing):text }', '<div>x</div>'),
+      runWithHighlights('{ "v": $(#missing) | text }', '<div>x</div>'),
     ).toThrow('$(#missing) matched nothing')
   })
 
@@ -748,7 +748,7 @@ describe('onElement highlight callback', () => {
 
   it('does not fire when onElement is not provided', () => {
     expect(() =>
-      createExpr('{ "v": $(h1):text }').run(dom('<h1>x</h1>').body),
+      createExpr('{ "v": $(h1) | text }').run(dom('<h1>x</h1>').body),
     ).not.toThrow()
   })
 })

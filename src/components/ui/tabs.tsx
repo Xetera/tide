@@ -59,7 +59,7 @@ export function TabsTrigger(props: TabsTriggerProps) {
       type='button'
       aria-selected={selected()}
       onClick={() => ctx.onChange(props.value)}
-      class={cn('pool-tab', selected() && 'pool-tab-active', props.class)}
+      class={cn('tab', selected() && 'tab-active', props.class)}
       data-selected={selected() ? '' : undefined}
     >
       {props.children}

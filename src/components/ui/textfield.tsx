@@ -78,7 +78,7 @@ export const TextField = <T extends ValidComponent = 'input'>(
   const [local, rest] = splitProps(props as TextFieldInputProps, ['class', 'readOnly'])
   return (
     <TextFieldPrimitive.Input
-      class={cn('s-input', local.readOnly && 's-input-readonly', local.class)}
+      class={cn('input', local.readOnly && 'input-readonly', local.class)}
       readOnly={local.readOnly}
       {...rest}
     />

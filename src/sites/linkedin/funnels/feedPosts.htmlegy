@@ -1,0 +1,9 @@
+---
+url: "/feed/"
+---
+
+[
+  {
+    "_entity": "@linkedin/post"
+  }
+]

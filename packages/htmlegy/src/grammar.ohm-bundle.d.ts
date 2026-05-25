@@ -8,280 +8,86 @@ import {
   Node,
   NonterminalNode,
   Semantics,
-  TerminalNode,
-} from 'ohm-js'
+  TerminalNode
+} from 'ohm-js';
 
 export interface HTMLegyActionDict<T> extends BaseActionDict<T> {
-  Expr?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  Array?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-    arg2: TerminalNode,
-  ) => T
-  Object?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-    arg2: TerminalNode,
-  ) => T
-  Field_dynamic?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-    arg2: TerminalNode,
-    arg3: TerminalNode,
-    arg4: NonterminalNode,
-  ) => T
-  Field_static?: (
-    this: NonterminalNode,
-    arg0: NonterminalNode,
-    arg1: TerminalNode,
-    arg2: NonterminalNode,
-  ) => T
-  Field_expr?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-    arg2: TerminalNode,
-  ) => T
-  Field?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  Match?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: TerminalNode,
-    arg2: IterationNode,
-    arg3: TerminalNode,
-  ) => T
-  MatchArm_each?: (
-    this: NonterminalNode,
-    arg0: NonterminalNode,
-    arg1: TerminalNode,
-    arg2: NonterminalNode,
-  ) => T
-  MatchArm_selector?: (
-    this: NonterminalNode,
-    arg0: NonterminalNode,
-    arg1: TerminalNode,
-    arg2: NonterminalNode,
-  ) => T
-  MatchArm_fallback?: (
-    this: NonterminalNode,
-    arg0: NonterminalNode,
-    arg1: TerminalNode,
-    arg2: NonterminalNode,
-  ) => T
-  MatchArm?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  Pipeline?: (
-    this: NonterminalNode,
-    arg0: NonterminalNode,
-    arg1: IterationNode,
-    arg2: IterationNode,
-  ) => T
-  SimplePipeline?: (
-    this: NonterminalNode,
-    arg0: NonterminalNode,
-    arg1: IterationNode,
-  ) => T
-  Source_watch?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-  ) => T
-  Source_awaitCond?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: TerminalNode,
-    arg2: NonterminalNode,
-    arg3: TerminalNode,
-    arg4: NonterminalNode,
-  ) => T
-  Source_awaitSelf?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-  ) => T
-  Source_aliasEach?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-    arg2: NonterminalNode,
-  ) => T
-  Source_aliasSingle?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-    arg2: NonterminalNode,
-  ) => T
-  Source_aliasRef?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-  ) => T
-  Source_rootRef?: (this: NonterminalNode, arg0: TerminalNode) => T
-  Source?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  ContextRef?: (this: NonterminalNode, arg0: TerminalNode) => T
-  EachSelector?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: TerminalNode,
-    arg2: NonterminalNode,
-    arg3: TerminalNode,
-    arg4: IterationNode,
-  ) => T
-  SingleSelector?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: TerminalNode,
-    arg2: NonterminalNode,
-    arg3: TerminalNode,
-    arg4: IterationNode,
-  ) => T
-  SelectorBody?: (this: NonterminalNode, arg0: IterationNode) => T
-  SelectorChar_nested?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-    arg2: TerminalNode,
-  ) => T
-  SelectorChar_other?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  SelectorChar?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  PipelineTail?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  ScopedExpr?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-    arg2: TerminalNode,
-  ) => T
-  Block?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-    arg2: TerminalNode,
-  ) => T
-  ColonTransform_text?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: TerminalNode,
-  ) => T
-  ColonTransform_attr?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: TerminalNode,
-    arg2: TerminalNode,
-    arg3: NonterminalNode,
-    arg4: TerminalNode,
-  ) => T
-  ColonTransform_data?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: TerminalNode,
-    arg2: TerminalNode,
-    arg3: NonterminalNode,
-    arg4: TerminalNode,
-  ) => T
-  ColonTransform_exists?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: TerminalNode,
-  ) => T
-  ColonTransform?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  PipeTransform?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-    arg2: IterationNode,
-    arg3: IterationNode,
-    arg4: IterationNode,
-  ) => T
-  PipeArg_kwarg?: (
-    this: NonterminalNode,
-    arg0: NonterminalNode,
-    arg1: TerminalNode,
-    arg2: NonterminalNode,
-  ) => T
-  PipeArg_kwargInt?: (
-    this: NonterminalNode,
-    arg0: NonterminalNode,
-    arg1: TerminalNode,
-    arg2: NonterminalNode,
-  ) => T
-  PipeArg_string?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  PipeArg_integer?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  PipeArg_ident?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  PipeArg?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  Conditional_full?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-    arg2: TerminalNode,
-    arg3: NonterminalNode,
-  ) => T
-  Conditional_partial?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-  ) => T
-  Conditional?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  Literal_string?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  Literal_number?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  Literal_null?: (this: NonterminalNode, arg0: TerminalNode) => T
-  Literal_true?: (this: NonterminalNode, arg0: TerminalNode) => T
-  Literal_false?: (this: NonterminalNode, arg0: TerminalNode) => T
-  Literal?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  stringLit_double?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: IterationNode,
-    arg2: TerminalNode,
-  ) => T
-  stringLit_single?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: IterationNode,
-    arg2: TerminalNode,
-  ) => T
-  stringLit?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  doubleStringChar_escaped?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-  ) => T
-  doubleStringChar_other?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  doubleStringChar?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  singleStringChar_escaped?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: NonterminalNode,
-  ) => T
-  singleStringChar_other?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  singleStringChar?: (this: NonterminalNode, arg0: NonterminalNode) => T
-  number?: (this: NonterminalNode, arg0: IterationNode) => T
-  integer?: (this: NonterminalNode, arg0: IterationNode) => T
-  ident?: (
-    this: NonterminalNode,
-    arg0: NonterminalNode | TerminalNode,
-    arg1: IterationNode,
-  ) => T
-  space_lineComment?: (
-    this: NonterminalNode,
-    arg0: TerminalNode,
-    arg1: IterationNode,
-  ) => T
-  space?: (this: NonterminalNode, arg0: NonterminalNode | TerminalNode) => T
+  Expr?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  Array?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: IterationNode, arg3: TerminalNode) => T;
+  Object?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: IterationNode, arg3: TerminalNode) => T;
+  Field_dynamic?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode, arg3: TerminalNode, arg4: NonterminalNode) => T;
+  Field_static?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
+  Field_expr?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode) => T;
+  Field?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  Match?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: IterationNode, arg3: TerminalNode) => T;
+  MatchArm_each?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
+  MatchArm_selector?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
+  MatchArm_fallback?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
+  MatchArm?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  Pipeline?: (this: NonterminalNode, arg0: NonterminalNode, arg1: IterationNode, arg2: IterationNode) => T;
+  SimplePipeline?: (this: NonterminalNode, arg0: NonterminalNode, arg1: IterationNode) => T;
+  Source_watch?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode) => T;
+  Source_awaitCond?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: TerminalNode, arg4: NonterminalNode) => T;
+  Source_awaitSelf?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode) => T;
+  Source_aliasEach?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: NonterminalNode) => T;
+  Source_aliasSingle?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: NonterminalNode) => T;
+  Source_aliasRef?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode) => T;
+  Source_rootRef?: (this: NonterminalNode, arg0: TerminalNode) => T;
+  Source?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  ContextRef?: (this: NonterminalNode, arg0: TerminalNode) => T;
+  EachSelector?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: TerminalNode, arg4: IterationNode) => T;
+  SingleSelector?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: TerminalNode, arg4: IterationNode) => T;
+  SelectorBody?: (this: NonterminalNode, arg0: IterationNode) => T;
+  SelectorChar_nested?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode) => T;
+  SelectorChar_other?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  SelectorChar?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  PipelineTail?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  ScopedExpr?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode) => T;
+  Block?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: IterationNode, arg3: TerminalNode) => T;
+  PipeTransform?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: IterationNode, arg3: IterationNode, arg4: IterationNode) => T;
+  PipeArg_kwarg?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
+  PipeArg_kwargInt?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
+  PipeArg_string?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  PipeArg_integer?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  PipeArg_ident?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  PipeArg?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  Conditional_full?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode, arg3: NonterminalNode) => T;
+  Conditional_partial?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode) => T;
+  Conditional?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  Literal_string?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  Literal_number?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  Literal_null?: (this: NonterminalNode, arg0: TerminalNode) => T;
+  Literal_true?: (this: NonterminalNode, arg0: TerminalNode) => T;
+  Literal_false?: (this: NonterminalNode, arg0: TerminalNode) => T;
+  Literal?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  stringLit_double?: (this: NonterminalNode, arg0: TerminalNode, arg1: IterationNode, arg2: TerminalNode) => T;
+  stringLit_single?: (this: NonterminalNode, arg0: TerminalNode, arg1: IterationNode, arg2: TerminalNode) => T;
+  stringLit?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  doubleStringChar_escaped?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode) => T;
+  doubleStringChar_other?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  doubleStringChar?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  singleStringChar_escaped?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode) => T;
+  singleStringChar_other?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  singleStringChar?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  number?: (this: NonterminalNode, arg0: IterationNode) => T;
+  integer?: (this: NonterminalNode, arg0: IterationNode) => T;
+  ident?: (this: NonterminalNode, arg0: NonterminalNode | TerminalNode, arg1: IterationNode) => T;
+  space_lineComment?: (this: NonterminalNode, arg0: TerminalNode, arg1: IterationNode) => T;
+  space?: (this: NonterminalNode, arg0: NonterminalNode | TerminalNode) => T;
 }
 
 export interface HTMLegySemantics extends Semantics {
-  addOperation<T>(name: string, actionDict: HTMLegyActionDict<T>): this
-  extendOperation<T>(name: string, actionDict: HTMLegyActionDict<T>): this
-  addAttribute<T>(name: string, actionDict: HTMLegyActionDict<T>): this
-  extendAttribute<T>(name: string, actionDict: HTMLegyActionDict<T>): this
+  addOperation<T>(name: string, actionDict: HTMLegyActionDict<T>): this;
+  extendOperation<T>(name: string, actionDict: HTMLegyActionDict<T>): this;
+  addAttribute<T>(name: string, actionDict: HTMLegyActionDict<T>): this;
+  extendAttribute<T>(name: string, actionDict: HTMLegyActionDict<T>): this;
 }
 
 export interface HTMLegyGrammar extends Grammar {
-  createSemantics(): HTMLegySemantics
-  extendSemantics(superSemantics: HTMLegySemantics): HTMLegySemantics
+  createSemantics(): HTMLegySemantics;
+  extendSemantics(superSemantics: HTMLegySemantics): HTMLegySemantics;
 }
 
-declare const grammar: HTMLegyGrammar
-export default grammar
+declare const grammar: HTMLegyGrammar;
+export default grammar;
+

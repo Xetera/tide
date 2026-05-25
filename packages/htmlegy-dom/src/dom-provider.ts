@@ -1,3 +1,6 @@
+import { DOMParser as ProseDOMParser } from 'prosemirror-model'
+import { schema as basicSchema } from 'prosemirror-schema-basic'
+import type { Node as ProseMirrorNode } from 'prosemirror-model'
 import type { HtmlegyProvider, PipeArg } from '@tide/htmlegy'
 
 function inferMediaType(url: string): 'image' | 'video' | 'media' {
@@ -92,5 +95,13 @@ export const domProvider: HtmlegyProvider<Element> = {
     media: mediaOp(null),
     image: mediaOp('image'),
     video: mediaOp('video'),
+    rich_text(node: Element, _args: PipeArg[], _locale: string): { _type: 'rich_text'; content: ReturnType<ProseMirrorNode['toJSON']> } | null {
+      if (!node) {
+        return null
+      }
+      const parser = ProseDOMParser.fromSchema(basicSchema)
+      const doc = parser.parse(node)
+      return { _type: 'rich_text', content: doc.toJSON() }
+    },
   },
 }

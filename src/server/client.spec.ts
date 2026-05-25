@@ -54,7 +54,7 @@ describe('client', () => {
     await client.startAll()
     expect(onSitesUpdated).toBeCalledTimes(1)
     server.use(
-      http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/worker/jobs`, () => {
+      http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/workers/me/jobs`, () => {
         return HttpResponse.json<JobPollResponse>({
           jobs: sahibindenSmallJobs,
           refetch: ['sites'],

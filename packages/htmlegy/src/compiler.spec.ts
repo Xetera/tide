@@ -106,58 +106,75 @@ describe('literals', () => {
   })
 })
 
-describe(':text colon op', () => {
+describe('| text', () => {
   it('extracts text from a matched element', () => {
-    expect(run('$(h1):text', root)).toBe('Hello')
+    expect(run('$(h1) | text', root)).toBe('Hello')
   })
 })
 
-describe(':attr colon op', () => {
+describe('| attr', () => {
   it('extracts an attribute', () => {
-    expect(run('$(a):attr(href)', root)).toBe('/path')
+    expect(run('$(a) | attr(href)', root)).toBe('/path')
   })
 
   it('returns null for a missing attribute on an optionally matched element', () => {
-    expect(run('{ "x": $(h1)?:attr(href) }', root)).toEqual({})
+    expect(run('{ "x": $(h1)? | attr(href) }', root)).toEqual({})
   })
 })
 
-describe(':data colon op', () => {
+describe('| data', () => {
   it('extracts a data attribute', () => {
-    expect(run('$(span):data(id)', root)).toBe('42')
+    expect(run('$(span) | data(id)', root)).toBe('42')
   })
 })
 
-describe(':exists colon op', () => {
+describe('| exists', () => {
   it('returns true when element is found', () => {
-    expect(run('$(h1):exists', root)).toBe(true)
+    expect(run('$(h1) | exists', root)).toBe(true)
+  })
+})
+
+describe('trailing commas', () => {
+  it('allows a trailing comma in an object literal', () => {
+    expect(run('{ "title": $(h1) | text, }', root)).toEqual({ title: 'Hello' })
+  })
+
+  it('allows a trailing comma in an array literal', () => {
+    expect(run('[ $(h1) | text, $(a) | text, ]', root)).toEqual(['Hello', 'click'])
+  })
+
+  it('allows a trailing comma in a block', () => {
+    expect(run('$(a) { "href": $ | attr(href), "label": $ | text, }', root)).toEqual({
+      href: '/path',
+      label: 'click',
+    })
   })
 })
 
 describe('object fields', () => {
   it('evaluates static fields', () => {
-    expect(run('{ "title": $(h1):text }', root)).toEqual({ title: 'Hello' })
+    expect(run('{ "title": $(h1) | text }', root)).toEqual({ title: 'Hello' })
   })
 
   it('omits fields when optional selector matches nothing', () => {
-    expect(run('{ "x": $(h1):text, "y": $(missing)?:text }', root)).toEqual({
+    expect(run('{ "x": $(h1) | text, "y": $(missing)? | text }', root)).toEqual({
       x: 'Hello',
     })
   })
 
   it('evaluates dynamic field keys', () => {
-    expect(run('{ [$(h1):text]: "value" }', root)).toEqual({ Hello: 'value' })
+    expect(run('{ [$(h1) | text]: "value" }', root)).toEqual({ Hello: 'value' })
   })
 
   it('spreads a pipeline result object into the parent object', () => {
-    const result = run('{ ($(a) { "href": $:attr(href) }) }', root)
+    const result = run('{ ($(a) { "href":  $ | attr(href) }) }', root)
     expect(result).toEqual({ href: '/path' })
   })
 })
 
 describe('array expressions', () => {
   it('collects multiple literal items', () => {
-    expect(run('[ $(h1):text, $(a):text ]', root)).toEqual(['Hello', 'click'])
+    expect(run('[ $(h1) | text, $(a) | text ]', root)).toEqual(['Hello', 'click'])
   })
 
   it('flattens array-valued items into the result', () => {
@@ -168,7 +185,7 @@ describe('array expressions', () => {
         { tag: 'li', text: 'two' },
       ],
     }
-    const result = run('[ $$(li) { "v": $:text } ]', ul)
+    const result = run('[ $$(li) { "v":  $ | text } ]', ul)
     expect(result).toEqual([{ v: 'one' }, { v: 'two' }])
   })
 })
@@ -183,7 +200,7 @@ describe('$$ each selector', () => {
         { tag: 'li', text: 'three' },
       ],
     }
-    expect(run('$$(li) { "v": $:text }', ul)).toEqual([
+    expect(run('$$(li) { "v":  $ | text }', ul)).toEqual([
       { v: 'one' },
       { v: 'two' },
       { v: 'three' },
@@ -191,11 +208,11 @@ describe('$$ each selector', () => {
   })
 
   it('returns an empty array when no elements match', () => {
-    expect(run('$$(missing) { "v": $:text }', root)).toEqual([])
+    expect(run('$$(missing) { "v":  $ | text }', root)).toEqual([])
   })
 
   it('throws when requireOne (+) and no elements match', () => {
-    expect(() => run('$$(missing)+ { "v": $:text }', root)).toThrow(
+    expect(() => run('$$(missing)+ { "v":  $ | text }', root)).toThrow(
       /matched nothing/,
     )
   })
@@ -203,27 +220,27 @@ describe('$$ each selector', () => {
 
 describe('$ single selector required', () => {
   it('throws SelectorError when required element is missing', () => {
-    expect(() => run('$(missing):text', root)).toThrow(/matched nothing/)
+    expect(() => run('$(missing) | text', root)).toThrow(/matched nothing/)
   })
 
   it('uses fallback pipeline when required selector throws', () => {
-    expect(run('$(missing):text ?? $(h1):text', root)).toBe('Hello')
+    expect(run('$(missing) | text ?? $(h1) | text', root)).toBe('Hello')
   })
 })
 
 describe('$ single selector optional', () => {
   it('omits the field when optional selector matches nothing', () => {
-    expect(run('{ "x": $(missing)?:text }', root)).toEqual({})
+    expect(run('{ "x": $(missing)? | text }', root)).toEqual({})
   })
 
   it('uses fallback pipeline when optional result is null', () => {
-    expect(run('$(missing)?:text ?? $(h1):text', root)).toBe('Hello')
+    expect(run('$(missing)? | text ?? $(h1) | text', root)).toBe('Hello')
   })
 })
 
 describe('block { }', () => {
   it('evaluates fields in the context of the matched element', () => {
-    expect(run('$(a) { "href": $:attr(href), "label": $:text }', root)).toEqual(
+    expect(run('$(a) { "href":  $ | attr(href), "label":  $ | text }', root)).toEqual(
       {
         href: '/path',
         label: 'click',
@@ -239,7 +256,7 @@ describe('block { }', () => {
         { tag: 'li', text: 'two' },
       ],
     }
-    expect(run('$$(li) { "v": $:text }', ul)).toEqual([
+    expect(run('$$(li) { "v":  $ | text }', ul)).toEqual([
       { v: 'one' },
       { v: 'two' },
     ])
@@ -248,25 +265,25 @@ describe('block { }', () => {
 
 describe('conditional ?', () => {
   it('returns then branch when truthy', () => {
-    expect(run('$(h1):text ? "yes" : "no"', root)).toBe('yes')
+    expect(run('$(h1) | text ? "yes" : "no"', root)).toBe('yes')
   })
 
   it('returns else branch when value is null', () => {
-    expect(run('$(h1):attr(href) ? "yes" : "no"', root)).toBe('no')
+    expect(run('$(h1) | attr(href) ? "yes" : "no"', root)).toBe('no')
   })
 
   it('omits field when no else branch and value is falsy', () => {
-    expect(run('{ "x": $(h1):attr(href) ? "yes" }', root)).toEqual({})
+    expect(run('{ "x": $(h1) | attr(href) ? "yes" }', root)).toEqual({})
   })
 })
 
 describe('match expression', () => {
   it('matches the first applicable single-selector arm', () => {
-    expect(run('match { $(h1) => $:text _ => "fallback" }', root)).toBe('Hello')
+    expect(run('match { $(h1) =>  $ | text _ => "fallback" }', root)).toBe('Hello')
   })
 
   it('falls through to fallback when no selector arm matches', () => {
-    expect(run('match { $(missing) => $:text _ => "fallback" }', root)).toBe(
+    expect(run('match { $(missing) =>  $ | text _ => "fallback" }', root)).toBe(
       'fallback',
     )
   })
@@ -279,20 +296,20 @@ describe('match expression', () => {
         { tag: 'li', text: 'two' },
       ],
     }
-    expect(run('match { $$(li) => $:text _ => null }', ul)).toEqual([
+    expect(run('match { $$(li) =>  $ | text _ => null }', ul)).toEqual([
       'one',
       'two',
     ])
   })
 
   it('returns undefined when no arm matches and there is no fallback', () => {
-    expect(run('match { $(missing) => $:text }', root)).toBeUndefined()
+    expect(run('match { $(missing) =>  $ | text }', root)).toBeUndefined()
   })
 })
 
 describe('pipe |number', () => {
   it('parses an integer from a data attribute', () => {
-    expect(run('$(span):data(id) | number', root)).toBe(42)
+    expect(run('$(span) | data(id) | number', root)).toBe(42)
   })
 
   it('respects a locale kwarg for decimal parsing', () => {
@@ -300,7 +317,7 @@ describe('pipe |number', () => {
       tag: 'div',
       children: [{ tag: 'span', text: '1.234,56' }],
     }
-    expect(run('$(span):text | number(locale: "de")', node)).toBeCloseTo(
+    expect(run('$(span) | text | number(locale: "de")', node)).toBeCloseTo(
       1234.56,
     )
   })
@@ -308,7 +325,7 @@ describe('pipe |number', () => {
 
 describe('pipe |url', () => {
   it('resolves a relative URL via the provider', () => {
-    expect(run('$(a):attr(href) | url', root)).toBe('https://example.com/path')
+    expect(run('$(a) | attr(href) | url', root)).toBe('https://example.com/path')
   })
 
   it('omits the field when the attribute value is empty and the selector is optional', () => {
@@ -316,23 +333,23 @@ describe('pipe |url', () => {
       tag: 'div',
       children: [{ tag: 'a', attrs: { href: '' } }],
     }
-    expect(run('{ "u": $(a)?:attr(href) | url }', node)).toEqual({})
+    expect(run('{ "u": $(a)? | attr(href) | url }', node)).toEqual({})
   })
 })
 
 describe('pipe |expandSuffix', () => {
   it('expands a k suffix and returns a string representation', () => {
-    expect(run('$(span):text | expandSuffix', root)).toBe('1500')
+    expect(run('$(span) | text | expandSuffix', root)).toBe('1500')
   })
 })
 
 describe('pipe |regex', () => {
   it('extracts the full first match', () => {
-    expect(run('$(h1):text | regex("H\\\\w+")', root)).toBe('Hello')
+    expect(run('$(h1) | text | regex("H\\\\w+")', root)).toBe('Hello')
   })
 
   it('extracts a specific capture group by index', () => {
-    expect(run('$(h1):text | regex("(H)(\\\\w+)", 2)', root)).toBe('ello')
+    expect(run('$(h1) | text | regex("(H)(\\\\w+)", 2)', root)).toBe('ello')
   })
 
   it('omits the field when the pattern does not match and the selector is optional', () => {
@@ -340,27 +357,27 @@ describe('pipe |regex', () => {
       tag: 'div',
       children: [{ tag: 'h1', text: 'Hello' }],
     }
-    expect(run('{ "x": $(h1)?:text | regex("xyz") }', node)).toEqual({})
+    expect(run('{ "x": $(h1)? | text | regex("xyz") }', node)).toEqual({})
   })
 })
 
 describe('pipe |trim', () => {
   it('trims leading and trailing whitespace with outside', () => {
-    expect(run('$(.desc):text | trim(outside)', root)).toBe('lots   of   space')
+    expect(run('$(.desc) | text | trim(outside)', root)).toBe('lots   of   space')
   })
 
   it('collapses inner whitespace runs with inside', () => {
-    expect(run('$(.desc):text | trim(inside)', root)).toBe(' lots of space ')
+    expect(run('$(.desc) | text | trim(inside)', root)).toBe(' lots of space ')
   })
 
   it('trims both inner and outer whitespace by default', () => {
-    expect(run('$(.desc):text | trim', root)).toBe('lots of space')
+    expect(run('$(.desc) | text | trim', root)).toBe('lots of space')
   })
 })
 
 describe('pipe |lowercase', () => {
   it('lowercases the string', () => {
-    expect(run('$(h1):text | lowercase', root)).toBe('hello')
+    expect(run('$(h1) | text | lowercase', root)).toBe('hello')
   })
 })
 
@@ -370,7 +387,7 @@ describe('pipe |date', () => {
       tag: 'div',
       children: [{ tag: 'time', text: '2024-01-15' }],
     }
-    const result = run('$(time):text | date', node)
+    const result = run('$(time) | text | date', node)
     expect(result).toBeInstanceOf(Date)
     expect((result as Date).getFullYear()).toBe(2024)
   })
@@ -380,7 +397,7 @@ describe('pipe |date', () => {
       tag: 'div',
       children: [{ tag: 'time', text: 'not-a-date' }],
     }
-    expect(run('{ "d": $(time)?:text | date }', node)).toEqual({})
+    expect(run('{ "d": $(time)? | text | date }', node)).toEqual({})
   })
 })
 
@@ -393,7 +410,7 @@ describe('pipe |merge', () => {
         { tag: 'li', attrs: { class: 'b' }, text: 'second' },
       ],
     }
-    const result = run('$$(li) { [$(li):attr(class)]: $:text } | merge', ul)
+    const result = run('$$(li) { [$(li) | attr(class)]:  $ | text } | merge', ul)
     expect(result).toEqual({ a: 'first', b: 'second' })
   })
 })
@@ -416,14 +433,14 @@ describe('built-ins take precedence over provider pipeOps', () => {
       ...provider,
       pipeOps: { trim: () => 'OVERRIDDEN' },
     }
-    const expr = new HtmlegyExpr('$(.desc):text | trim', overridingProvider)
+    const expr = new HtmlegyExpr('$(.desc) | text | trim', overridingProvider)
     expect(expr.run(root)).toBe('lots of space')
   })
 })
 
 describe('scoped expr .()', () => {
   it('evaluates expression with matched element as context', () => {
-    expect(run('$(ul).($(li):text)', root)).toBe('one')
+    expect(run('$(ul).($(li) | text)', root)).toBe('one')
   })
 })
 
@@ -437,7 +454,7 @@ describe('alias @name on $$', () => {
         { tag: 'li', text: 'two' },
       ],
     }
-    expect(run('@root$$(li) { "v": $:text }', ul)).toEqual([
+    expect(run('@root$$(li) { "v":  $ | text }', ul)).toEqual([
       { v: 'one' },
       { v: 'two' },
     ])
@@ -447,13 +464,13 @@ describe('alias @name on $$', () => {
 describe('root ref @', () => {
   it('references the root node passed to run()', () => {
     const node: TestNode = { tag: 'div', attrs: { class: 'container' } }
-    expect(run('{ "c": @:attr(class) }', node)).toEqual({ c: 'container' })
+    expect(run('{ "c": @ | attr(class) }', node)).toEqual({ c: 'container' })
   })
 })
 
 describe('context ref $', () => {
   it('evaluates to the current element', () => {
-    expect(run('$:text', { tag: 'span', text: 'hi' })).toBe('hi')
+    expect(run(' $ | text', { tag: 'span', text: 'hi' })).toBe('hi')
   })
 })
 
@@ -461,7 +478,7 @@ describe('onElement callback', () => {
   it('is called once per matched single selector', () => {
     const onElement = vi.fn()
     const expr = new HtmlegyExpr(
-      '{ "title": $(h1):text, "link": $(a):attr(href) }',
+      '{ "title": $(h1) | text, "link": $(a) | attr(href) }',
       provider,
       { onElement },
     )
@@ -471,7 +488,7 @@ describe('onElement callback', () => {
 
   it('receives the field label path from the enclosing object', () => {
     const calls: string[][] = []
-    const expr = new HtmlegyExpr('{ "title": $(h1):text }', provider, {
+    const expr = new HtmlegyExpr('{ "title": $(h1) | text }', provider, {
       onElement: (_node, label) => calls.push(label.field),
     })
     expr.run(root)
@@ -481,12 +498,12 @@ describe('onElement callback', () => {
 
 describe('isReactive', () => {
   it('returns false for a static expression', () => {
-    expect(new HtmlegyExpr('$(h1):text', provider).isReactive).toBe(false)
+    expect(new HtmlegyExpr('$(h1) | text', provider).isReactive).toBe(false)
   })
 
   it('throws when calling reactive() on a non-reactive expression', () => {
     expect(() =>
-      new HtmlegyExpr('$(h1):text', provider).reactive(root),
+      new HtmlegyExpr('$(h1) | text', provider).reactive(root),
     ).toThrow()
   })
 })

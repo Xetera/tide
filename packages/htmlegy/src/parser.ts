@@ -42,17 +42,10 @@ export type Source =
   | { kind: 'await'; condition: string | null; inner: Source }
 
 export type PipelineTail =
-  | { kind: 'colon_transform'; op: ColonOp }
   | { kind: 'pipe_transform'; op: PipeOp }
   | { kind: 'block'; fields: Field[] }
   | { kind: 'conditional'; then_: Expr; else_: Expr | null }
   | { kind: 'scoped_expr'; expr: Expr }
-
-export type ColonOp =
-  | { name: 'text' }
-  | { name: 'attr'; arg: string }
-  | { name: 'data'; arg: string }
-  | { name: 'exists' }
 
 export type PipeArg = string | number | { key: string; value: string | number }
 
@@ -84,14 +77,14 @@ const exprActions: HTMLegyActionDict<AstResult> = {
     return e.toAst()
   },
 
-  Array(_l, items, _r) {
+  Array(_l, items, _trailing, _r) {
     return {
       kind: 'array',
       items: items.asIteration().children.map((c) => toAst(c) as Expr),
     } satisfies Expr
   },
 
-  Object(_l, fields, _r) {
+  Object(_l, fields, _trailing, _r) {
     return {
       kind: 'object',
       fields: fields.asIteration().children.map((c) => toAst(c) as Field),
@@ -225,31 +218,6 @@ const exprActions: HTMLegyActionDict<AstResult> = {
     return t.toAst()
   },
 
-  ColonTransform_text(_colon, _kw) {
-    return {
-      kind: 'colon_transform',
-      op: { name: 'text' },
-    } satisfies PipelineTail
-  },
-  ColonTransform_attr(_colon, _kw, _l, arg, _r) {
-    return {
-      kind: 'colon_transform',
-      op: { name: 'attr', arg: arg.sourceString },
-    } satisfies PipelineTail
-  },
-  ColonTransform_data(_colon, _kw, _l, arg, _r) {
-    return {
-      kind: 'colon_transform',
-      op: { name: 'data', arg: arg.sourceString },
-    } satisfies PipelineTail
-  },
-  ColonTransform_exists(_colon, _kw) {
-    return {
-      kind: 'colon_transform',
-      op: { name: 'exists' },
-    } satisfies PipelineTail
-  },
-
   PipeTransform(_pipe, name, _lp, argList, _rp) {
     const args: PipeArg[] =
       _lp.children.length > 0
@@ -285,7 +253,7 @@ const exprActions: HTMLegyActionDict<AstResult> = {
     } satisfies PipelineTail
   },
 
-  Block(_l, fields, _r) {
+  Block(_l, fields, _trailing, _r) {
     return {
       kind: 'block',
       fields: fields.asIteration().children.map((c) => toAst(c) as Field),

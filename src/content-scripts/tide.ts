@@ -81,7 +81,9 @@ import './stream-capture'
           if (!changed) {
             return
           }
-          const updatedPageFunnels = allSites.flatMap((s) => s.getPageFunnels())
+          const updatedPageFunnels = allSites.flatMap((s) =>
+            funnelProvider.getPageFunnelsForSite(s.id, s.hostname),
+          )
           source.updateRules(updatedPageFunnels)
           console.log(`[tide] hot-reloaded: ${path}`)
         },

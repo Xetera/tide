@@ -1,6 +1,5 @@
 import { matchesGlob } from '~/extraction/glob'
 import { normalizePath } from '~/site-spec/resource'
-import type { FunnelProvider } from '~/site-spec/funnel-loader'
 
 export interface PageFunnelEntry {
   site: string
@@ -151,30 +150,32 @@ export class SiteDefinition {
   readonly id: string
   readonly icon?: string
   readonly entities: Entity[]
-
-  #provider: FunnelProvider
+  readonly pageFunnels: PageFunnel[]
+  readonly networkFunnels: NetworkFunnelGroup[]
 
   constructor(init: {
     hostname: string
     id: string
     icon?: string
     entities: Entity[]
-    provider: FunnelProvider
+    pageFunnels: PageFunnel[]
+    networkFunnels: NetworkFunnelGroup[]
   }) {
     this.hostname = init.hostname
     this.id = init.id
     this.icon = init.icon
     this.entities = init.entities
-    this.#provider = init.provider
+    this.pageFunnels = init.pageFunnels
+    this.networkFunnels = init.networkFunnels
   }
 
   getPageFunnels(): PageFunnel[] {
-    return this.#provider.getPageFunnelsForSite(this.id, this.hostname)
+    return this.pageFunnels
   }
 
   matchesCapture(url: URL, method: string): boolean {
     const upperMethod = method.toUpperCase()
-    for (const group of this.getNetworkFunnels()) {
+    for (const group of this.networkFunnels) {
       if (group.request.method.toUpperCase() !== upperMethod) {
         continue
       }
@@ -189,7 +190,7 @@ export class SiteDefinition {
   }
 
   getNetworkFunnels(): NetworkFunnelGroup[] {
-    return this.#provider.buildNetworkFunnels(this.id, this.hostname)
+    return this.networkFunnels
   }
 
   matchesHostname(url: URL): boolean {

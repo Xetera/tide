@@ -6,9 +6,9 @@ HTMLegy {
     | Pipeline
     | Literal
 
-  Array = "[" ListOf<Expr, ","?> "]"
+  Array = "[" ListOf<Expr, ","?> ","? "]"
 
-  Object = "{" ListOf<Field, ","?> "}"
+  Object = "{" ListOf<Field, ","?> ","? "}"
 
   Field
     = "[" Pipeline "]" ":" Expr  -- dynamic
@@ -48,21 +48,14 @@ HTMLegy {
     | ~")" any              -- other
 
   PipelineTail
-    = ColonTransform
-    | PipeTransform
+    = PipeTransform
     | Block
     | Conditional
     | ScopedExpr
 
   ScopedExpr = ".(" Expr ")"
 
-  Block = "{" ListOf<Field, ","?> "}"
-
-  ColonTransform
-    = ":" "text"               -- text
-    | ":" "attr" "(" ident ")" -- attr
-    | ":" "data" "(" ident ")" -- data
-    | ":" "exists"             -- exists
+  Block = "{" ListOf<Field, ","?> ","? "}"
 
   PipeTransform = "|" ident ("(" ListOf<PipeArg, ","> ")")?
 

@@ -22,41 +22,41 @@ export function AddServer() {
       <Switch
         checked={visualDebug()}
         onChange={(state) => setVisualDebug(state)}
-        class='s-set-row'
+        class='set-row'
       >
-        <div class='s-set-meta'>
-          <SwitchLabel class='s-set-name cursor-pointer'>
+        <div class='set-meta'>
+          <SwitchLabel class='set-name cursor-pointer'>
             Visual debugging
           </SwitchLabel>
-          <SwitchDescription class='s-set-desc'>
+          <SwitchDescription class='set-desc'>
             Highlight matched selectors on the page
           </SwitchDescription>
         </div>
         <SwitchControl />
       </Switch>
 
-      <div class='s-set-row' style={{ 'flex-direction': 'column', 'align-items': 'flex-start', gap: '6px' }}>
-        <label class='s-set-name'>Gemini API key</label>
+      <div class='set-row' style={{ 'flex-direction': 'column', 'align-items': 'flex-start', gap: '6px' }}>
+        <label class='set-name'>Gemini API key</label>
         <input
           type='password'
           placeholder='AIza...'
           value={geminiKey() ?? ''}
           onInput={(e) => setGeminiKey(e.currentTarget.value)}
-          class='s-input'
+          class='input'
         />
-        <p class='s-set-desc'>Used for spec generation</p>
+        <p class='set-desc'>Used for spec generation</p>
       </div>
 
-      <div class='s-set-row' style={{ 'flex-direction': 'column', 'align-items': 'flex-start', gap: '6px' }}>
-        <label class='s-set-name'>z.ai API key</label>
+      <div class='set-row' style={{ 'flex-direction': 'column', 'align-items': 'flex-start', gap: '6px' }}>
+        <label class='set-name'>z.ai API key</label>
         <input
           type='password'
           placeholder='z.ai key...'
           value={zaiKey() ?? ''}
           onInput={(e) => setZaiKey(e.currentTarget.value)}
-          class='s-input'
+          class='input'
         />
-        <p class='s-set-desc'>
+        <p class='set-desc'>
           Used for spec generation via GLM-4.1V Flash (takes priority over
           Gemini if set)
         </p>

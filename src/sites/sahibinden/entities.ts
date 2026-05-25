@@ -1,7 +1,7 @@
 import { Type } from 'typebox'
 import { Image } from '~/extraction/media-types'
 import { shbdn_image_identity } from '~gleam/media/identity.mjs'
-import { EntityBuilder } from '~/site-spec/site-builder'
+import { EntityBuilder, RichText } from '~/site-spec/site-builder'
 
 const SahibindenImage = Image.offload().identity({
   fn: shbdn_image_identity,
@@ -12,7 +12,7 @@ export const sahibindenEntities = [
     id: Type.String(),
     name: Type.String(),
     price: Type.Number(),
-    description: Type.String(),
+    description: RichText,
     latitude: Type.Number(),
     longitude: Type.Number(),
     attributes: Type.Record(Type.String(), Type.String()),
