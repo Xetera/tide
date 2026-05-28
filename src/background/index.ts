@@ -323,8 +323,7 @@ function emitUrlUpdate(
     })
 
     onMessage('heartbeat', async () => {
-      const ok = await client!.sendHeartbeat()
-      return { ok }
+      return client!.sendHeartbeat()
     })
 
     onMessage('sites', () => {
@@ -572,15 +571,49 @@ function emitUrlUpdate(
     await client.startAll()
 
     const HEARTBEAT_ALARM = 'tide:heartbeat'
+    let lastHeartbeatStatus: string | null = null
+    const runHeartbeat = async () => {
+      const result = await client!.sendHeartbeat()
+      if (result.status !== lastHeartbeatStatus) {
+        lastHeartbeatStatus = result.status
+        if (result.status === 'unauthorized') {
+          log({
+            severity: 'error',
+            scope: 'pool',
+            text: 'Heartbeat rejected by server. The worker may have been removed from the pool, or its secret no longer matches.',
+            data: { httpStatus: result.httpStatus },
+          })
+        } else if (result.status === 'unreachable') {
+          log({
+            severity: 'warning',
+            scope: 'pool',
+            text: 'Heartbeat failed: backend unreachable',
+            data: { error: result.error },
+          })
+        } else if (result.status === 'error') {
+          log({
+            severity: 'warning',
+            scope: 'pool',
+            text: 'Heartbeat returned an unexpected status',
+            data: { httpStatus: result.httpStatus },
+          })
+        } else if (result.status === 'ok') {
+          log({
+            severity: 'info',
+            scope: 'pool',
+            text: 'Heartbeat ok',
+          })
+        }
+      }
+    }
     // chrome 117+ allows 30s alarms
     chrome.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: 0.5 })
     chrome.alarms.onAlarm.addListener((alarm) => {
       if (alarm.name === HEARTBEAT_ALARM) {
-        console.log("Heartbeating...")
-        client!.sendHeartbeat()
+        runHeartbeat()
       }
     })
-    client.sendHeartbeat()
+    runHeartbeat()
   } catch (err) {
     console.error(err)
   }

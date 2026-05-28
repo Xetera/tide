@@ -1,4 +1,5 @@
 ---
+name: "User Profile"
 method: POST
 url: "/graphql/query"
 ---

@@ -12,6 +12,7 @@ import type {
 import type { PlainLog, ScrapeLog, ScrapeSource } from './shared'
 import type { EntityPatch } from './site-spec/types'
 import type { ScrapeResult } from './extraction/scrape-result'
+import type { HeartbeatStatus } from './server/client'
 import type {
   CaptureEntry,
   GenerationRequest,
@@ -78,6 +79,7 @@ declare module 'webext-bridge' {
       | { ok: true; expression: string; explanation: string }
       | { ok: false; error: string }
     >
+    heartbeat: ProtocolWithReturn<void, HeartbeatStatus>
     'generate-htmlegy': ProtocolWithReturn<
       {
         html: string

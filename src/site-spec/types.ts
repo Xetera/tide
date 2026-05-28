@@ -78,6 +78,11 @@ export class PageFunnel implements Funnel {
     return this.#entry.body
   }
 
+  get label(): string | undefined {
+    const v = this.#entry.frontmatter.name
+    return typeof v === 'string' ? v : undefined
+  }
+
   matchesUrl(pathname: string): boolean {
     const normalized = normalizePath(pathname)
     const patterns = Array.isArray(this.url) ? this.url : [this.url]
@@ -111,6 +116,11 @@ export class NetworkFunnel implements Funnel {
 
   get source(): string {
     return this.#entry.body
+  }
+
+  get label(): string | undefined {
+    const v = this.#entry.frontmatter.name
+    return typeof v === 'string' ? v : undefined
   }
 
   matchesUrl(pathname: string): boolean {

@@ -35,6 +35,7 @@ export function registerFunnels(
           file: l.file,
           source: l.source,
           format: l.format,
+          label: l.label,
         })),
       }
     }
@@ -48,10 +49,11 @@ window.addEventListener('message', (evt) => {
   }
 
   if (evt.data.kind === 'funnel-result') {
-    const { name, site, file, result, body } = evt.data as {
+    const { name, site, file, label, result, body } = evt.data as {
       name: string
       site: string
       file: string
+      label?: string
       result: unknown
       url: string
       body: unknown
@@ -87,7 +89,7 @@ window.addEventListener('message', (evt) => {
         patches,
         source: { kind: 'passive' },
         warnings: [],
-        scrapeSource: { kind: 'network', site, funnel: name, file },
+        scrapeSource: { kind: 'network', site, funnel: name, file, format: 'jsonata', label },
         highlights: [],
         patchCounts,
         errors: [],

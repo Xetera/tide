@@ -7,16 +7,16 @@ const grammar = ohm.grammar(
   grammarSrc,
 ) as unknown as import('./grammar.ohm-bundle').HTMLegyGrammar
 
-export type SimplePipeline = { source: Source; tail: PipelineTail[] }
+export type Chain = { source: Source; tail: ChainStep[] }
 
 export type Expr =
   | { kind: 'array'; items: Expr[] }
   | { kind: 'object'; fields: Field[] }
-  | { kind: 'match'; arms: MatchArm[] }
+  | { kind: 'match'; source: string | null; arms: MatchArm[] }
   | {
-      kind: 'pipeline'
-      primary: SimplePipeline
-      fallback: SimplePipeline | null
+      kind: 'fallback_expr'
+      primary: Chain
+      fallback: Chain | null
     }
   | { kind: 'literal'; value: unknown }
 
@@ -28,6 +28,7 @@ export type Field =
 export type MatchArm =
   | { kind: 'each'; selector: string; body: Expr }
   | { kind: 'selector'; selector: string; body: Expr }
+  | { kind: 'call'; name: string; expr: Expr; args: PipeArg[]; body: Expr }
   | { kind: 'fallback'; body: Expr }
 
 export type Source =
@@ -43,7 +44,7 @@ export type Source =
   | { kind: 'func_call'; name: string; expr: Expr; args: PipeArg[] }
   | { kind: 'literal'; value: unknown }
 
-export type PipelineTail =
+export type ChainStep =
   | { kind: 'pipe_transform'; op: PipeOp }
   | { kind: 'block'; fields: Field[] }
   | { kind: 'conditional'; then_: Expr; else_: Expr | null }
@@ -58,8 +59,8 @@ type AstResult =
   | Field
   | MatchArm
   | Source
-  | SimplePipeline
-  | PipelineTail
+  | Chain
+  | ChainStep
   | PipeArg
   | string
   | number
@@ -107,15 +108,37 @@ const exprActions: HTMLegyActionDict<AstResult> = {
       value: toAst(value) as Expr,
     } satisfies Field
   },
-  Field_expr(_lp, pipeline, _rp) {
-    return { expr: true, value: toAst(pipeline) as Expr } satisfies Field
+  Field_expr(_lp, fallbackExpr, _rp) {
+    return { expr: true, value: toAst(fallbackExpr) as Expr } satisfies Field
   },
 
-  Match(_kw, _l, arms, _r) {
+  Match_plain(_kw, _l, arms, _r) {
     return {
       kind: 'match',
+      source: null,
       arms: arms.children.map((c) => toAst(c) as MatchArm),
     } satisfies Expr
+  },
+  Match_scoped(_kw, sel, _l, arms, _r) {
+    const src = toAst(sel) as Source & { kind: 'single' }
+    return {
+      kind: 'match',
+      source: src.selector,
+      arms: arms.children.map((c) => toAst(c) as MatchArm),
+    } satisfies Expr
+  },
+  ScopedMatchArm_call(funcCall, _arrow, body) {
+    const fc = toAst(funcCall) as Source & { kind: 'func_call' }
+    return {
+      kind: 'call',
+      name: fc.name,
+      expr: fc.expr,
+      args: fc.args,
+      body: toAst(body) as Expr,
+    } satisfies MatchArm
+  },
+  ScopedMatchArm_fallback(_ident, _arrow, body) {
+    return { kind: 'fallback', body: toAst(body) as Expr } satisfies MatchArm
   },
   MatchArm_fallback(_ident, _arrow, body) {
     return { kind: 'fallback', body: toAst(body) as Expr } satisfies MatchArm
@@ -137,22 +160,22 @@ const exprActions: HTMLegyActionDict<AstResult> = {
     } satisfies MatchArm
   },
 
-  Pipeline(primary, _qq, fallback) {
+  FallbackExpr(primary, _qq, fallback) {
     return {
-      kind: 'pipeline',
-      primary: toAst(primary) as unknown as SimplePipeline,
+      kind: 'fallback_expr',
+      primary: toAst(primary) as unknown as Chain,
       fallback:
         fallback.children.length > 0
-          ? (toAst(fallback.children[0]!) as unknown as SimplePipeline)
+          ? (toAst(fallback.children[0]!) as unknown as Chain)
           : null,
     } satisfies Expr
   },
 
-  SimplePipeline(source, tail) {
+  Chain(source, tail) {
     return {
       source: toAst(source) as Source,
-      tail: tail.children.map((c) => toAst(c) as PipelineTail),
-    } satisfies SimplePipeline
+      tail: tail.children.map((c) => toAst(c) as ChainStep),
+    } satisfies Chain
   },
 
   Source_watch(_kw, inner) {
@@ -229,7 +252,7 @@ const exprActions: HTMLegyActionDict<AstResult> = {
     } satisfies Source
   },
 
-  PipelineTail(t) {
+  ChainStep(t) {
     return t.toAst()
   },
 
@@ -243,7 +266,7 @@ const exprActions: HTMLegyActionDict<AstResult> = {
     return {
       kind: 'pipe_transform',
       op: { name: name.sourceString, args },
-    } satisfies PipelineTail
+    } satisfies ChainStep
   },
   PipeArg_kwarg(key, _colon, val) {
     return { key: key.sourceString, value: toAst(val) as string }
@@ -265,14 +288,14 @@ const exprActions: HTMLegyActionDict<AstResult> = {
     return {
       kind: 'scoped_expr',
       expr: toAst(expr) as Expr,
-    } satisfies PipelineTail
+    } satisfies ChainStep
   },
 
   Block(_l, fields, _trailing, _r) {
     return {
       kind: 'block',
       fields: fields.asIteration().children.map((c) => toAst(c) as Field),
-    } satisfies PipelineTail
+    } satisfies ChainStep
   },
 
   Conditional_full(_q, then_, _colon, else_) {
@@ -280,14 +303,14 @@ const exprActions: HTMLegyActionDict<AstResult> = {
       kind: 'conditional',
       then_: toAst(then_) as Expr,
       else_: toAst(else_) as Expr,
-    } satisfies PipelineTail
+    } satisfies ChainStep
   },
   Conditional_partial(_q, then_) {
     return {
       kind: 'conditional',
       then_: toAst(then_) as Expr,
       else_: null,
-    } satisfies PipelineTail
+    } satisfies ChainStep
   },
 
   Literal(e) {

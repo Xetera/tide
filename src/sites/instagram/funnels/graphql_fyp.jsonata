@@ -1,4 +1,5 @@
 ---
+name: "For You Page"
 method: POST
 url: "/graphql/query"
 ---

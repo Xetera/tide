@@ -1,4 +1,5 @@
 ---
+name: "Tweet Detail"
 method: GET
 url: "/i/api/graphql/*/TweetDetail"
 ---

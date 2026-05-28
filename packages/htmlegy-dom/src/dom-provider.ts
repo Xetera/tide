@@ -65,14 +65,30 @@ export const domProvider: HtmlegyProvider<Element> = {
   },
 
   watch(node, selector, cb) {
-    const observer = new MutationObserver(cb)
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const debounced = () => {
+      if (timer !== null) {
+        return
+      }
+      timer = setTimeout(() => {
+        timer = null
+        cb()
+      }, 50)
+    }
+    const observer = new MutationObserver(debounced)
     observer.observe(node, {
       childList: true,
       subtree: true,
       attributes: true,
       characterData: true,
     })
-    return () => observer.disconnect()
+    return () => {
+      if (timer !== null) {
+        clearTimeout(timer)
+        timer = null
+      }
+      observer.disconnect()
+    }
   },
 
   await(node, condition, cb) {

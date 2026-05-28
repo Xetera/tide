@@ -14,10 +14,14 @@ import type {
   JobResult,
   JobSource,
   SiteSpec,
-  SitesResponse,
 } from '~/site-spec/types'
 import { ServerAutonomy } from '~/site-spec/types'
 import type { ScrapeResult } from '~/extraction/scrape-result'
+import type {
+  PollResponse,
+  SetSitesRequest,
+  WorkerSitesResponse,
+} from './api'
 
 const PRECONDITION_FAILED = 412
 
@@ -114,11 +118,12 @@ export class Client {
     return this.servers[0]!
   }
 
-  async sendHeartbeat(): Promise<boolean> {
+  async sendHeartbeat(): Promise<HeartbeatStatus> {
     const server = this.servers[0]
-    if (!server?.url || !server.poolId) {
-      return false
+    if (!server?.url || !server.poolId || !server.workerSecret) {
+      return { status: 'unconfigured' }
     }
+    let res: Response
     try {
       const url = new URL(
         `/api/pool/${server.poolId}/workers/me/heartbeat`,
@@ -128,11 +133,20 @@ export class Client {
         new Request(url, { method: 'GET' }),
         server,
       )
-      const res = await fetch(request, { signal: AbortSignal.timeout(5000) })
-      return res.ok
-    } catch {
-      return false
+      res = await fetch(request, { signal: AbortSignal.timeout(5000) })
+    } catch (err) {
+      return {
+        status: 'unreachable',
+        error: err instanceof Error ? err.message : String(err),
+      }
     }
+    if (res.ok) {
+      return { status: 'ok' }
+    }
+    if (res.status === 401 || res.status === 403) {
+      return { status: 'unauthorized', httpStatus: res.status }
+    }
+    return { status: 'error', httpStatus: res.status }
   }
 
   async start(server: ServerDefinition) {
@@ -210,10 +224,11 @@ export class Client {
       return
     }
     try {
+      const body: SetSitesRequest = { sites: siteNames }
       const request = await this.#requestBase(
         new Request(new URL(`/api/pool/${server.poolId}/workers/me/sites`, server.url), {
           method: 'PUT',
-          body: JSON.stringify({ sites: siteNames }),
+          body: JSON.stringify(body),
           headers: { 'Content-Type': 'application/json; charset=utf-8' },
         }),
         server,
@@ -278,6 +293,9 @@ export class Client {
     scrapeSource?: ScrapeSource,
     tabId?: number,
   ) {
+    if (patches.length === 0) {
+      return
+    }
     const server = this.servers[0]
     if (!server) {
       return
@@ -442,9 +460,12 @@ export class Client {
       )
 
       const response = await fetch(request)
-      const body: SitesResponse = await response.json()
-      this.#sites.set(server, body.sites)
-      this.#onSitesUpdated?.(server, body.sites)
+      const wire = (await response.json()) as WorkerSitesResponse
+      // Server returns site IDs only; the in-memory cache holds SiteSpec
+      // objects assembled elsewhere. Coerce here until the server returns specs.
+      const sites = wire.sites as unknown as SiteSpec[]
+      this.#sites.set(server, sites)
+      this.#onSitesUpdated?.(server, sites)
       this.#lastSitesRequest.set(server, new Date())
     } catch (error) {
       console.error('Error updating sites:', error)
@@ -465,7 +486,10 @@ export class Client {
       )
       const response = await fetch(request)
 
-      const body: JobPollResponse = await response.json()
+      const wire = (await response.json()) as PollResponse
+      // Wire JobItem ({id, url, issued_at}) is narrower than the local
+      // JobParameters shape consumers expect. Coerce until server is extended.
+      const body = wire as unknown as JobPollResponse
 
       if (body.refetch?.includes('sites')) {
         log({
@@ -615,6 +639,13 @@ export interface ShoalClientOptions {
   onSitesUpdated?(server: ServerDefinition, sites: SiteSpec[]): void
   onPatches?: (result: ScrapeResult) => void
 }
+
+export type HeartbeatStatus =
+  | { status: 'ok' }
+  | { status: 'unauthorized'; httpStatus: number }
+  | { status: 'unreachable'; error: string }
+  | { status: 'unconfigured' }
+  | { status: 'error'; httpStatus: number }
 
 export interface ServerDefinition {
   id: string

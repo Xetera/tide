@@ -13,6 +13,7 @@
     "lint": "oxlint --fix && oxfmt --write .",
     "test": "vitest --no-isolate",
     "schema": "jiti src/scripts/schema.ts",
+    "api:types": "node scripts/generate-shoal-api-types.mjs",
     "ohm": "pnpm exec ohm generateBundles --withTypes 'src/**/*.ohm'",
     "push:android": "bash scripts/push-android.sh"
   },
@@ -63,6 +64,7 @@
     "jsdom": "^29.0.0",
     "kolorist": "^1.8.0",
     "msw": "^2.12.12",
+    "openapi-typescript": "^7.13.0",
     "oxfmt": "^0.41.0",
     "oxlint": "^1.61.0",
     "schema-dts": "^2.0.0",

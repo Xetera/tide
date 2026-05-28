@@ -77,13 +77,19 @@ class PageRuleRunner {
           url,
           funnel: this.rule.name,
           file: this.rule.file,
+          format: 'htmlegy',
+          label: this.rule.label,
         },
       })
     }
 
     if (this.#fn.isReactive) {
       const reactive = this.#fn.reactive(doc.documentElement)
+      let lastSerialized: string | null = null
       this.#dispose = reactive.subscribe((value) => {
+        const serialized = JSON.stringify(value)
+        if (serialized === lastSerialized) return
+        lastSerialized = serialized
         this.#pendingReset = true
         emit(value)
       })

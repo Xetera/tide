@@ -1,4 +1,5 @@
 ---
+name: "Media Info"
 method: GET
 url: "/api/v1/media/*/info/"
 ---

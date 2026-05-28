@@ -1,4 +1,5 @@
 ---
+name: "Comments"
 method: GET
 url: "/api/v1/media/*/comments/"
 ---

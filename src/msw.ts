@@ -1,18 +1,19 @@
 import { setupServer } from 'msw/node'
 import { HttpResponse, http } from 'msw'
-import type { JobPollResponse, SitesResponse } from './site-spec/types'
+import type { PollResponse, WorkerSitesResponse } from './server/api'
 import { TEST_URL_ENDPOINT } from './setup-tools'
 
 export const restHandlers = [
   http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/workers/me/sites`, () => {
-    return HttpResponse.json<SitesResponse>({
+    return HttpResponse.json<WorkerSitesResponse>({
       name: 'test',
       sites: [],
     })
   }),
   http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/workers/me/jobs`, () => {
-    return HttpResponse.json<JobPollResponse>({
+    return HttpResponse.json<PollResponse>({
       jobs: [],
+      refetch: [],
     })
   }),
 ]

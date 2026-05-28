@@ -7,8 +7,8 @@ export type {
   Field,
   MatchArm,
   Source,
-  SimplePipeline,
-  PipelineTail,
+  Chain,
+  ChainStep,
   PipeOp,
   PipeArg,
 } from './parser'

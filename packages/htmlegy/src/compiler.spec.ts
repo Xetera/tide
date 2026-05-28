@@ -206,7 +206,7 @@ describe('object fields', () => {
     expect(run('{ [$(h1) | text]: "value" }', root)).toEqual({ Hello: 'value' })
   })
 
-  it('spreads a pipeline result object into the parent object', () => {
+  it('spreads a chain result object into the parent object', () => {
     const result = run('{ ($(a) { "href":  $ | attr(href) }) }', root)
     expect(result).toEqual({ href: '/path' })
   })
@@ -266,7 +266,7 @@ describe('$ single selector required', () => {
     expect(() => run('$(missing) | text', root)).toThrow(/matched nothing/)
   })
 
-  it('uses fallback pipeline when required selector throws', () => {
+  it('uses fallback when required selector throws', () => {
     expect(run('$(missing) | text ?? $(h1) | text', root)).toBe('Hello')
   })
 })
@@ -276,7 +276,7 @@ describe('$ single selector optional', () => {
     expect(run('{ "x": $(missing)? | text }', root)).toEqual({})
   })
 
-  it('uses fallback pipeline when optional result is null', () => {
+  it('uses fallback when optional result is null', () => {
     expect(run('$(missing)? | text ?? $(h1) | text', root)).toBe('Hello')
   })
 })
@@ -349,6 +349,38 @@ describe('match expression', () => {
 
   it('returns undefined when no arm matches and there is no fallback', () => {
     expect(run('match { $(missing) =>  $ | text }', root)).toBeUndefined()
+  })
+})
+
+describe('scoped match expression', () => {
+  it('resolves scoped element and passes it to fallback arm as context', () => {
+    expect(run('match $(h1) { _ => $ | text }', root)).toBe('Hello')
+  })
+
+  it('returns undefined when the scoped selector matches nothing', () => {
+    expect(run('match $(missing) { _ => "never" }', root)).toBeUndefined()
+  })
+
+  it('fires a call arm when the condition is truthy', () => {
+    expect(
+      run('match $(a) { attr($, "href") => $ | text _ => "no" }', root),
+    ).toBe('click')
+  })
+
+  it('skips a call arm when the condition is null and falls through to fallback', () => {
+    expect(
+      run('match $(h1) { attr($, "href") => "linked" _ => "no href" }', root),
+    ).toBe('no href')
+  })
+
+  it('falls through all call arms when all conditions are falsy', () => {
+    expect(
+      run('match $(h1) { attr($, "href") => "a" attr($, "id") => "b" _ => "none" }', root),
+    ).toBe('none')
+  })
+
+  it('returns undefined when all call arms are falsy and there is no fallback', () => {
+    expect(run('match $(h1) { attr($, "href") => "a" }', root)).toBeUndefined()
   })
 })
 

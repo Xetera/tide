@@ -7,9 +7,9 @@ describe('parse', () => {
     expect(expr.kind).toBe('object')
   })
 
-  it('parses a pipeline expression', () => {
+  it('parses a chain expression', () => {
     const expr = parse('$(h1) | text')
-    expect(expr.kind).toBe('pipeline')
+    expect(expr.kind).toBe('fallback_expr')
   })
 
   it('parses an array expression', () => {

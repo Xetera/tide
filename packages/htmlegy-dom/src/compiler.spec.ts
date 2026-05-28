@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createExpr } from './index'
 
 function dom(html: string): Document {
@@ -478,11 +478,13 @@ describe('conditional ?', () => {
 })
 
 describe('watch', () => {
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
   it('exposes reactive interface', () => {
     const expr = createExpr('watch $$(li) { "v": $ | text }')
     expect(expr.isReactive).toBe(true)
   })
-
 
   it('emits initial value on subscribe', () => {
     const doc = dom('<ul><li>a</li><li>b</li></ul>')
@@ -506,7 +508,7 @@ describe('watch', () => {
     li.textContent = 'b'
     doc.body.querySelector('ul')!.appendChild(li)
 
-    await new Promise((r) => setTimeout(r, 0))
+    await vi.runAllTimersAsync()
     expect(cb).toHaveBeenLastCalledWith([{ v: 'a' }, { v: 'b' }])
   })
 
@@ -528,7 +530,7 @@ describe('watch', () => {
     li.appendChild(a)
     doc.body.querySelector('ul')!.appendChild(li)
 
-    await new Promise((r) => setTimeout(r, 0))
+    await vi.runAllTimersAsync()
     expect(cb).toHaveBeenLastCalledWith([
       { id: '1', link: '/a' },
       { id: '2', link: '/b' },
@@ -553,7 +555,7 @@ describe('watch', () => {
     e.textContent = 'e'
     ul.appendChild(e)
 
-    await new Promise((r) => setTimeout(r, 0))
+    await vi.runAllTimersAsync()
     expect(cb).toHaveBeenCalledTimes(2)
     expect(cb).toHaveBeenLastCalledWith([{ v: 'c' }, { v: 'd' }, { v: 'e' }])
   })
@@ -571,7 +573,7 @@ describe('watch', () => {
     li.textContent = 'b'
     doc.body.querySelector('ul')!.appendChild(li)
 
-    await new Promise((r) => setTimeout(r, 0))
+    await vi.runAllTimersAsync()
     expect(cb).toHaveBeenCalledTimes(1)
   })
 
@@ -585,10 +587,9 @@ describe('watch', () => {
 
     doc.body.querySelector('li')!.textContent = 'changed'
 
-    await new Promise((r) => setTimeout(r, 0))
+    await vi.runAllTimersAsync()
     expect(cb).toHaveBeenLastCalledWith([{ v: 'changed' }])
   })
-
 
   it('re-emits when a matched element attribute changes', async () => {
     const doc = dom('<ul><li data-val="x">a</li></ul>')
@@ -600,7 +601,7 @@ describe('watch', () => {
 
     doc.body.querySelector('li')!.setAttribute('data-val', 'y')
 
-    await new Promise((r) => setTimeout(r, 0))
+    await vi.runAllTimersAsync()
     expect(cb).toHaveBeenLastCalledWith([{ v: 'y' }])
   })
 
@@ -616,7 +617,7 @@ describe('watch', () => {
     li.textContent = 'b'
     doc.body.querySelector('ul')!.appendChild(li)
 
-    await new Promise((r) => setTimeout(r, 0))
+    await vi.runAllTimersAsync()
     expect(reactive.get()).toEqual([{ v: 'a' }, { v: 'b' }])
   })
 
@@ -634,7 +635,7 @@ describe('watch', () => {
     li.textContent = 'b'
     doc.body.querySelector('ul')!.appendChild(li)
 
-    await new Promise((r) => setTimeout(r, 0))
+    await vi.runAllTimersAsync()
     expect(cb1).toHaveBeenLastCalledWith([{ v: 'a' }, { v: 'b' }])
     expect(cb2).toHaveBeenLastCalledWith([{ v: 'a' }, { v: 'b' }])
   })
@@ -656,7 +657,7 @@ describe('watch', () => {
     li.textContent = 'b'
     doc.body.querySelector('ul')!.appendChild(li)
 
-    await new Promise((r) => setTimeout(r, 0))
+    await vi.runAllTimersAsync()
     expect(cb2).toHaveBeenLastCalledWith([{ v: 'a' }, { v: 'b' }])
     expect(cb).toHaveBeenCalledTimes(1)
   })
@@ -678,7 +679,7 @@ describe('watch', () => {
     newWrap.appendChild(newUl)
     doc.body.replaceChild(newWrap, doc.body.querySelector('#wrap')!)
 
-    await new Promise((r) => setTimeout(r, 0))
+    await vi.runAllTimersAsync()
     expect(cb).toHaveBeenLastCalledWith([{ v: 'b' }])
   })
 
@@ -698,7 +699,7 @@ describe('watch', () => {
     li.textContent = 'b'
     wrap.querySelector('ul')!.appendChild(li)
 
-    await new Promise((r) => setTimeout(r, 0))
+    await vi.runAllTimersAsync()
     expect(cb).toHaveBeenLastCalledWith([{ v: 'a' }, { v: 'b' }])
   })
 
@@ -719,7 +720,7 @@ describe('watch', () => {
     li.textContent = 'b'
     list.appendChild(li)
 
-    await new Promise((r) => setTimeout(r, 0))
+    await vi.runAllTimersAsync()
     expect(cb).toHaveBeenLastCalledWith([{ v: 'a' }, { v: 'b' }])
   })
 
@@ -735,8 +736,66 @@ describe('watch', () => {
 
     doc.body.querySelector('span')!.textContent = 'world'
 
-    await new Promise((r) => setTimeout(r, 0))
+    await vi.runAllTimersAsync()
     expect(cb).toHaveBeenLastCalledWith({ v: 'world' })
+  })
+
+  it('re-emits after all page content is removed and re-added', async () => {
+    const doc = dom('<div><ul><li>a</li><li>b</li></ul></div>')
+    const reactive = createExpr(
+      '$(div) { "test": watch $$(ul > li) { "v": $ | text } }',
+    ).reactive(doc.body)
+    const cb = vi.fn()
+    reactive.subscribe(cb)
+
+    expect(cb).toHaveBeenCalledWith({ test: [{ v: 'a' }, { v: 'b' }] })
+
+    const div = doc.body.querySelector('div')!
+    doc.body.removeChild(div)
+
+    const newDiv = doc.createElement('div')
+    const newUl = doc.createElement('ul')
+    const liA = doc.createElement('li')
+    liA.textContent = 'a'
+    const liB = doc.createElement('li')
+    liB.textContent = 'b'
+    newUl.appendChild(liA)
+    newUl.appendChild(liB)
+    newDiv.appendChild(newUl)
+    doc.body.appendChild(newDiv)
+
+    await vi.runAllTimersAsync()
+    expect(cb).toHaveBeenCalledTimes(2)
+    expect(cb).toHaveBeenLastCalledWith({
+      test: [{ v: 'a' }, { v: 'b' }],
+    })
+  })
+
+  it('does not re-emit when a DOM mutation produces structurally identical output', async () => {
+    const doc = dom('<ul><li>a</li></ul>')
+    const reactive = createExpr('watch $$(ul > li) { "v": $ | text }').reactive(
+      doc.body,
+    )
+    const cb = vi.fn()
+    let lastSerialized: string | null = null
+    reactive.subscribe((value) => {
+      const serialized = JSON.stringify(value)
+      if (serialized === lastSerialized) return
+      lastSerialized = serialized
+      cb(value)
+    })
+
+    expect(cb).toHaveBeenCalledTimes(1)
+
+    const ul = doc.body.querySelector('ul')!
+    const existing = ul.querySelector('li')!
+    ul.removeChild(existing)
+    const replacement = doc.createElement('li')
+    replacement.textContent = 'a'
+    ul.appendChild(replacement)
+
+    await vi.runAllTimersAsync()
+    expect(cb).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -779,6 +838,7 @@ describe('await', () => {
   })
 
   it('await watch: waits for first li > .item to appear, then tracks subsequent additions', async () => {
+    vi.useFakeTimers()
     const doc = dom('<div id="app"></div>')
     const reactive = createExpr(
       'await watch $$(li > .item)+ { "v": $ | text }',
@@ -787,8 +847,6 @@ describe('await', () => {
     reactive.subscribe(cb)
 
     expect(cb).not.toHaveBeenCalled()
-
-    await new Promise((r) => setTimeout(r, 10))
 
     const ul = doc.createElement('ul')
     const li = doc.createElement('li')
@@ -799,7 +857,7 @@ describe('await', () => {
     ul.appendChild(li)
     doc.body.querySelector('#app')!.appendChild(ul)
 
-    await new Promise((r) => setTimeout(r, 0))
+    await vi.runAllTimersAsync()
     expect(cb).toHaveBeenCalledWith([{ v: 'first' }])
 
     const li2 = doc.createElement('li')
@@ -809,8 +867,9 @@ describe('await', () => {
     li2.appendChild(item2)
     ul.appendChild(li2)
 
-    await new Promise((r) => setTimeout(r, 0))
+    await vi.runAllTimersAsync()
     expect(cb).toHaveBeenLastCalledWith([{ v: 'first' }, { v: 'second' }])
+    vi.useRealTimers()
   })
 
   it('resolves only once (not on subsequent mutations)', async () => {

@@ -3,7 +3,7 @@ HTMLegy {
     = Array
     | Object
     | Match
-    | Pipeline
+    | FallbackExpr
     | Literal
 
   FuncCall = ident "(" Expr ("," PipeArg)* ","? ")"
@@ -13,20 +13,26 @@ HTMLegy {
   Object = "{" ListOf<Field, ","?> ","? "}"
 
   Field
-    = "[" Pipeline "]" ":" Expr  -- dynamic
-    | stringLit ":" Expr         -- static
-    | "(" Pipeline ")"           -- expr
+    = "[" FallbackExpr "]" ":" Expr  -- dynamic
+    | stringLit ":" Expr              -- static
+    | "(" FallbackExpr ")"            -- expr
 
-  Match = "match" "{" MatchArm* "}"
+  Match
+    = "match" SingleSelector "{" ScopedMatchArm* "}"  -- scoped
+    | "match" "{" MatchArm* "}"                        -- plain
+
+  ScopedMatchArm
+    = FuncCall "=>" Expr  -- call
+    | ident    "=>" Expr  -- fallback
 
   MatchArm
     = EachSelector   "=>" Expr  -- each
     | SingleSelector "=>" Expr  -- selector
     | ident "=>" Expr           -- fallback
 
-  Pipeline = SimplePipeline ("??" SimplePipeline)?
+  FallbackExpr = Chain ("??" Chain)?
 
-  SimplePipeline = Source PipelineTail*
+  Chain = Source ChainStep*
 
   Source
     = "watch" Source                                       -- watch
@@ -53,7 +59,7 @@ HTMLegy {
     | "(" selectorBody ")"       -- nested
     | ~")" any                   -- other
 
-  PipelineTail
+  ChainStep
     = PipeTransform
     | Block
     | Conditional

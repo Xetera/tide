@@ -1,4 +1,5 @@
 ---
+name: "Home Timeline"
 method: POST
 url: "/i/api/graphql/*/HomeTimeline"
 ---

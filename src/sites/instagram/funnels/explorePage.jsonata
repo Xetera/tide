@@ -1,4 +1,5 @@
 ---
+name: "Explore Page"
 method: GET
 url: "/api/v1/discover/web/explore_grid/"
 ---

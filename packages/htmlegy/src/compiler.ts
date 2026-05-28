@@ -5,8 +5,8 @@ import type {
   Field,
   MatchArm,
   Source,
-  SimplePipeline,
-  PipelineTail,
+  Chain,
+  ChainStep,
   PipeOp,
   PipeArg,
 } from './parser'
@@ -63,11 +63,47 @@ function hasReactiveSource(src: Source): boolean {
   return src.kind === 'watch' || src.kind === 'await'
 }
 
-function isReactive(expr: Expr): expr is Expr & { kind: 'pipeline' } {
-  if (expr.kind !== 'pipeline') {
-    return false
+function exprContainsReactive(expr: Expr): boolean {
+  switch (expr.kind) {
+    case 'fallback_expr':
+      return (
+        hasReactiveSource(expr.primary.source) ||
+        chainStepsContainReactive(expr.primary.tail) ||
+        (expr.fallback != null &&
+          (hasReactiveSource(expr.fallback.source) ||
+            chainStepsContainReactive(expr.fallback.tail)))
+      )
+    case 'object':
+      return expr.fields.some((f) => exprContainsReactive(f.value))
+    case 'array':
+      return expr.items.some(exprContainsReactive)
+    case 'match':
+      return expr.arms.some((arm) => exprContainsReactive(arm.body))
+    case 'literal':
+      return false
   }
-  return hasReactiveSource(expr.primary.source)
+}
+
+function chainStepsContainReactive(tails: ChainStep[]): boolean {
+  return tails.some((t) => {
+    if (t.kind === 'block') {
+      return t.fields.some((f) => exprContainsReactive(f.value))
+    }
+    if (t.kind === 'conditional') {
+      return (
+        exprContainsReactive(t.then_) ||
+        (t.else_ != null && exprContainsReactive(t.else_))
+      )
+    }
+    if (t.kind === 'scoped_expr') {
+      return exprContainsReactive(t.expr)
+    }
+    return false
+  })
+}
+
+function isReactive(expr: Expr): boolean {
+  return exprContainsReactive(expr)
 }
 
 function unwrapSource(src: Source): Source {
@@ -126,34 +162,40 @@ class Evaluator<N> {
       }
       case 'object':
         return this.evalFields(expr.fields, el, env, ctx)
-      case 'match':
+      case 'match': {
+        if (expr.source !== null) {
+          const scoped = this.#provider.querySelector(el, expr.source) ?? null
+          if (scoped === null) return undefined
+          return this.evalMatch(expr.arms, el, env, ctx, scoped)
+        }
         return this.evalMatch(expr.arms, el, env, ctx)
-      case 'pipeline': {
+      }
+      case 'fallback_expr': {
         let primary: unknown
         try {
-          primary = this.evalPipelineTail(expr.primary, el, env, ctx)
+          primary = this.evalChain(expr.primary, el, env, ctx)
         } catch (e) {
           if (e instanceof SelectorError && expr.fallback) {
-            return this.evalPipelineTail(expr.fallback, el, env, ctx)
+            return this.evalChain(expr.fallback, el, env, ctx)
           }
           throw e
         }
         if ((primary == null || primary === OMIT) && expr.fallback) {
-          return this.evalPipelineTail(expr.fallback, el, env, ctx)
+          return this.evalChain(expr.fallback, el, env, ctx)
         }
         return primary
       }
     }
   }
 
-  evalPipelineTail(
-    expr: SimplePipeline,
+  evalChain(
+    expr: Chain,
     root: N,
     env: Env<N>,
     ctx: EvalContext,
   ): unknown {
     const unwrapped = unwrapSource(expr.source)
-    return this.evalPipeline(
+    return this.evalChainSteps(
       { source: unwrapped, tail: expr.tail },
       root,
       env,
@@ -197,19 +239,32 @@ class Evaluator<N> {
     el: N,
     env: Env<N>,
     ctx: EvalContext,
+    scopedEl?: N,
   ): unknown {
+    const subject = scopedEl ?? el
     for (const arm of arms) {
       if (arm.kind === 'fallback') {
-        return this.evalExpr(arm.body, el, env, ctx)
+        return this.evalExpr(arm.body, subject, env, ctx)
+      }
+      if (arm.kind === 'call') {
+        const condValue = this.applyPipeOp(
+          { name: arm.name, args: arm.args },
+          this.evalExpr(arm.expr, subject, env, ctx),
+        )
+        const truthy = condValue != null && condValue !== false && condValue !== ''
+        if (truthy) {
+          return this.evalExpr(arm.body, subject, env, ctx)
+        }
+        continue
       }
       if (arm.kind === 'each') {
-        const els = this.#provider.querySelectorAll(el, arm.selector)
+        const els = this.#provider.querySelectorAll(subject, arm.selector)
         if (els.length === 0) {
           continue
         }
         return els.map((child) => this.evalExpr(arm.body, child, env, ctx))
       }
-      const child = this.#provider.querySelector(el, arm.selector)
+      const child = this.#provider.querySelector(subject, arm.selector)
       if (child) {
         return this.evalExpr(arm.body, child, env, ctx)
       }
@@ -217,8 +272,8 @@ class Evaluator<N> {
     return undefined
   }
 
-  private evalPipeline(
-    expr: { source: Source; tail: PipelineTail[] },
+  private evalChainSteps(
+    expr: { source: Source; tail: ChainStep[] },
     el: N,
     env: Env<N>,
     ctx: EvalContext,
@@ -488,6 +543,20 @@ class Evaluator<N> {
     onValue(root)
     return () => {}
   }
+
+  collectReactiveSources(
+    expr: Expr,
+    root: N,
+    onFire: () => void,
+  ): () => void {
+    const topLevelSource =
+      expr.kind === 'fallback_expr' ? expr.primary.source : null
+    if (topLevelSource && hasReactiveSource(topLevelSource)) {
+      return this.setupReactiveSource(topLevelSource, root, () => onFire())
+    }
+    onFire()
+    return this.#provider.watch(root, null, onFire)
+  }
 }
 
 export class HtmlegyExpr<N> {
@@ -521,11 +590,7 @@ export class HtmlegyExpr<N> {
         'expression does not contain a reactive source (watch/await)',
       )
     }
-    return buildReactive(
-      this.#ast as Expr & { kind: 'pipeline' },
-      root,
-      this.#evaluator,
-    )
+    return buildReactive(this.#ast, root, this.#evaluator)
   }
 
   get isReactive(): boolean {
@@ -534,7 +599,7 @@ export class HtmlegyExpr<N> {
 }
 
 function buildReactive<N>(
-  expr: Expr & { kind: 'pipeline' },
+  expr: Expr,
   root: N,
   ev: Evaluator<N>,
 ): ReactiveExpr {
@@ -553,15 +618,16 @@ function buildReactive<N>(
     }
   }
 
+  function reeval() {
+    emit(ev.evalExpr(expr, root, env, ctx))
+  }
+
   function start() {
     if (started) {
       return
     }
     started = true
-    dispose = ev.setupReactiveSource(expr.primary.source, root, (el) => {
-      const result = ev.evalPipelineTail(expr.primary, el, env, ctx)
-      emit(result)
-    })
+    dispose = ev.collectReactiveSources(expr, root, reeval)
   }
 
   return {

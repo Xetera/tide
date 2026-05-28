@@ -1,4 +1,5 @@
 ---
+name: "Listing Page"
 url: "/ilan/*/detay"
 ---
 [

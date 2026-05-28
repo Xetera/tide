@@ -1,4 +1,5 @@
 ---
+name: "Map Hover"
 method: GET
 url: "/ajax/mapSearch/classified/markers/*"
 ---

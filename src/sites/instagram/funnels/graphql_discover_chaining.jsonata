@@ -1,4 +1,5 @@
 ---
+name: "Discover Chaining"
 method: POST
 url: "/graphql/query"
 ---

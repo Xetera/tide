@@ -1,4 +1,5 @@
 ---
+name: "Stories"
 method: POST
 url: "/graphql/query"
 ---

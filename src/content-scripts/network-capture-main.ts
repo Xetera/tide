@@ -5,6 +5,7 @@ interface FunnelEntry {
   file: string
   source: string
   format: 'jsonata' | 'htmlegy'
+  label?: string
 }
 
 interface FunnelRegistration {
@@ -83,7 +84,7 @@ async function processCapture(capture: QueuedCapture) {
       continue
     }
 
-    for (const { file, source: expr } of funnel.funnels) {
+    for (const { file, source: expr, label } of funnel.funnels) {
       try {
         let json: unknown
         try {
@@ -110,6 +111,7 @@ async function processCapture(capture: QueuedCapture) {
             name,
             site: funnel.site,
             file,
+            label,
             result,
             url,
             body: rawBody,

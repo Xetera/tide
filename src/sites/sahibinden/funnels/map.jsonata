@@ -1,4 +1,5 @@
 ---
+name: "Map"
 method: GET
 url: "/ajax/mapSearch/classified/markers"
 ---

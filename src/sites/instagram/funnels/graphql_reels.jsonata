@@ -1,4 +1,5 @@
 ---
+name: "Reels"
 method: POST
 url: "/graphql/query"
 ---
