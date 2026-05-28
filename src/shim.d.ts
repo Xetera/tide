@@ -54,11 +54,16 @@ declare module 'webext-bridge' {
       capturedAt: number
     }
     'get-captures': ProtocolWithReturn<
-      {
-        hostname: string
-        request?: { method: string; url: string | string[] }
-      },
+      { hostname: string },
       CaptureEntry[]
+    >
+    'set-recording': ProtocolWithReturn<
+      { hostname: string; enabled: boolean },
+      void
+    >
+    'get-recording': ProtocolWithReturn<
+      void,
+      { hostname: string; enabled: boolean } | null
     >
     'generate-spec': ProtocolWithReturn<GenerationRequest, GenerationResult>
     'match-capture': ProtocolWithReturn<

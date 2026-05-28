@@ -5,7 +5,7 @@ import manifest from './manifest'
 import tailwindcss from '@tailwindcss/vite'
 import { r } from './src/scripts'
 import devtools from 'solid-devtools/vite'
-import { writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { execSync, spawn } from 'node:child_process'
 import type { Plugin } from 'vite'
@@ -80,8 +80,35 @@ export default defineConfig({
       name: 'tide-source-hmr',
       enforce: 'pre',
       configureServer(server) {
+        const srcDir = resolve(__dirname, 'src')
         server.watcher.add('src/**/*.jsonata')
         server.watcher.add('src/**/*.htmlegy')
+        const isFunnel = (file: string) =>
+          (file.endsWith('.jsonata') || file.endsWith('.htmlegy')) &&
+          file.startsWith(srcDir)
+        server.watcher.on('add', async (file) => {
+          if (!isFunnel(file)) {
+            return
+          }
+          const content = await readFile(file, 'utf-8')
+          const relPath = file.slice(srcDir.length + 1)
+          server.hot.send({
+            type: 'custom',
+            event: 'tide:source-update',
+            data: { path: relPath, content },
+          })
+        })
+        server.watcher.on('unlink', (file) => {
+          if (!isFunnel(file)) {
+            return
+          }
+          const relPath = file.slice(srcDir.length + 1)
+          server.hot.send({
+            type: 'custom',
+            event: 'tide:source-remove',
+            data: { path: relPath },
+          })
+        })
       },
       async handleHotUpdate({ file, server, read }) {
         if (!file.endsWith('.jsonata') && !file.endsWith('.htmlegy')) {

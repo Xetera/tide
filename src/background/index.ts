@@ -24,7 +24,7 @@ import { JsonataExpression } from '~/extraction/jsonata-bindings'
 import type { CaptureEntry, FunnelMatchResult } from '~/generation/types'
 import { runGenerationLoop, runHtmlegyGenerationLoop } from '~/generation/llm'
 import { funnelProvider } from '~/site-spec/funnel-loader'
-import { getRecording, isRecordingFor } from '~/shared/recording'
+import { getRecording, isRecordingFor, setRecording } from '~/shared/recording'
 
 const storage = new Storage<BrowserStorageSchema>()
 
@@ -157,6 +157,13 @@ log({
       scope: 'pool',
       text: 'background: init IIFE entered',
     })
+    try {
+      await chrome.storage.session.setAccessLevel({
+        accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS',
+      })
+    } catch (err) {
+      console.warn('[tide] failed to widen session storage access', err)
+    }
     const cst = new ContentScriptTracker()
     chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
       url: origins.map((origin) => ({ hostContains: origin })),
@@ -310,6 +317,12 @@ log({
     })
     onMessage('get-captures', async ({ data }) => {
       return getCapturesForHostname(data.hostname)
+    })
+    onMessage('get-recording', async () => {
+      return await getRecording()
+    })
+    onMessage('set-recording', async ({ data }) => {
+      await setRecording({ hostname: data.hostname, enabled: data.enabled })
     })
     onMessage('match-capture', async ({ data }) => {
       const capture = await getCaptureById(data.captureId)

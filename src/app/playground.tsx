@@ -47,6 +47,8 @@ interface NewFunnelForm {
 interface PlaygroundState {
   funnels: () => FunnelInfo[]
   funnelsLoading: () => boolean
+  refreshFunnels: () => Promise<void>
+  funnelsRefreshing: () => boolean
   selectedFunnel: () => FunnelInfo | null
   selectFunnel: (f: FunnelInfo) => void
   sites: () => SiteGroup[]
@@ -103,6 +105,9 @@ interface PlaygroundState {
   setNewFunnelName: (name: string) => void
   setNewFunnelFormat: (format: 'jsonata' | 'htmlegy') => void
   submitNewFunnel: () => void
+  recordingHostname: () => string | null
+  isRecording: () => boolean
+  toggleRecording: () => void
 }
 
 const PlaygroundContext = createContext<PlaygroundState>()
@@ -217,14 +222,32 @@ function FunnelGroupRow({
 }
 
 function FunnelSidebar() {
-  const { funnelsLoading, sites, newFunnelForm, openNewFunnelForm } =
-    usePlayground()
+  const {
+    funnelsLoading,
+    sites,
+    newFunnelForm,
+    openNewFunnelForm,
+    refreshFunnels,
+    funnelsRefreshing,
+  } = usePlayground()
   return (
     <Resizable.Panel
       initialSize={0.15}
       minSize={0.1}
       class='border-r border-border overflow-y-auto flex flex-col'
     >
+      <div class='px-3 py-1.5 border-b border-border flex items-center justify-between sticky top-0 bg-background z-10'>
+        <span class='text-xs text-muted-foreground'>Funnels</span>
+        <button
+          type='button'
+          onClick={() => void refreshFunnels()}
+          disabled={funnelsRefreshing()}
+          class='text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50'
+          title='Refresh funnels from disk'
+        >
+          {funnelsRefreshing() ? '...' : '↻'}
+        </button>
+      </div>
       <Show when={funnelsLoading()}>
         <p class='text-xs text-muted-foreground p-3'>Loading...</p>
       </Show>
@@ -586,6 +609,9 @@ function InputPanel() {
     fixtureJson,
     captures,
     captureJson,
+    recordingHostname,
+    isRecording,
+    toggleRecording,
   } = usePlayground()
 
   return (
@@ -796,6 +822,35 @@ function InputPanel() {
 
       <Show when={!isHtmlegy() && inputTab() === 'capture'}>
         <div class='flex flex-col overflow-hidden flex-1'>
+          <div class='border-b border-border flex items-center gap-2 px-2 py-1.5 shrink-0'>
+            <button
+              type='button'
+              onClick={toggleRecording}
+              disabled={!recordingHostname()}
+              class={`flex items-center gap-1.5 px-2 py-1 text-xs font-mono rounded border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                isRecording()
+                  ? 'border-red-500/40 text-red-500 bg-red-500/10 hover:bg-red-500/15'
+                  : 'border-border text-muted-foreground hover:bg-accent'
+              }`}
+              title={
+                recordingHostname()
+                  ? isRecording()
+                    ? `Recording ${recordingHostname()}`
+                    : `Start recording ${recordingHostname()}`
+                  : 'No hostname selected'
+              }
+            >
+              <span
+                class={`inline-block w-2 h-2 rounded-full ${
+                  isRecording() ? 'bg-red-500 animate-pulse' : 'bg-current opacity-50'
+                }`}
+              />
+              {isRecording() ? 'Recording' : 'Record'}
+            </button>
+            <span class='text-xs text-muted-foreground truncate'>
+              {recordingHostname() ?? 'no hostname'}
+            </span>
+          </div>
           <div class='border-b border-border flex flex-col gap-0.5 p-1.5 shrink-0'>
             <For
               each={captures()}
@@ -1030,6 +1085,7 @@ function NewFunnelPanel() {
 function Playground() {
   const [funnels, setFunnels] = createSignal<FunnelInfo[]>([])
   const [funnelsLoading, setFunnelsLoading] = createSignal(true)
+  const [funnelsRefreshing, setFunnelsRefreshing] = createSignal(false)
   const [selectedFunnel, setSelectedFunnel] = createSignal<FunnelInfo | null>(
     null,
   )
@@ -1083,6 +1139,10 @@ function Playground() {
   const [newFunnelForm, setNewFunnelForm] = createSignal<NewFunnelForm | null>(
     null,
   )
+  const [recordingState, setRecordingState] = createSignal<{
+    hostname: string
+    enabled: boolean
+  } | null>(null)
   let iframeRef: HTMLIFrameElement | undefined
 
   const isHtmlegy = () => selectedFunnel()?.format === 'htmlegy'
@@ -1124,15 +1184,11 @@ function Playground() {
     iframeRef.src = url
   }
 
-  async function refreshCaptures(
-    hostname: string,
-    request?: { method: string; url: string | string[] },
-    flash = true,
-  ) {
+  async function refreshCaptures(hostname: string, flash = true) {
     try {
       const entries = await sendMessage(
         'get-captures',
-        { hostname, request },
+        { hostname },
         { context: 'background', tabId: 0 },
       )
       if (flash) {
@@ -1160,13 +1216,12 @@ function Playground() {
   }
 
   async function refreshFunnels() {
+    setFunnelsRefreshing(true)
     try {
-      console.log('REFRESHINGGGGGGGGGG FUNNEL!!!')
       const fresh = await sendMessage('get-funnels', undefined, {
         context: 'background',
         tabId: 0,
       })
-      console.log('REFRESHED FUNNEL!!!')
       setFunnels((prev) => {
         if (
           prev.length === fresh.length &&
@@ -1196,6 +1251,8 @@ function Playground() {
       })
     } catch (err) {
       console.error('[tide] refreshFunnels failed', err)
+    } finally {
+      setFunnelsRefreshing(false)
     }
   }
 
@@ -1218,6 +1275,31 @@ function Playground() {
     onCleanup(() =>
       chrome.storage.local.onChanged.removeListener(onStorageChanged),
     )
+
+    const onSessionChanged = (
+      changes: Record<string, chrome.storage.StorageChange>,
+    ) => {
+      if (changes['recording:state']) {
+        setRecordingState(
+          (changes['recording:state'].newValue as {
+            hostname: string
+            enabled: boolean
+          } | null) ?? null,
+        )
+      }
+    }
+    chrome.storage.session.onChanged.addListener(onSessionChanged)
+    onCleanup(() =>
+      chrome.storage.session.onChanged.removeListener(onSessionChanged),
+    )
+    chrome.storage.session.get({ 'recording:state': null }).then((res) => {
+      setRecordingState(
+        (res['recording:state'] as {
+          hostname: string
+          enabled: boolean
+        } | null) ?? null,
+      )
+    })
 
     const tabs = await chrome.tabs.query({ windowType: 'normal' })
     const extensionOrigin = new URL(chrome.runtime.getURL('')).origin
@@ -1248,15 +1330,11 @@ function Playground() {
 
   createEffect(() => {
     const hostname = effectiveHostname()
-    const request = selectedFunnel()?.request
     if (!hostname) {
       return
     }
-    refreshCaptures(hostname, request, false)
-    const interval = setInterval(
-      () => refreshCaptures(hostname, selectedFunnel()?.request),
-      2000,
-    )
+    refreshCaptures(hostname, false)
+    const interval = setInterval(() => refreshCaptures(hostname), 2000)
     onCleanup(() => clearInterval(interval))
   })
 
@@ -1672,6 +1750,8 @@ function Playground() {
   const ctx: PlaygroundState = {
     funnels,
     funnelsLoading,
+    refreshFunnels,
+    funnelsRefreshing,
     selectedFunnel,
     selectFunnel,
     sites,
@@ -1738,6 +1818,26 @@ function Playground() {
     setNewFunnelName,
     setNewFunnelFormat,
     submitNewFunnel,
+    recordingHostname: () => effectiveHostname(),
+    isRecording: () => {
+      const r = recordingState()
+      const host = effectiveHostname()
+      if (!r || !host) {
+        return false
+      }
+      return r.enabled && r.hostname === host
+    },
+    toggleRecording: () => {
+      const host = effectiveHostname()
+      if (!host) {
+        return
+      }
+      const next =
+        !(recordingState()?.enabled && recordingState()?.hostname === host)
+      void chrome.storage.session.set({
+        'recording:state': { hostname: host, enabled: next },
+      })
+    },
   }
 
   return (

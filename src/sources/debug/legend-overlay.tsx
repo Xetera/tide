@@ -4,6 +4,13 @@ import { sendMessage } from 'webext-bridge/content-script'
 import { Storage } from '~/shared/storage'
 import type { BrowserStorageSchema } from '~/shared/storage'
 import type { Funnel } from '~/site-spec/types'
+import {
+  getRecording,
+  isRecordingFor,
+  onRecordingChanged,
+  setRecording,
+  type RecordingValue,
+} from '~/shared/recording'
 
 const legendStorage = new Storage<BrowserStorageSchema>()
 
@@ -122,6 +129,26 @@ const LEGEND_CSS = `
     line-height: 1; display: flex; align-items: center;
   }
   .playground-btn:hover { color: light-dark(oklch(0.2 0 0), oklch(0.9 0 0)); }
+  .record-btn {
+    background: none; border: none; padding: 0 2px; cursor: pointer;
+    color: light-dark(oklch(0.45 0 0), oklch(0.6 0 0));
+    line-height: 1; display: flex; align-items: center;
+  }
+  .record-btn:hover { color: light-dark(oklch(0.2 0 0), oklch(0.9 0 0)); }
+  .record-dot {
+    display: block; width: 8px; height: 8px; border-radius: 50%;
+    background: light-dark(oklch(0.5 0 0 / 0.4), oklch(0.6 0 0 / 0.5));
+    box-shadow: 0 0 0 1px light-dark(oklch(0.5 0 0 / 0.5), oklch(0.6 0 0 / 0.6)) inset;
+  }
+  .record-btn.recording .record-dot {
+    background: oklch(0.6 0.22 25);
+    box-shadow: 0 0 6px oklch(0.6 0.22 25 / 0.7);
+    animation: tide-record-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes tide-record-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
   .files-dropdown {
     border-top: 1px solid light-dark(oklch(0.75 0 0 / 0.4), oklch(0.4 0 0 / 0.4));
     padding: 0 0 4px; display: flex; flex-direction: column; gap: 2px;
@@ -230,6 +257,8 @@ function LegendComponent(props: {
   onOpenNetworkFiles: (setter: (v: boolean) => void) => void
   onHiddenChange: (hidden: Set<string>) => void
   onOpacityChange: (v: number) => void
+  recording: () => boolean
+  toggleRecording: () => void
 }) {
   const [hidden, setHidden] = createSignal(new Set<string>(), { equals: false })
   const [opacity, setOpacity] = createSignal(1)
@@ -383,6 +412,21 @@ function LegendComponent(props: {
           </span>
         </div>
         <button
+          class={`record-btn${props.recording() ? ' recording' : ''}`}
+          on:mousedown={(e: MouseEvent) => e.stopPropagation()}
+          on:click={(e: MouseEvent) => {
+            e.stopPropagation()
+            props.toggleRecording()
+          }}
+          title={
+            props.recording()
+              ? 'Stop recording network requests'
+              : 'Record network requests on this hostname'
+          }
+        >
+          <span class='record-dot' />
+        </button>
+        <button
           class='playground-btn'
           on:mousedown={(e: MouseEvent) => e.stopPropagation()}
           on:click={(e: MouseEvent) => {
@@ -502,6 +546,7 @@ export class LegendOverlay {
   #setErrors: ((v: string[]) => void) | null = null
   #setNetworkFunnels: ((v: Funnel[]) => void) | null = null
   #openNetworkFiles: ((v: boolean) => void) | null = null
+  #unsubscribeRecording: (() => void) | null = null
   #networkFunnels: Funnel[] = []
   #fileStates = new Map<string, FileState>()
   #recentFunnels: string[] = []
@@ -545,9 +590,15 @@ export class LegendOverlay {
     const [networkFunnels, setNetworkFunnels] = createSignal<Funnel[]>(
       this.#networkFunnels,
     )
+    const pageHostname = window.location.hostname
+    const [recordingState, setRecordingState] =
+      createSignal<RecordingValue>(null)
+    void getRecording().then(setRecordingState)
+    const unsubscribeRecording = onRecordingChanged(setRecordingState)
     this.#setEntries = setEntries
     this.#setErrors = setErrors
     this.#setNetworkFunnels = setNetworkFunnels
+    this.#unsubscribeRecording = unsubscribeRecording
 
     this.#dispose = render(
       () => (
@@ -567,6 +618,11 @@ export class LegendOverlay {
           onOpacityChange={(v) => {
             this.#opacity = v
             this.#onRedraw?.()
+          }}
+          recording={() => isRecordingFor(recordingState(), pageHostname)}
+          toggleRecording={() => {
+            const next = !isRecordingFor(recordingState(), pageHostname)
+            void setRecording({ hostname: pageHostname, enabled: next })
           }}
         />
       ),
@@ -609,6 +665,8 @@ export class LegendOverlay {
     this.#setErrors = null
     this.#setNetworkFunnels = null
     this.#openNetworkFiles = null
+    this.#unsubscribeRecording?.()
+    this.#unsubscribeRecording = null
     this.#hidden = new Set()
     this.#opacity = 1
     this.#fileStates = new Map()

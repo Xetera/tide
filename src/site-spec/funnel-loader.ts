@@ -216,6 +216,53 @@ export class FunnelProvider {
     return false
   }
 
+  addEntry(path: string, content: string): boolean {
+    const entry = parseEntry(`/${path}`, content)
+    if (!entry) {
+      return false
+    }
+    if (path.endsWith('.htmlegy')) {
+      if (this.#pageEntries.some((e) => e.path === entry.path)) {
+        return false
+      }
+      this.#pageEntries.push(entry as PageFunnelEntry)
+      return true
+    }
+    if (path.endsWith('.jsonata')) {
+      const url = entry.frontmatter.url
+      if (
+        typeof url !== 'string' &&
+        !(Array.isArray(url) && url.every((u) => typeof u === 'string'))
+      ) {
+        console.warn(
+          `[tide] ${path}: missing required frontmatter field "url"`,
+        )
+        return false
+      }
+      if (this.#networkEntries.some((e) => e.path === entry.path)) {
+        return false
+      }
+      this.#networkEntries.push(entry as NetworkFunnelEntry)
+      return true
+    }
+    return false
+  }
+
+  removeEntry(path: string): boolean {
+    const target = `src/${path}`
+    const pageIdx = this.#pageEntries.findIndex((e) => e.path === target)
+    if (pageIdx !== -1) {
+      this.#pageEntries.splice(pageIdx, 1)
+      return true
+    }
+    const networkIdx = this.#networkEntries.findIndex((e) => e.path === target)
+    if (networkIdx !== -1) {
+      this.#networkEntries.splice(networkIdx, 1)
+      return true
+    }
+    return false
+  }
+
   buildFunnelInfos(_sites: SiteDefinition[]): FunnelInfo[] {
     const toInfo = (
       entry: PageFunnelEntry | NetworkFunnelEntry,

@@ -1,0 +1,21 @@
+---
+name: "UserByRestIds"
+method: GET
+url: "/i/api/graphql/*/UserByRestIds"
+---
+
+$.data.users.result.{ 
+  /* Map user data to @twitter/user schema */
+  "_entity": "@twitter/user",
+  "_id": rest_id,
+  "username": core.screen_name,
+  "nickname": core.name,
+  "profilePic": $image(avatar.image_url),
+  "followerCount": legacy.followers_count,
+  "followingCount": legacy.friends_count,
+  "tweetCount": legacy.statuses_count,
+  "isVerified": is_blue_verified,
+  "isProtected": privacy.protected,
+  "bio": profile_bio.description,
+  "_createdAt": $timestamp(core.created_at)
+}

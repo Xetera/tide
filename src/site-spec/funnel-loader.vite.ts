@@ -42,7 +42,16 @@ if (import.meta.hot) {
   import.meta.hot.on(
     'tide:source-update',
     ({ path, content }: { path: string; content: string }) => {
-      funnelProvider.patchEntry(path, content)
+      const patched = funnelProvider.patchEntry(path, content)
+      if (!patched) {
+        funnelProvider.addEntry(path, content)
+      }
+    },
+  )
+  import.meta.hot.on(
+    'tide:source-remove',
+    ({ path }: { path: string }) => {
+      funnelProvider.removeEntry(path)
     },
   )
 }
