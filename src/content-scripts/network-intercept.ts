@@ -10,7 +10,9 @@
     capturedAt: number
   }
 
-  const w = window as typeof window & { __tide?: { setFlush: (fn: (c: QueuedCapture) => void) => void } }
+  const w = window as typeof window & {
+    __tide?: { setFlush: (fn: (c: QueuedCapture) => void) => void }
+  }
   if (w.__tide) {
     return
   }

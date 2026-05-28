@@ -1,5 +1,5 @@
 import PQueue from 'p-queue'
-import type { ServerDefinition } from '~/server/client'
+import type { HeartbeatStatus, ServerDefinition } from '~/server/client'
 import type {
   ServerAutonomy,
 } from '~/site-spec/types'
@@ -125,4 +125,5 @@ export type BrowserStorageSchema = {
   'generation:progress'?: GenerationProgress
   'generation:attempts'?: GenerationAttempt[]
   'generation:last-result'?: { result: GenerationResult; timestamp: number }
+  'heartbeat:last'?: { status: HeartbeatStatus; at: number }
 }

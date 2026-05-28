@@ -1161,10 +1161,12 @@ function Playground() {
 
   async function refreshFunnels() {
     try {
+      console.log('REFRESHINGGGGGGGGGG FUNNEL!!!')
       const fresh = await sendMessage('get-funnels', undefined, {
         context: 'background',
         tabId: 0,
       })
+      console.log('REFRESHED FUNNEL!!!')
       setFunnels((prev) => {
         if (
           prev.length === fresh.length &&
@@ -1192,7 +1194,9 @@ function Playground() {
         }
         return next
       })
-    } catch {}
+    } catch (err) {
+      console.error('[tide] refreshFunnels failed', err)
+    }
   }
 
   onMount(async () => {
@@ -1234,7 +1238,7 @@ function Playground() {
   const effectiveHostname = () => {
     const funnel = selectedFunnel()
     if (funnel) {
-      const site = allSites.find((s) => s.id ===funnel.site)
+      const site = allSites.find((s) => s.id === funnel.site)
       if (site) {
         return site.hostname
       }
@@ -1264,7 +1268,7 @@ function Playground() {
     if (!funnel) {
       return
     }
-    const site = allSites.find((s) => s.id ===funnel.site)
+    const site = allSites.find((s) => s.id === funnel.site)
     if (!site) {
       return
     }

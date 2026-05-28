@@ -72,7 +72,7 @@ export function allowCrossOriginForEntityPage() {
         id: RULE_ID_ENTITY_PAGE_CORP,
         priority: 2,
         condition: {
-          initiatorDomains: ['localhost', PROD_URL],
+          initiatorDomains: ['localhost'],
           resourceTypes: ['image', 'media'],
         },
         action: {

@@ -121,25 +121,80 @@ export class Client {
   async sendHeartbeat(): Promise<HeartbeatStatus> {
     const server = this.servers[0]
     if (!server?.url || !server.poolId || !server.workerSecret) {
+      log({
+        severity: 'debug',
+        scope: 'pool',
+        text: 'Heartbeat skipped: server not configured',
+        data: {
+          hasUrl: !!server?.url,
+          hasPoolId: !!server?.poolId,
+          hasWorkerSecret: !!server?.workerSecret,
+        },
+      })
       return { status: 'unconfigured' }
     }
-    let res: Response
+    let url: URL
     try {
-      const url = new URL(
+      url = new URL(
         `/api/pool/${server.poolId}/workers/me/heartbeat`,
         server.url,
       )
+    } catch (err) {
+      log({
+        severity: 'error',
+        scope: 'pool',
+        text: 'Heartbeat failed: invalid server URL',
+        data: {
+          serverUrl: server.url,
+          poolId: server.poolId,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      })
+      return {
+        status: 'unreachable',
+        error: err instanceof Error ? err.message : String(err),
+      }
+    }
+    log({
+      severity: 'debug',
+      scope: 'pool',
+      text: 'Heartbeat: sending request',
+      data: { url: url.toString(), workerId: server.workerId },
+    })
+    let res: Response
+    const startedAt = Date.now()
+    try {
       const request = await this.#requestBase(
         new Request(url, { method: 'GET' }),
         server,
       )
       res = await fetch(request, { signal: AbortSignal.timeout(5000) })
     } catch (err) {
-      return {
-        status: 'unreachable',
-        error: err instanceof Error ? err.message : String(err),
-      }
+      const message = err instanceof Error ? err.message : String(err)
+      const name = err instanceof Error ? err.name : undefined
+      log({
+        severity: 'warning',
+        scope: 'pool',
+        text: 'Heartbeat: fetch threw before receiving a response',
+        data: {
+          url: url.toString(),
+          error: message,
+          errorName: name,
+          elapsedMs: Date.now() - startedAt,
+        },
+      })
+      return { status: 'unreachable', error: message }
     }
+    log({
+      severity: 'debug',
+      scope: 'pool',
+      text: 'Heartbeat: response received',
+      data: {
+        url: url.toString(),
+        httpStatus: res.status,
+        elapsedMs: Date.now() - startedAt,
+      },
+    })
     if (res.ok) {
       return { status: 'ok' }
     }

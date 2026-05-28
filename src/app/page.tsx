@@ -1,5 +1,6 @@
 import { createDateFormatter } from '@kobalte/core/i18n'
-import { For, Show, createMemo, createResource, createSignal } from 'solid-js'
+import { For, Show, createEffect, createMemo, createSignal } from 'solid-js'
+import { sendMessage } from 'webext-bridge/popup'
 /* @refresh reload */
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { Badge } from '~/components/ui/badge'
@@ -8,7 +9,6 @@ import type { Log, PlainLog, ScrapeLog } from '~/shared/log'
 import { AddServer } from './add-server'
 import { useLogs } from './hooks'
 import { Pool } from './pool'
-import { sendMessage } from 'webext-bridge/popup'
 
 const formatter = createDateFormatter({
   timeStyle: 'medium',
@@ -197,30 +197,35 @@ function Page() {
     () => !!(serverUrl() && poolId() && workerSecret()),
   )
 
-  const [heartbeat] = createResource(
-    () => (hasCredentials() ? true : null),
-    async () => {
-      try {
-        return await sendMessage('heartbeat', undefined, {
-          context: 'background',
-          tabId: 0,
-        })
-      } catch (err) {
-        return {
-          status: 'unreachable' as const,
-          error: err instanceof Error ? err.message : String(err),
-        }
-      }
-    },
+  const { value: heartbeatEntry } = useBrowserStorage(
+    'heartbeat:last',
+    undefined,
   )
+  const heartbeat = () => heartbeatEntry()?.status ?? null
+
+  const HEARTBEAT_FRESHNESS_MS = 30_000
+  createEffect(() => {
+    if (!hasCredentials()) {
+      return
+    }
+    const entry = heartbeatEntry()
+    const fresh = entry && Date.now() - entry.at < HEARTBEAT_FRESHNESS_MS
+    if (fresh) {
+      return
+    }
+    sendMessage('heartbeat', undefined, {
+      context: 'background',
+      tabId: 0,
+    }).catch(() => {})
+  })
 
   const statusTone = () => {
-    if (!hasCredentials() || heartbeat.loading) {
+    if (!hasCredentials()) {
       return 'pill-mute'
     }
     const hb = heartbeat()
     if (!hb) {
-      return 'pill-warn'
+      return 'pill-mute'
     }
     if (hb.status === 'ok') {
       return 'pill-ok'
@@ -235,12 +240,9 @@ function Page() {
     if (!hasCredentials()) {
       return 'Not connected'
     }
-    if (heartbeat.loading) {
-      return 'Checking...'
-    }
     const hb = heartbeat()
     if (!hb) {
-      return 'Unreachable'
+      return 'Checking...'
     }
     switch (hb.status) {
       case 'ok':

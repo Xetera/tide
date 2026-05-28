@@ -88,7 +88,9 @@ class PageRuleRunner {
       let lastSerialized: string | null = null
       this.#dispose = reactive.subscribe((value) => {
         const serialized = JSON.stringify(value)
-        if (serialized === lastSerialized) return
+        if (serialized === lastSerialized) {
+          return
+        }
         lastSerialized = serialized
         this.#pendingReset = true
         emit(value)

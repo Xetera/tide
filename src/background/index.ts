@@ -23,11 +23,8 @@ import { EntityValidator } from '~/extraction/entity-validator'
 import { JsonataExpression } from '~/extraction/jsonata-bindings'
 import type { CaptureEntry, FunnelMatchResult } from '~/generation/types'
 import { runGenerationLoop, runHtmlegyGenerationLoop } from '~/generation/llm'
-import {
-  funnelProvider,
-  matchesGlob,
-  captureMatchesKnownFunnel,
-} from '~/site-spec/funnel-loader'
+import { funnelProvider } from '~/site-spec/funnel-loader'
+import { getRecording, isRecordingFor } from '~/shared/recording'
 
 const storage = new Storage<BrowserStorageSchema>()
 
@@ -70,11 +67,96 @@ function emitUrlUpdate(
     .catch(() => {})
 }
 
+const HEARTBEAT_ALARM = 'tide:heartbeat'
+let clientReady: Promise<Client>
+let resolveClient!: (client: Client) => void
+let rejectClient!: (err: unknown) => void
+clientReady = new Promise<Client>((resolve, reject) => {
+  resolveClient = resolve
+  rejectClient = reject
+})
+
+let lastHeartbeatStatus: string | null = null
+async function runHeartbeat(trigger: 'startup' | 'alarm') {
+  log({
+    severity: 'debug',
+    scope: 'pool',
+    text: 'Heartbeat: tick',
+    data: { trigger },
+  })
+  console.log('waiting for client')
+  const c = await clientReady
+  console.log('waiting for heartbeat')
+  const result = await c.sendHeartbeat()
+  console.log(result)
+  await storage.set('heartbeat:last', { status: result, at: Date.now() })
+  console.log('wrote heartbeat')
+  const statusChanged = result.status !== lastHeartbeatStatus
+  lastHeartbeatStatus = result.status
+  if (result.status === 'unauthorized' && statusChanged) {
+    log({
+      severity: 'error',
+      scope: 'pool',
+      text: 'Heartbeat rejected by server. The worker may have been removed from the pool, or its secret no longer matches.',
+      data: { httpStatus: result.httpStatus },
+    })
+  } else if (result.status === 'unreachable' && statusChanged) {
+    log({
+      severity: 'warning',
+      scope: 'pool',
+      text: 'Heartbeat failed: backend unreachable',
+      data: { error: result.error },
+    })
+  } else if (result.status === 'error' && statusChanged) {
+    log({
+      severity: 'warning',
+      scope: 'pool',
+      text: 'Heartbeat returned an unexpected status',
+      data: { httpStatus: result.httpStatus },
+    })
+  } else if (result.status === 'ok' && statusChanged) {
+    log({
+      severity: 'info',
+      scope: 'pool',
+      text: 'Heartbeat ok',
+    })
+  }
+}
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === HEARTBEAT_ALARM) {
+    console.log('GOT A HEARTBEAT AAAAAAAAAA')
+    runHeartbeat('alarm')
+  }
+})
+chrome.alarms.get(HEARTBEAT_ALARM, (existing) => {
+  if (!existing) {
+    chrome.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: 0.5 })
+    log({
+      severity: 'debug',
+      scope: 'pool',
+      text: 'Heartbeat alarm registered',
+      data: { periodInMinutes: 0.5 },
+    })
+  }
+})
+
+log({
+  severity: 'debug',
+  scope: 'pool',
+  text: 'background: script evaluated',
+})
+
 ;(async () => {
   const origins = ['webhook.site', 'instagram.com', 'www.sahibinden.com']
   let client: Client | undefined
 
   try {
+    log({
+      severity: 'debug',
+      scope: 'pool',
+      text: 'background: init IIFE entered',
+    })
     const cst = new ContentScriptTracker()
     chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
       url: origins.map((origin) => ({ hostContains: origin })),
@@ -140,6 +222,8 @@ function emitUrlUpdate(
       },
     })
 
+    resolveClient(client)
+
     disableIframeSecurity(origins)
     addIframeSecurityListener()
     allowCrossOriginForEntityPage()
@@ -202,7 +286,8 @@ function emitUrlUpdate(
         data.url,
         `body=${data.responseBody.length}b`,
       )
-      if (!captureMatchesKnownFunnel(allSites, data.url, data.method)) {
+      const recording = await getRecording()
+      if (!isRecordingFor(recording, hostname)) {
         return
       }
       try {
@@ -224,17 +309,7 @@ function emitUrlUpdate(
       }
     })
     onMessage('get-captures', async ({ data }) => {
-      const captures = await getCapturesForHostname(data.hostname)
-      if (!data.request) {
-        return captures
-      }
-      const { method, url } = data.request
-      const urls = Array.isArray(url) ? url : [url]
-      return captures.filter(
-        (c) =>
-          c.method.toUpperCase() === method.toUpperCase() &&
-          urls.some((u) => matchesGlob(u, new URL(c.url).pathname)),
-      )
+      return getCapturesForHostname(data.hostname)
     })
     onMessage('match-capture', async ({ data }) => {
       const capture = await getCaptureById(data.captureId)
@@ -325,7 +400,9 @@ function emitUrlUpdate(
     })
 
     onMessage('heartbeat', async () => {
-      return client!.sendHeartbeat()
+      const result = await client!.sendHeartbeat()
+      await storage.set('heartbeat:last', { status: result, at: Date.now() })
+      return result
     })
 
     onMessage('sites', () => {
@@ -557,66 +634,12 @@ function emitUrlUpdate(
 
     validator = new EntityValidator(allSites)
 
-    const localSchema = await storage.get('schema:local', '')
-    const resources: ResourceSpec[] = localSchema
-      ? (() => {
-          try {
-            return JSON.parse(localSchema)
-          } catch {
-            return []
-          }
-        })()
-      : []
-    // client.setResources(client.getServer(), resources)
-    // storage.set('resources:all', resources)
-
+    console.log('aaaa')
     await client.startAll()
-
-    const HEARTBEAT_ALARM = 'tide:heartbeat'
-    let lastHeartbeatStatus: string | null = null
-    const runHeartbeat = async () => {
-      const result = await client!.sendHeartbeat()
-      if (result.status !== lastHeartbeatStatus) {
-        lastHeartbeatStatus = result.status
-        if (result.status === 'unauthorized') {
-          log({
-            severity: 'error',
-            scope: 'pool',
-            text: 'Heartbeat rejected by server. The worker may have been removed from the pool, or its secret no longer matches.',
-            data: { httpStatus: result.httpStatus },
-          })
-        } else if (result.status === 'unreachable') {
-          log({
-            severity: 'warning',
-            scope: 'pool',
-            text: 'Heartbeat failed: backend unreachable',
-            data: { error: result.error },
-          })
-        } else if (result.status === 'error') {
-          log({
-            severity: 'warning',
-            scope: 'pool',
-            text: 'Heartbeat returned an unexpected status',
-            data: { httpStatus: result.httpStatus },
-          })
-        } else if (result.status === 'ok') {
-          log({
-            severity: 'info',
-            scope: 'pool',
-            text: 'Heartbeat ok',
-          })
-        }
-      }
-    }
-    // chrome 117+ allows 30s alarms
-    chrome.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: 0.5 })
-    chrome.alarms.onAlarm.addListener((alarm) => {
-      if (alarm.name === HEARTBEAT_ALARM) {
-        runHeartbeat()
-      }
-    })
-    runHeartbeat()
   } catch (err) {
+    rejectClient(err)
     console.error(err)
   }
 })()
+
+runHeartbeat('startup')
