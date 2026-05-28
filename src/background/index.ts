@@ -10,6 +10,7 @@ import { ContentScriptTracker } from './content-script-tracker'
 import { addDisableChipsListener } from './cookie'
 import {
   addIframeSecurityListener,
+  allowCrossOriginForEntityPage,
   disableIframeSecurity,
 } from './iframe-security'
 import { StorageListener } from './storage-listener'
@@ -141,6 +142,7 @@ function emitUrlUpdate(
 
     disableIframeSecurity(origins)
     addIframeSecurityListener()
+    allowCrossOriginForEntityPage()
     addDisableChipsListener(origins)
 
     onMessage('set-schema', ({ data }) => {
