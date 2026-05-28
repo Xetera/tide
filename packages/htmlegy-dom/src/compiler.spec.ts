@@ -1065,3 +1065,41 @@ describe('ref', () => {
     expect(run('"x" | ref', '<div></div>')).toEqual({ _type: 'ref', _id: 'x' })
   })
 })
+
+describe('zip $$(a, b)', () => {
+  const tableHtml = `
+    <table id="t">
+      <thead>
+        <tr>
+          <td>Marka</td>
+          <td>Seri</td>
+          <td>Yıl</td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="row">
+          <td class="tag">Audi</td>
+          <td class="tag">A5</td>
+          <td class="attr">2024</td>
+        </tr>
+        <tr class="row">
+          <td class="tag">Tesla</td>
+          <td class="tag">Model Y</td>
+          <td class="attr">2023</td>
+        </tr>
+      </tbody>
+    </table>
+  `
+
+  it('zips per-row cells against global headers into an attributes map', () => {
+    expect(
+      run(
+        '$$(.row) { "attrs": $$(@.($$(#t thead td)), $$(td:not(.ignored))) { [$1 | text | trim]: $2 | text | trim } | merge }',
+        tableHtml,
+      ),
+    ).toEqual([
+      { attrs: { Marka: 'Audi', Seri: 'A5', 'Yıl': '2024' } },
+      { attrs: { Marka: 'Tesla', Seri: 'Model Y', 'Yıl': '2023' } },
+    ])
+  })
+})

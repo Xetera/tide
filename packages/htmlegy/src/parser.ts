@@ -36,8 +36,10 @@ export type Source =
   | { kind: 'alias_each'; name: string; selector: string; requireOne: boolean }
   | { kind: 'alias_single'; name: string; selector: string; omit: boolean }
   | { kind: 'each'; selector: string; requireOne: boolean }
+  | { kind: 'each_zip'; lanes: Expr[] }
   | { kind: 'single'; selector: string; omit: boolean }
   | { kind: 'context' }
+  | { kind: 'positional_ref'; index: number }
   | { kind: 'root_ref' }
   | { kind: 'watch'; inner: Source }
   | { kind: 'await'; condition: string | null; inner: Source }
@@ -236,6 +238,19 @@ const exprActions: HTMLegyActionDict<AstResult> = {
 
   ContextRef(_dollar) {
     return { kind: 'context' } satisfies Source
+  },
+  PositionalRef(_dollar, digits) {
+    return {
+      kind: 'positional_ref',
+      index: parseInt(digits.sourceString, 10),
+    } satisfies Source
+  },
+  EachZip(_dd, _l, firstExpr, _commas, restExprs, _trailing, _r) {
+    const lanes: Expr[] = [
+      toAst(firstExpr) as Expr,
+      ...restExprs.children.map((c) => toAst(c) as Expr),
+    ]
+    return { kind: 'each_zip', lanes } satisfies Source
   },
   EachSelector(_dd, _l, body, _r, plus) {
     return {

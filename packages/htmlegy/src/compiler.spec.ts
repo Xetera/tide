@@ -608,6 +608,127 @@ describe('function call syntax', () => {
   })
 })
 
+describe('zip $$(a, b, ...)', () => {
+  const table: TestNode = {
+    tag: 'table',
+    attrs: { id: 't' },
+    children: [
+      {
+        tag: 'thead',
+        children: [
+          {
+            tag: 'tr',
+            children: [
+              { tag: 'td', text: 'Make', attrs: { class: 'h' } },
+              { tag: 'td', text: 'Model', attrs: { class: 'h' } },
+              { tag: 'td', text: 'Year', attrs: { class: 'h' } },
+            ],
+          },
+        ],
+      },
+      {
+        tag: 'tbody',
+        children: [
+          {
+            tag: 'tr',
+            attrs: { class: 'row' },
+            children: [
+              { tag: 'td', text: 'Audi', attrs: { class: 'c' } },
+              { tag: 'td', text: 'A5', attrs: { class: 'c' } },
+              { tag: 'td', text: '2024', attrs: { class: 'c' } },
+            ],
+          },
+          {
+            tag: 'tr',
+            attrs: { class: 'row' },
+            children: [
+              { tag: 'td', text: 'Tesla', attrs: { class: 'c' } },
+              { tag: 'td', text: 'Model Y', attrs: { class: 'c' } },
+              { tag: 'td', text: '2023', attrs: { class: 'c' } },
+            ],
+          },
+        ],
+      },
+    ],
+  }
+
+  it('zips two lane lists by index, binding $1 and $2 in the block', () => {
+    expect(
+      run(
+        '$$($$(.h), $$(.c)) { [$1 | text]:  $2 | text }',
+        table,
+      ),
+    ).toEqual([
+      { Make: 'Audi' },
+      { Model: 'A5' },
+      { Year: '2024' },
+    ])
+  })
+
+  it('produces attribute maps per row when nested under each-row iteration', () => {
+    expect(
+      run(
+        '$$(.row) { "attrs": $$(@.($$(.h)), $$(.c)) { [$1 | text]: $2 | text } | merge }',
+        table,
+      ),
+    ).toEqual([
+      { attrs: { Make: 'Audi', Model: 'A5', Year: '2024' } },
+      { attrs: { Make: 'Tesla', Model: 'Model Y', Year: '2023' } },
+    ])
+  })
+
+  it('truncates to the shortest lane', () => {
+    const short: TestNode = {
+      tag: 'div',
+      children: [
+        { tag: 'span', text: 'a', attrs: { class: 'k' } },
+        { tag: 'span', text: 'b', attrs: { class: 'k' } },
+        { tag: 'span', text: 'c', attrs: { class: 'k' } },
+        { tag: 'span', text: '1', attrs: { class: 'v' } },
+        { tag: 'span', text: '2', attrs: { class: 'v' } },
+      ],
+    }
+    expect(
+      run('$$($$(.k), $$(.v)) { [$1 | text]:  $2 | text }', short),
+    ).toEqual([{ a: '1' }, { b: '2' }])
+  })
+
+  it('supports three or more lanes', () => {
+    const triple: TestNode = {
+      tag: 'div',
+      children: [
+        { tag: 'span', text: 'x', attrs: { class: 'k' } },
+        { tag: 'span', text: 'y', attrs: { class: 'k' } },
+        { tag: 'span', text: '1', attrs: { class: 'v' } },
+        { tag: 'span', text: '2', attrs: { class: 'v' } },
+        { tag: 'span', text: 'A', attrs: { class: 'u' } },
+        { tag: 'span', text: 'B', attrs: { class: 'u' } },
+      ],
+    }
+    expect(
+      run(
+        '$$($$(.k), $$(.v), $$(.u)) { "k":  $1 | text, "v":  $2 | text, "u":  $3 | text }',
+        triple,
+      ),
+    ).toEqual([
+      { k: 'x', v: '1', u: 'A' },
+      { k: 'y', v: '2', u: 'B' },
+    ])
+  })
+
+  it('returns an empty array when any lane is empty', () => {
+    expect(
+      run(
+        '$$($$(.k), $$(.missing)) { [$1 | text]:  $2 | text }',
+        {
+          tag: 'div',
+          children: [{ tag: 'span', text: 'a', attrs: { class: 'k' } }],
+        },
+      ),
+    ).toEqual([])
+  })
+})
+
 describe('isReactive', () => {
   it('returns false for a static expression', () => {
     expect(new HtmlegyExpr('$(h1) | text', provider).isReactive).toBe(false)

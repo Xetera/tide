@@ -43,6 +43,8 @@ export interface HTMLegyActionDict<T> extends BaseActionDict<T> {
   Source_literal?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   Source?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   ContextRef?: (this: NonterminalNode, arg0: TerminalNode) => T;
+  PositionalRef?: (this: NonterminalNode, arg0: TerminalNode, arg1: IterationNode) => T;
+  EachZip?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: IterationNode, arg4: IterationNode, arg5: IterationNode, arg6: TerminalNode) => T;
   EachSelector?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: TerminalNode, arg4: IterationNode) => T;
   SingleSelector?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: TerminalNode, arg4: IterationNode) => T;
   selectorBody?: (this: NonterminalNode, arg0: IterationNode) => T;

@@ -12,7 +12,9 @@ import type {
 } from './parser'
 import type { HtmlegyProvider } from './provider'
 
-type Env<N> = Map<string, N>
+type Env<N> = Map<string, N | unknown>
+
+const POSITIONAL_PREFIX = '$'
 
 const OMIT = Symbol('omit')
 
@@ -288,6 +290,10 @@ class Evaluator<N> {
       case 'context':
         current = el
         break
+      case 'positional_ref':
+        current =
+          currentEnv.get(POSITIONAL_PREFIX + expr.source.index) ?? null
+        break
       case 'root_ref':
         current = currentEnv.get('') ?? null
         break
@@ -320,6 +326,22 @@ class Evaluator<N> {
           })
         }
         current = els
+        break
+      }
+      case 'each_zip': {
+        const lanes = expr.source.lanes.map((laneExpr) => {
+          const v = this.evalExpr(laneExpr, el, currentEnv, ctx)
+          return Array.isArray(v) ? (v as unknown[]) : v == null ? [] : [v]
+        })
+        const length = lanes.reduce(
+          (min, l) => (l.length < min ? l.length : min),
+          lanes[0]?.length ?? 0,
+        )
+        const tuples: unknown[][] = []
+        for (let i = 0; i < length; i++) {
+          tuples.push(lanes.map((l) => l[i]))
+        }
+        current = tuples
         break
       }
       case 'alias_each': {
@@ -378,7 +400,17 @@ class Evaluator<N> {
         case 'block': {
           const isEach =
             expr.source.kind === 'each' || expr.source.kind === 'alias_each'
-          if (isEach) {
+          if (expr.source.kind === 'each_zip') {
+            current = (current as unknown[][]).map((tuple) => {
+              const iterEnv = new Map(currentEnv)
+              for (let i = 0; i < tuple.length; i++) {
+                iterEnv.set(POSITIONAL_PREFIX + (i + 1), tuple[i])
+              }
+              return this.evalFields(step.fields, el, iterEnv, {
+                label: ctx.label,
+              })
+            })
+          } else if (isEach) {
             const aliasName =
               expr.source.kind === 'alias_each' ? expr.source.name : null
             current = (current as N[]).map((child) => {

@@ -42,13 +42,17 @@ HTMLegy {
     | "@" ident SingleSelector                            -- aliasSingle
     | "@" ident                                           -- aliasRef
     | "@" ~alnum                                          -- rootRef
+    | EachZip
     | EachSelector
     | SingleSelector
+    | PositionalRef
     | ContextRef
     | FuncCall                                            -- funcCall
     | Literal                                             -- literal
-  ContextRef = "$" ~"$" ~"(" ~alnum
+  ContextRef = "$" ~"$" ~"(" ~alnum ~digit
+  PositionalRef = "$" digit+
 
+  EachZip        = "$$" "(" Expr ("," Expr)+ ","? ")"
   EachSelector   = "$$" "(" selectorBody ")" "+"?
   SingleSelector = "$"  "(" selectorBody ")" (~"??" "?")?
 
