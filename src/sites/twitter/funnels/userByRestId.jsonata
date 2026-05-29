@@ -1,10 +1,10 @@
 ---
 name: "UserByRestIds"
 method: GET
-url: "/i/api/graphql/*/UserByRestIds"
+url: "/i/api/graphql/*/UsersByRestIds"
 ---
 
-$.data.users.result.{ 
+$.data.users.result.{
   /* Map user data to @twitter/user schema */
   "_entity": "@twitter/user",
   "_id": rest_id,

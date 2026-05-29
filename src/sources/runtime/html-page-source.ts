@@ -112,7 +112,7 @@ export class HtmlPageSource {
   #validator: EntityValidator
   #runGeneration = 0
   #onEmit: (result: ScrapeResult) => void
-  #activeRunner: PageRuleRunner | null = null
+  #activeRunners: Set<PageRuleRunner> = new Set()
   readonly isInIframe: boolean
 
   constructor(
@@ -133,8 +133,10 @@ export class HtmlPageSource {
   }
 
   stop(): void {
-    this.#activeRunner?.stop()
-    this.#activeRunner = null
+    for (const runner of this.#activeRunners) {
+      runner.stop()
+    }
+    this.#activeRunners.clear()
     this.#runGeneration++
   }
 
@@ -165,16 +167,22 @@ export class HtmlPageSource {
     console.log('matching', matching)
     if (matching.kind === 'match') {
       console.log(
-        `[tide] matched page funnel: ${matching.funnel.url} for ${document.URL}`,
+        `[tide] matched ${matching.funnels.length} page funnel(s) for ${document.URL}: ${matching.funnels.map((f) => f.url).join(', ')}`,
       )
       const jobSource: JobSource = this.isInIframe
         ? { kind: 'active', id: await this.#getJobId() }
         : { kind: 'passive' }
-      const runner = this.#runners.get(matching.funnel)!
-      this.#activeRunner = runner
-      runner.run(document, jobSource, generation, currentGeneration, (result) =>
-        this.#handleResult(result, jobSource),
-      )
+      for (const funnel of matching.funnels) {
+        const runner = this.#runners.get(funnel)!
+        this.#activeRunners.add(runner)
+        runner.run(
+          document,
+          jobSource,
+          generation,
+          currentGeneration,
+          (result) => this.#handleResult(result, jobSource),
+        )
+      }
       window.parent?.postMessage(JOB_FINISHED_MARKER, '*')
     } else if (matching.kind === 'fail' && this.isInIframe) {
       sendLog({

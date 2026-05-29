@@ -49,6 +49,11 @@ window.addEventListener('message', (evt) => {
   for (const [name, funnel] of Object.entries(incoming)) {
     funnels.set(name, funnel)
   }
+  console.log('[tide:capture] register-funnels received', {
+    count: funnels.size,
+    names: [...funnels.keys()],
+    hostname: window.location.hostname,
+  })
   if (!funnelsRegistered) {
     funnelsRegistered = true
     window.__tide?.setFlush((capture) => {
@@ -73,16 +78,40 @@ async function processCapture(capture: QueuedCapture) {
   try {
     parsedUrl = new URL(url, window.location.origin)
   } catch {
+    console.log('[tide:capture] url parse failed', url)
     return
   }
 
+  console.log('[tide:capture] processing', {
+    method,
+    url,
+    pathname: parsedUrl.pathname,
+    funnelCount: funnels.size,
+    funnels: [...funnels.entries()].map(([n, f]) => ({
+      name: n,
+      method: f.method,
+      url: f.url,
+    })),
+  })
+
   for (const [name, funnel] of funnels) {
     if (funnel.method.toUpperCase() !== method.toUpperCase()) {
+      console.log('[tide:capture] method mismatch', {
+        name,
+        funnelMethod: funnel.method,
+        requestMethod: method,
+      })
       continue
     }
     if (!matchesGlob(funnel.url, parsedUrl.pathname)) {
+      console.log('[tide:capture] url mismatch', {
+        name,
+        funnelUrl: funnel.url,
+        pathname: parsedUrl.pathname,
+      })
       continue
     }
+    console.log('[tide:capture] matched', { name, url: parsedUrl.pathname })
 
     for (const { file, source: expr, label } of funnel.funnels) {
       try {

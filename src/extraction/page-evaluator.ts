@@ -21,25 +21,30 @@ export class PageEvaluator {
     }
 
     const url = new URL(this.document.URL)
+    const funnels: PageFunnel[] = []
 
     for (const funnel of this.pageFunnels) {
       if (funnel.hostname && funnel.hostname !== url.hostname) {
         continue
       }
       if (funnel.matchesUrl(url.pathname)) {
-        return { kind: 'match', funnel }
+        funnels.push(funnel)
       }
     }
 
-    return { kind: 'fail', reason: 'no-matching-rule' }
+    if (funnels.length === 0) {
+      return { kind: 'fail', reason: 'no-matching-rule' }
+    }
+
+    return { kind: 'match', funnels }
   }
 }
 
-export type PageCheckResult = MatchingPageFunnel | NoMatchFailure
+export type PageCheckResult = MatchingPageFunnels | NoMatchFailure
 
-export type MatchingPageFunnel = {
+export type MatchingPageFunnels = {
   kind: 'match'
-  funnel: PageFunnel
+  funnels: PageFunnel[]
 }
 
 export type WellKnownFailureProvider = 'cloudflare'

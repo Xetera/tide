@@ -1,0 +1,37 @@
+---
+method: POST
+url: "/i/api/graphql/*/HomeLatestTimeline"
+---
+$.data.home.home_timeline_urt.instructions.entries.content.itemContent.tweet_results.result@$tweet.(
+  /* Extract User */
+  $user := $tweet.core.user_results.result;
+  $user_entity := {
+    "_entity": "@twitter/user",
+    "_id": $user.rest_id,
+    "username": $user.core.screen_name,
+    "nickname": $user.core.name,
+    "profilePic": $image($user.avatar.image_url),
+    "followerCount": $user.legacy.followers_count,
+    "followingCount": $user.legacy.friends_count,
+    "tweetCount": $user.legacy.statuses_count,
+    "isVerified": $user.verification.verified,
+    "isProtected": $user.legacy.protected,
+    "bio": $user.legacy.description,
+    "_createdAt": $timestamp($user.core.created_at)
+  };
+
+  /* Extract Tweet */
+  $tweet_entity := {
+    "_entity": "@twitter/tweet",
+    "_id": $tweet.rest_id,
+    "text": $tweet.legacy.full_text,
+    "likeCount": $tweet.legacy.favorite_count,
+    "retweetCount": $tweet.legacy.retweet_count,
+    "replyCount": $tweet.legacy.reply_count,
+    "viewCount": $number($tweet.views.count),
+    "author": $ref($user.rest_id),
+    "_createdAt": $timestamp($tweet.legacy.created_at)
+  };
+
+  [$user_entity, $tweet_entity]
+)

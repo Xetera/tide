@@ -12,9 +12,10 @@
     "hostname": "www.linkedin.com",
     "id": "linkedin",
     "entities": [
-      "@instagram/user",
-      "@instagram/post",
-      "@instagram/comment"
+      "@linkedin/user",
+      "@linkedin/company",
+      "@linkedin/post",
+      "@linkedin/comment"
     ]
   },
   {

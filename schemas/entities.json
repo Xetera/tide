@@ -14,13 +14,16 @@
         "$ref": "#/$defs/instagram__comment"
       },
       {
-        "$ref": "#/$defs/instagram__user"
+        "$ref": "#/$defs/linkedin__user"
       },
       {
-        "$ref": "#/$defs/instagram__post"
+        "$ref": "#/$defs/linkedin__company"
       },
       {
-        "$ref": "#/$defs/instagram__comment"
+        "$ref": "#/$defs/linkedin__post"
+      },
+      {
+        "$ref": "#/$defs/linkedin__comment"
       },
       {
         "$ref": "#/$defs/roblox__game"
@@ -716,6 +719,582 @@
       "x-version": 0,
       "x-display-field": "text"
     },
+    "linkedin__user": {
+      "type": "object",
+      "required": [
+        "_entity",
+        "_id"
+      ],
+      "properties": {
+        "username": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "nickname": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profilePic": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "_type",
+                "url"
+              ],
+              "properties": {
+                "_type": {
+                  "type": "string",
+                  "const": "image"
+                },
+                "_id": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "width": {
+                  "type": "number"
+                },
+                "height": {
+                  "type": "number"
+                }
+              },
+              "x-offload": true,
+              "x-ephemeral": {}
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "followerCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "followingCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "postCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isPrivate": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isVerified": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bio": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "posts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "many",
+              "x-entity": "@linkedin/post"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bioLinks": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "linkType",
+                  "url"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "linkType": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "url"
+                  }
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "_entity": {
+          "type": "string",
+          "const": "@linkedin/user"
+        },
+        "_id": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "_createdAt": {
+          "type": "object",
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
+          "properties": {
+            "_type": {
+              "type": "string",
+              "const": "timestamp"
+            },
+            "value": {
+              "type": "string",
+              "description": "ISO 8601 string timestamp"
+            },
+            "precision": {
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
+              "default": "full"
+            }
+          }
+        }
+      },
+      "$defs": {
+        "EntityRef": {
+          "type": "object",
+          "properties": {
+            "_id": {}
+          },
+          "required": [
+            "_id"
+          ]
+        }
+      },
+      "x-version": 0,
+      "x-canonical-url": "https://www.linkedin.com/in/{username}",
+      "x-display-field": "username"
+    },
+    "linkedin__company": {
+      "type": "object",
+      "required": [
+        "_entity",
+        "_id"
+      ],
+      "properties": {
+        "username": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "_entity": {
+          "type": "string",
+          "const": "@linkedin/company"
+        },
+        "_id": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "_createdAt": {
+          "type": "object",
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
+          "properties": {
+            "_type": {
+              "type": "string",
+              "const": "timestamp"
+            },
+            "value": {
+              "type": "string",
+              "description": "ISO 8601 string timestamp"
+            },
+            "precision": {
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
+              "default": "full"
+            }
+          }
+        }
+      },
+      "$defs": {
+        "EntityRef": {
+          "type": "object",
+          "properties": {
+            "_id": {}
+          },
+          "required": [
+            "_id"
+          ]
+        }
+      },
+      "x-version": 0,
+      "x-canonical-url": "https://www.linkedin.com/company/{username}",
+      "x-display-field": "username"
+    },
+    "linkedin__post": {
+      "type": "object",
+      "required": [
+        "_entity",
+        "_id"
+      ],
+      "properties": {
+        "content": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "_type",
+                "content"
+              ],
+              "properties": {
+                "_type": {
+                  "type": "string",
+                  "const": "rich_text"
+                },
+                "content": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "commentsDisabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "likeCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "author": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "user"
+                  ],
+                  "properties": {
+                    "type": "user",
+                    "user": {
+                      "$ref": "#/$defs/EntityRef",
+                      "x-cardinality": "one",
+                      "x-entity": "@linkedin/user"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "company"
+                  ],
+                  "properties": {
+                    "type": "company",
+                    "company": {
+                      "$ref": "#/$defs/EntityRef",
+                      "x-cardinality": "one",
+                      "x-entity": "@linkedin/company"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "_entity": {
+          "type": "string",
+          "const": "@linkedin/post"
+        },
+        "_id": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "_createdAt": {
+          "type": "object",
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
+          "properties": {
+            "_type": {
+              "type": "string",
+              "const": "timestamp"
+            },
+            "value": {
+              "type": "string",
+              "description": "ISO 8601 string timestamp"
+            },
+            "precision": {
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
+              "default": "full"
+            }
+          }
+        }
+      },
+      "$defs": {
+        "EntityRef": {
+          "type": "object",
+          "properties": {
+            "_id": {}
+          },
+          "required": [
+            "_id"
+          ]
+        }
+      },
+      "x-version": 0,
+      "x-unique-fields": [
+        "code"
+      ],
+      "x-display-field": "title"
+    },
+    "linkedin__comment": {
+      "type": "object",
+      "required": [
+        "_entity",
+        "_id"
+      ],
+      "properties": {
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "likeCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "author": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "one",
+              "x-entity": "@linkedin/user"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "post": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "one",
+              "x-entity": "@linkedin/post"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "_entity": {
+          "type": "string",
+          "const": "@linkedin/comment"
+        },
+        "_id": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "_createdAt": {
+          "type": "object",
+          "required": [
+            "_type",
+            "value",
+            "precision"
+          ],
+          "properties": {
+            "_type": {
+              "type": "string",
+              "const": "timestamp"
+            },
+            "value": {
+              "type": "string",
+              "description": "ISO 8601 string timestamp"
+            },
+            "precision": {
+              "enum": [
+                "full",
+                "year",
+                "month",
+                "day"
+              ],
+              "default": "full"
+            }
+          }
+        }
+      },
+      "$defs": {
+        "EntityRef": {
+          "type": "object",
+          "properties": {
+            "_id": {}
+          },
+          "required": [
+            "_id"
+          ]
+        }
+      },
+      "x-version": 0,
+      "x-display-field": "text"
+    },
     "roblox__game": {
       "type": "object",
       "required": [
@@ -862,7 +1441,32 @@
         "description": {
           "anyOf": [
             {
-              "type": "string"
+              "type": "object",
+              "required": [
+                "_type",
+                "content"
+              ],
+              "properties": {
+                "_type": {
+                  "type": "string",
+                  "const": "rich_text"
+                },
+                "content": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
             },
             {
               "type": "null"

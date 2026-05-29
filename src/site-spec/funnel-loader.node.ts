@@ -42,7 +42,7 @@ const rawHtmlegyModules = rawGlob(['sites/*/funnels/*.htmlegy'])
 
 const rawFixtureModules = jsonGlob(['sites/*/funnels/*.json'])
 
-const { page: pageEntries, network: networkEntries } = parseAllEntries(
+export const { page: pageEntries, network: networkEntries } = parseAllEntries(
   rawJsonataModules,
   rawHtmlegyModules,
 )
