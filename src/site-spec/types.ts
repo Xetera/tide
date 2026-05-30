@@ -269,11 +269,15 @@ export interface ResourcesResponse {
 
 export type JobSource = { kind: 'active'; id: string } | { kind: 'passive' }
 
+export interface SubmitEvent {
+  funnel: import('~/shared/log').ScrapeSource
+  patches: EntityPatch[]
+}
+
 interface JobOkay {
   success: true
   job: JobSource
-  funnel?: import('~/shared/log').ScrapeSource
-  patches: RawEntityPatch[]
+  events: SubmitEvent[]
   warnings: readonly string[]
 }
 

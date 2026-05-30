@@ -29,14 +29,14 @@ export function parseLocaleDate(
   str: string,
   locale: string,
   format?: string,
-): Date | null {
+): string | null {
   const trimmed = str.trim()
   if (format) {
     const parsed = parse(trimmed, format, new Date(), {
       locale: resolveLocale(locale),
     })
-    return isNaN(parsed.getTime()) ? null : parsed
+    return isNaN(parsed.getTime()) ? null : parsed.toISOString()
   }
   const native = new Date(trimmed)
-  return isNaN(native.getTime()) ? null : native
+  return isNaN(native.getTime()) ? null : native.toISOString()
 }

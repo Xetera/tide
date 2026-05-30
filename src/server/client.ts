@@ -1,19 +1,23 @@
 import dayjs from 'dayjs'
 import { onMessage, sendMessage } from 'webext-bridge/background'
-import { log, withScrapeLog } from '~/background/backend-logger'
-import { scrapeSourceFunnelKey, type ScrapeSource } from '~/shared/log'
+import {
+  log,
+  pushScrapeLog,
+  updateScrapeLogStatus,
+} from '~/background/backend-logger'
+import { scrapeSourceFunnelKey } from '~/shared/log'
 import { flashError, flashSuccess } from '~/background/badge'
 import type { ContentScriptTracker } from '~/background/content-script-tracker'
 import { Job } from './job'
 import { JobQueue } from './job-queue'
 import type {
-  EntityPatch,
   JobParameters,
   JobPollParameters,
   JobPollResponse,
   JobResult,
   JobSource,
   SiteSpec,
+  SubmitEvent,
 } from '~/site-spec/types'
 import { ServerAutonomy } from '~/site-spec/types'
 import type { ScrapeResult } from '~/extraction/scrape-result'
@@ -24,6 +28,20 @@ import type {
 } from './api'
 
 const PRECONDITION_FAILED = 412
+
+interface PendingBatch {
+  job: JobSource
+  warnings: string[]
+  events: SubmitEvent[]
+  tabId?: number
+}
+
+interface SubmitJobOptions {
+  job: JobSource
+  events: SubmitEvent[]
+  warnings: string[]
+  tabId?: number
+}
 
 function isResolvedMediaField(value: unknown): value is { hash: string } {
   if (value === null || typeof value !== 'object') {
@@ -70,6 +88,7 @@ export class Client {
     string,
     { hash: string; sentAt: number; serialized: string }
   >()
+  #pendingBatches = new Map<string, PendingBatch>()
 
   readonly #pollIntervalSeconds: number
   readonly #queue: JobQueue<JobParameters>
@@ -97,15 +116,7 @@ export class Client {
 
     onMessage('entity-patches', ({ data, sender }) => {
       onPatches?.(data)
-      this.#submitJob(
-        data.patches,
-        data.source!,
-        data.warnings,
-        0,
-        undefined,
-        data.scrapeSource,
-        sender.tabId,
-      )
+      this.#queueEvent(data, sender.tabId)
     })
   }
 
@@ -339,16 +350,53 @@ export class Client {
     }
   }
 
-  async #submitJob(
-    patches: EntityPatch[],
-    source: JobSource,
-    warnings: string[],
-    retryCount = 0,
-    existingScrapeLogId?: string,
-    scrapeSource?: ScrapeSource,
-    tabId?: number,
-  ) {
-    if (patches.length === 0) {
+  #queueEvent(result: ScrapeResult, tabId?: number): void {
+    if (!result.source || result.patches.length === 0) {
+      return
+    }
+    const key = `${tabId ?? 'no-tab'}|${stableStringify(result.source)}`
+    let batch = this.#pendingBatches.get(key)
+    if (!batch) {
+      batch = {
+        job: result.source,
+        warnings: [],
+        events: [],
+        tabId,
+      }
+      this.#pendingBatches.set(key, batch)
+      queueMicrotask(() => this.#flushBatch(key))
+    }
+    if (result.scrapeSource) {
+      batch.events.push({
+        funnel: result.scrapeSource,
+        patches: result.patches,
+      })
+    }
+    if (result.warnings.length > 0) {
+      batch.warnings.push(...result.warnings)
+    }
+  }
+
+  #flushBatch(key: string): void {
+    const batch = this.#pendingBatches.get(key)
+    if (!batch) {
+      return
+    }
+    this.#pendingBatches.delete(key)
+    if (batch.events.length === 0) {
+      return
+    }
+    this.#submitJob({
+      job: batch.job,
+      events: batch.events,
+      warnings: batch.warnings,
+      tabId: batch.tabId,
+    })
+  }
+
+  async #submitJob(opts: SubmitJobOptions): Promise<void> {
+    const { job, events, warnings, tabId } = opts
+    if (events.length === 0) {
       return
     }
     const server = this.servers[0]
@@ -356,143 +404,153 @@ export class Client {
       return
     }
     console.log(
-      `[tide] scraped${scrapeSource ? ` ${scrapeSourceFunnelKey(scrapeSource) ?? scrapeSource.kind}` : ''}`,
-      patches,
+      `[tide] scraped ${events
+        .map((e) => scrapeSourceFunnelKey(e.funnel) ?? e.funnel.kind)
+        .join(', ')}`,
+      events,
     )
     const body: JobResult = {
       success: true,
-      patches,
-      job: source,
-      funnel: scrapeSource,
+      job,
+      events,
       warnings,
     }
     const serialized = stableStringify(body)
     const payloadHash = await this.#hashString(serialized)
     const dedupKey = payloadHash
     const prior = this.#recentSubmissions.get(dedupKey)
-    if (prior) {
-      const withinWindow = Date.now() - prior.sentAt < 60_000
-      if (withinWindow) {
-        log({
-          severity: 'info',
-          scope: 'pool',
-          text: 'Skipping duplicate submission',
-        })
-        return
-      }
+    if (prior && Date.now() - prior.sentAt < 60_000) {
+      log({
+        severity: 'info',
+        scope: 'pool',
+        text: 'Skipping duplicate submission',
+      })
+      return
     }
 
-    await withScrapeLog(
-      {
-        type: 'scrape',
-        severity: 'info',
-        patches,
-        warnings,
-        source: scrapeSource,
-      },
-      async (scrapeLogId) => {
-        const jobPostReq = this.#requestJobPost(
-          server.url,
-          server.poolId,
-          '',
-          body,
-        )
-        let response: Response
-        try {
-          const request = await this.#requestBase(jobPostReq, server)
-          response = await fetch(request)
-        } catch (err) {
-          log({
-            severity: 'error',
-            scope: 'pool',
-            text: 'Failed to reach server',
-            data: { error: err instanceof Error ? err.message : String(err) },
-          })
-          flashError(tabId)
-          throw err
-        }
-        if (response.status === PRECONDITION_FAILED) {
-          if (retryCount < 3) {
-            log({
-              severity: 'warning',
-              scope: 'pool',
-              text: 'Failed job precondition while submitting. Trying to refresh and re-submit...',
-            })
-          } else {
-            log({
-              severity: 'error',
-              scope: 'pool',
-              text: 'Failed job precondition more than 3 times while submitting! Giving up and pausing temporarily',
-              data: { retries: retryCount },
-            })
-            this.#stopPollingAndReschedule(server)
-            throw new Error('precondition failed too many times')
-          }
-
-          this.stop(server)
-          try {
-            await this.#updateSites(server)
-            await this.#submitJob(
-              patches,
-              source,
-              warnings,
-              retryCount + 1,
-              scrapeLogId,
-              scrapeSource,
-              tabId,
-            )
-          } catch (err) {
-            if (err instanceof Error) {
-              log({
-                severity: 'error',
-                scope: 'pool',
-                text: 'Got an error while trying to reschedule a failed precondition',
-                data: { error: err.message },
-              })
-            } else {
-              log({
-                severity: 'error',
-                scope: 'pool',
-                text: "Got a super weird error while trying to reschedule a failed precondition but it's not an instance of an Error object?",
-                data: { error: err },
-              })
-            }
-            throw err
-          } finally {
-            this.start(server)
-          }
-          return
-        }
-        const responseText = await response.text()
-        if (response.status < 200 || response.status >= 300) {
-          // To prevent overwhelming the log storage
-          const truncated =
-            responseText.length > 1000
-              ? responseText.slice(0, 1000).replace(/.{3}$/, '...')
-              : responseText
-          log({
-            severity: 'error',
-            scope: 'pool',
-            text: 'Failed to submit job',
-            data: { response: truncated },
-          })
-          flashError(tabId)
-          throw Object.assign(new Error('job submission failed'), {
-            httpStatus: response.status,
-            serverResponse: truncated,
-          })
-        }
-
-        this.#recentSubmissions.set(dedupKey, {
-          hash: payloadHash,
-          sentAt: Date.now(),
-          serialized,
-        })
-        flashSuccess(tabId)
-        return { httpStatus: response.status, serverResponse: responseText }
-      },
-      existingScrapeLogId,
+    const scrapeLogIds = await Promise.all(
+      events.map((event) =>
+        pushScrapeLog({
+          type: 'scrape',
+          severity: 'info',
+          patches: event.patches,
+          warnings,
+          source: event.funnel,
+        }),
+      ),
     )
+
+    try {
+      const meta = await this.#performSubmit({
+        server,
+        body,
+        tabId,
+        retryCount: 0,
+      })
+      this.#recentSubmissions.set(dedupKey, {
+        hash: payloadHash,
+        sentAt: Date.now(),
+        serialized,
+      })
+      await Promise.all(
+        scrapeLogIds.map((id) =>
+          updateScrapeLogStatus(id, 'submitted', meta ?? undefined),
+        ),
+      )
+    } catch (err) {
+      const failureMeta =
+        err !== null && typeof err === 'object' && 'httpStatus' in err
+          ? (err as { httpStatus?: number; serverResponse?: string })
+          : undefined
+      await Promise.all(
+        scrapeLogIds.map((id) =>
+          updateScrapeLogStatus(id, 'failed', failureMeta),
+        ),
+      )
+    }
+  }
+
+  async #performSubmit(args: {
+    server: ServerDefinition
+    body: JobResult
+    tabId?: number
+    retryCount: number
+  }): Promise<{ httpStatus?: number; serverResponse?: string }> {
+    const { server, body, tabId, retryCount } = args
+    const jobPostReq = this.#requestJobPost(server.url, server.poolId, '', body)
+    let response: Response
+    try {
+      const request = await this.#requestBase(jobPostReq, server)
+      response = await fetch(request)
+    } catch (err) {
+      log({
+        severity: 'error',
+        scope: 'pool',
+        text: 'Failed to reach server',
+        data: { error: err instanceof Error ? err.message : String(err) },
+      })
+      flashError(tabId)
+      throw err
+    }
+    if (response.status === PRECONDITION_FAILED) {
+      if (retryCount >= 3) {
+        log({
+          severity: 'error',
+          scope: 'pool',
+          text: 'Failed job precondition more than 3 times while submitting! Giving up and pausing temporarily',
+          data: { retries: retryCount },
+        })
+        this.#stopPollingAndReschedule(server)
+        throw new Error('precondition failed too many times')
+      }
+      log({
+        severity: 'warning',
+        scope: 'pool',
+        text: 'Failed job precondition while submitting. Trying to refresh and re-submit...',
+      })
+      this.stop(server)
+      try {
+        await this.#updateSites(server)
+        return await this.#performSubmit({
+          server,
+          body,
+          tabId,
+          retryCount: retryCount + 1,
+        })
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : '[non-Error thrown]'
+        log({
+          severity: 'error',
+          scope: 'pool',
+          text: 'Got an error while trying to reschedule a failed precondition',
+          data: { error: message },
+        })
+        throw err
+      } finally {
+        this.start(server)
+      }
+    }
+    const responseText = await response.text()
+    if (response.status < 200 || response.status >= 300) {
+      const truncated =
+        responseText.length > 1000
+          ? responseText.slice(0, 1000).replace(/.{3}$/, '...')
+          : responseText
+      log({
+        severity: 'error',
+        scope: 'pool',
+        text: 'Failed to submit job',
+        data: { response: truncated },
+      })
+      flashError(tabId)
+      throw Object.assign(new Error('job submission failed'), {
+        httpStatus: response.status,
+        serverResponse: truncated,
+      })
+    }
+    flashSuccess(tabId)
+    return { httpStatus: response.status, serverResponse: responseText }
   }
 
   async #updateSites(server: ServerDefinition): Promise<void> {

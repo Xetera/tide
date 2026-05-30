@@ -33,7 +33,6 @@ function applyIdentity(
   if (value._id != null) {
     return value
   }
-  console.log(identity, resolved)
   if (!resolved) {
     warnings.push({
       message: `unknown identity function: ${identity.fn}`,

@@ -4,20 +4,42 @@ url: "/*"
 ---
 
 [
-@entry $$(.searchResultsItem:not(.nativeAd)) {
-  "_entity": "@sahibinden/listing",
-  "_id": $ | data(id),
-  "_createdAt": $(.searchResultsDateValue)? | text | trim | date(locale: 'tr', format: "d MMMM yyyy"),
-  // may not exist for all tables
-  "images": $(picture img)? | media,
-  "location": $(.searchResultsLocationValue)? | lines {
-    "city": $ | at(0),
-    "district": $ | at(1)
-  },
-  "price": $(.searchResultsPriceValue) | innerText | regex('(.+) TL', 1) | number(locale: 'tr'),
-  "attributes": zip(@$$(#searchResultsTable thead td:not(.searchResultsFirstColumn, :empty))
-				, @entry$$(td)) {
-  		[$1 | text | trim]: $2 | text | trim
+  $$(.searchResultsItem:not(.nativeAd)) {
+    "_entity": "@sahibinden/listing",
+    "_id": $ | data(id),
+    "_createdAt": $(.searchResultsDateValue)?
+      | text
+      | trim
+      | date(locale: 'tr', format: "d MMMM yyyy"),
+    "agency": $(a.titleIcon)?
+      | attr(href)
+      | regex("https:?//(.+).sahibinden.com", 1)
+      | ref,
+    "name": $(a.classifiedTitle) | text | trim,
+    // may not exist for all tables
+    "thumbnail": $(.searchResultsLargeThumbnail img:not(.searchResultThumbnailPlaceholder))?
+      | media,
+    "location": $(.searchResultsLocationValue)? | lines {
+      "city":     $ | at(0),
+      "district": $ | at(1)
+    },
+    "price": $(.searchResultsPriceValue)
+      | innerText
+      | regex('(.+) TL', 1)
+      | number(locale: 'tr'),
+    "attributes": zip(
+      @$$(#searchResultsTable thead td:nth-child(n + 2)),
+      $$(td:nth-child(n + 2))
+    ) {
+      [$1 | text | trim]: $2 | innerText | trim
     } | merge
+  },
+  $$(.searchResultsItem a.titleIcon) {
+    "_entity": "@sahibinden/agency",
+    "_id": $
+      | attr(href)
+      | regex("https?://(.+).sahibinden.com", 1),
+    "name": $ | attr(title),
+    "link": $ | attr(href)
   }
 ]

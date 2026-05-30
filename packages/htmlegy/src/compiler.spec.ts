@@ -60,7 +60,10 @@ const provider: HtmlegyProvider<TestNode> = {
   getText: (node) => node.text ?? null,
   getLines: (node) =>
     node.text != null
-      ? node.text.split('\n').map((s) => s.trim()).filter((s) => s.length > 0)
+      ? node.text
+          .split('\n')
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0)
       : null,
   getAttribute: (node, name) => node.attrs?.[name] ?? null,
   resolveUrl: (url) => `https://example.com${url}`,
@@ -536,8 +539,8 @@ describe('pipe |date', () => {
       children: [{ tag: 'time', text: '2024-01-15' }],
     }
     const result = run('$(time) | text | date', node)
-    expect(result).toBeInstanceOf(Date)
-    expect((result as Date).getFullYear()).toBe(2024)
+    expect(result).toBeTypeOf('string')
+    expect(new Date(result as string).getFullYear()).toBe(2024)
   })
 
   it('returns null for an invalid date string', () => {
@@ -557,10 +560,10 @@ describe('pipe |date', () => {
       '$(time) | text | date(locale: "tr", format: "d MMMM yyyy")',
       node,
     )
-    expect(result).toBeInstanceOf(Date)
-    expect((result as Date).getFullYear()).toBe(2026)
-    expect((result as Date).getMonth()).toBe(4)
-    expect((result as Date).getDate()).toBe(30)
+    expect(result).toBeTypeOf('string')
+    expect(new Date(result as string).getFullYear()).toBe(2026)
+    expect(new Date(result as string).getMonth()).toBe(4)
+    expect(new Date(result as string).getDate()).toBe(30)
   })
 
   it('returns null when the format does not match the input', () => {
@@ -598,9 +601,7 @@ describe('pipe |at', () => {
 
   it('throws when applied to a non-array input', () => {
     const node: TestNode = { tag: 'td', text: 'hello' }
-    expect(() => run('$(td) | text | at(0)', node)).toThrow(
-      /must be an array/,
-    )
+    expect(() => run('$(td) | text | at(0)', node)).toThrow(/must be an array/)
   })
 })
 

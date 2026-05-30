@@ -65,6 +65,20 @@ export function log(
   return id
 }
 
+export async function pushScrapeLog(
+  payload: Omit<ScrapeLog, 'date' | 'id' | 'status'>,
+): Promise<string> {
+  const id = generateUID()
+  const entry: Log = {
+    id,
+    date: Date.now(),
+    status: 'pending',
+    ...payload,
+  } as Log
+  await push(EVENTS_KEY, entry, { trim: MAX_LOG_RETENTION })
+  return id
+}
+
 export async function withScrapeLog(
   payload: Omit<ScrapeLog, 'date' | 'id' | 'status'>,
   fn: (
@@ -72,19 +86,7 @@ export async function withScrapeLog(
   ) => Promise<{ httpStatus?: number; serverResponse?: string } | void>,
   existingId?: string,
 ): Promise<void> {
-  let id: string
-  if (existingId) {
-    id = existingId
-  } else {
-    id = generateUID()
-    const entry: Log = {
-      id,
-      date: Date.now(),
-      status: 'pending',
-      ...payload,
-    } as Log
-    await push(EVENTS_KEY, entry, { trim: MAX_LOG_RETENTION })
-  }
+  const id = existingId ?? (await pushScrapeLog(payload))
   try {
     const meta = await fn(id)
     await updateScrapeLogStatus(id, 'submitted', meta ?? undefined)

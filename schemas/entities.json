@@ -292,31 +292,9 @@
           ]
         },
         "_createdAt": {
-          "type": "object",
-          "required": [
-            "_type",
-            "value",
-            "precision"
-          ],
-          "properties": {
-            "_type": {
-              "type": "string",
-              "const": "timestamp"
-            },
-            "value": {
-              "type": "string",
-              "description": "ISO 8601 string timestamp"
-            },
-            "precision": {
-              "enum": [
-                "full",
-                "year",
-                "month",
-                "day"
-              ],
-              "default": "full"
-            }
-          }
+          "type": "string",
+          "description": "ISO 8601 string timestamp",
+          "format": "date-time"
         }
       },
       "$defs": {
@@ -564,31 +542,9 @@
           ]
         },
         "_createdAt": {
-          "type": "object",
-          "required": [
-            "_type",
-            "value",
-            "precision"
-          ],
-          "properties": {
-            "_type": {
-              "type": "string",
-              "const": "timestamp"
-            },
-            "value": {
-              "type": "string",
-              "description": "ISO 8601 string timestamp"
-            },
-            "precision": {
-              "enum": [
-                "full",
-                "year",
-                "month",
-                "day"
-              ],
-              "default": "full"
-            }
-          }
+          "type": "string",
+          "description": "ISO 8601 string timestamp",
+          "format": "date-time"
         }
       },
       "$defs": {
@@ -678,31 +634,9 @@
           ]
         },
         "_createdAt": {
-          "type": "object",
-          "required": [
-            "_type",
-            "value",
-            "precision"
-          ],
-          "properties": {
-            "_type": {
-              "type": "string",
-              "const": "timestamp"
-            },
-            "value": {
-              "type": "string",
-              "description": "ISO 8601 string timestamp"
-            },
-            "precision": {
-              "enum": [
-                "full",
-                "year",
-                "month",
-                "day"
-              ],
-              "default": "full"
-            }
-          }
+          "type": "string",
+          "description": "ISO 8601 string timestamp",
+          "format": "date-time"
         }
       },
       "$defs": {
@@ -901,31 +835,9 @@
           ]
         },
         "_createdAt": {
-          "type": "object",
-          "required": [
-            "_type",
-            "value",
-            "precision"
-          ],
-          "properties": {
-            "_type": {
-              "type": "string",
-              "const": "timestamp"
-            },
-            "value": {
-              "type": "string",
-              "description": "ISO 8601 string timestamp"
-            },
-            "precision": {
-              "enum": [
-                "full",
-                "year",
-                "month",
-                "day"
-              ],
-              "default": "full"
-            }
-          }
+          "type": "string",
+          "description": "ISO 8601 string timestamp",
+          "format": "date-time"
         }
       },
       "$defs": {
@@ -978,31 +890,9 @@
           ]
         },
         "_createdAt": {
-          "type": "object",
-          "required": [
-            "_type",
-            "value",
-            "precision"
-          ],
-          "properties": {
-            "_type": {
-              "type": "string",
-              "const": "timestamp"
-            },
-            "value": {
-              "type": "string",
-              "description": "ISO 8601 string timestamp"
-            },
-            "precision": {
-              "enum": [
-                "full",
-                "year",
-                "month",
-                "day"
-              ],
-              "default": "full"
-            }
-          }
+          "type": "string",
+          "description": "ISO 8601 string timestamp",
+          "format": "date-time"
         }
       },
       "$defs": {
@@ -1141,31 +1031,9 @@
           ]
         },
         "_createdAt": {
-          "type": "object",
-          "required": [
-            "_type",
-            "value",
-            "precision"
-          ],
-          "properties": {
-            "_type": {
-              "type": "string",
-              "const": "timestamp"
-            },
-            "value": {
-              "type": "string",
-              "description": "ISO 8601 string timestamp"
-            },
-            "precision": {
-              "enum": [
-                "full",
-                "year",
-                "month",
-                "day"
-              ],
-              "default": "full"
-            }
-          }
+          "type": "string",
+          "description": "ISO 8601 string timestamp",
+          "format": "date-time"
         }
       },
       "$defs": {
@@ -1254,31 +1122,9 @@
           ]
         },
         "_createdAt": {
-          "type": "object",
-          "required": [
-            "_type",
-            "value",
-            "precision"
-          ],
-          "properties": {
-            "_type": {
-              "type": "string",
-              "const": "timestamp"
-            },
-            "value": {
-              "type": "string",
-              "description": "ISO 8601 string timestamp"
-            },
-            "precision": {
-              "enum": [
-                "full",
-                "year",
-                "month",
-                "day"
-              ],
-              "default": "full"
-            }
-          }
+          "type": "string",
+          "description": "ISO 8601 string timestamp",
+          "format": "date-time"
         }
       },
       "$defs": {
@@ -1361,31 +1207,9 @@
           ]
         },
         "_createdAt": {
-          "type": "object",
-          "required": [
-            "_type",
-            "value",
-            "precision"
-          ],
-          "properties": {
-            "_type": {
-              "type": "string",
-              "const": "timestamp"
-            },
-            "value": {
-              "type": "string",
-              "description": "ISO 8601 string timestamp"
-            },
-            "precision": {
-              "enum": [
-                "full",
-                "year",
-                "month",
-                "day"
-              ],
-              "default": "full"
-            }
-          }
+          "type": "string",
+          "description": "ISO 8601 string timestamp",
+          "format": "date-time"
         }
       },
       "$defs": {
@@ -1432,6 +1256,43 @@
           "anyOf": [
             {
               "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agency": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "one",
+              "x-entity": "@sahibinden/agency"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "location": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "city",
+                "district"
+              ],
+              "properties": {
+                "city": {
+                  "type": "string"
+                },
+                "district": {
+                  "type": "string"
+                },
+                "neighborhood": {
+                  "type": "string"
+                }
+              }
             },
             {
               "type": "null"
@@ -1566,31 +1427,9 @@
           ]
         },
         "_createdAt": {
-          "type": "object",
-          "required": [
-            "_type",
-            "value",
-            "precision"
-          ],
-          "properties": {
-            "_type": {
-              "type": "string",
-              "const": "timestamp"
-            },
-            "value": {
-              "type": "string",
-              "description": "ISO 8601 string timestamp"
-            },
-            "precision": {
-              "enum": [
-                "full",
-                "year",
-                "month",
-                "day"
-              ],
-              "default": "full"
-            }
-          }
+          "type": "string",
+          "description": "ISO 8601 string timestamp",
+          "format": "date-time"
         }
       },
       "$defs": {
@@ -1689,31 +1528,9 @@
           ]
         },
         "_createdAt": {
-          "type": "object",
-          "required": [
-            "_type",
-            "value",
-            "precision"
-          ],
-          "properties": {
-            "_type": {
-              "type": "string",
-              "const": "timestamp"
-            },
-            "value": {
-              "type": "string",
-              "description": "ISO 8601 string timestamp"
-            },
-            "precision": {
-              "enum": [
-                "full",
-                "year",
-                "month",
-                "day"
-              ],
-              "default": "full"
-            }
-          }
+          "type": "string",
+          "description": "ISO 8601 string timestamp",
+          "format": "date-time"
         }
       },
       "$defs": {
@@ -1869,31 +1686,9 @@
           ]
         },
         "_createdAt": {
-          "type": "object",
-          "required": [
-            "_type",
-            "value",
-            "precision"
-          ],
-          "properties": {
-            "_type": {
-              "type": "string",
-              "const": "timestamp"
-            },
-            "value": {
-              "type": "string",
-              "description": "ISO 8601 string timestamp"
-            },
-            "precision": {
-              "enum": [
-                "full",
-                "year",
-                "month",
-                "day"
-              ],
-              "default": "full"
-            }
-          }
+          "type": "string",
+          "description": "ISO 8601 string timestamp",
+          "format": "date-time"
         }
       },
       "$defs": {
@@ -2034,31 +1829,9 @@
           ]
         },
         "_createdAt": {
-          "type": "object",
-          "required": [
-            "_type",
-            "value",
-            "precision"
-          ],
-          "properties": {
-            "_type": {
-              "type": "string",
-              "const": "timestamp"
-            },
-            "value": {
-              "type": "string",
-              "description": "ISO 8601 string timestamp"
-            },
-            "precision": {
-              "enum": [
-                "full",
-                "year",
-                "month",
-                "day"
-              ],
-              "default": "full"
-            }
-          }
+          "type": "string",
+          "description": "ISO 8601 string timestamp",
+          "format": "date-time"
         }
       },
       "$defs": {

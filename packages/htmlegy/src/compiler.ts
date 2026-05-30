@@ -177,7 +177,9 @@ class Evaluator<N> {
       case 'match': {
         if (expr.source !== null) {
           const scoped = this.#provider.querySelector(el, expr.source) ?? null
-          if (scoped === null) return undefined
+          if (scoped === null) {
+            return undefined
+          }
           return this.evalMatch(expr.arms, el, env, ctx, scoped)
         }
         return this.evalMatch(expr.arms, el, env, ctx)
@@ -204,12 +206,7 @@ class Evaluator<N> {
     }
   }
 
-  evalChain(
-    expr: Chain,
-    root: N,
-    env: Env<N>,
-    ctx: EvalContext,
-  ): unknown {
+  evalChain(expr: Chain, root: N, env: Env<N>, ctx: EvalContext): unknown {
     const unwrapped = unwrapSource(expr.source)
     return this.evalChainSteps(
       { source: unwrapped, tail: expr.tail },
@@ -295,7 +292,8 @@ class Evaluator<N> {
           { name: arm.name, args: arm.args },
           this.evalExpr(arm.expr, subject, env, ctx),
         )
-        const truthy = condValue != null && condValue !== false && condValue !== ''
+        const truthy =
+          condValue != null && condValue !== false && condValue !== ''
         if (truthy) {
           return this.evalExpr(arm.body, subject, env, ctx)
         }
@@ -333,8 +331,7 @@ class Evaluator<N> {
         current = el
         break
       case 'positional_ref':
-        current =
-          currentEnv.get(POSITIONAL_PREFIX + expr.source.index) ?? null
+        current = currentEnv.get(POSITIONAL_PREFIX + expr.source.index) ?? null
         break
       case 'root_ref':
         current = currentEnv.get('') ?? null
@@ -377,10 +374,7 @@ class Evaluator<N> {
           currentEnv = new Map(env)
           currentEnv.set(expr.source.name, el)
         }
-        const els = this.#provider.querySelectorAll(
-          scope,
-          expr.source.selector,
-        )
+        const els = this.#provider.querySelectorAll(scope, expr.source.selector)
         if (expr.source.requireOne && els.length === 0) {
           throw new SelectorError({
             selector: expr.source.selector,
@@ -578,7 +572,9 @@ class Evaluator<N> {
           return null
         }
         if (!this.#provider.getTextContent) {
-          throw new Error('provider does not support pipe function: textContent')
+          throw new Error(
+            'provider does not support pipe function: textContent',
+          )
         }
         return this.#provider.getTextContent(value as N)
       }
@@ -593,11 +589,15 @@ class Evaluator<N> {
       }
       case 'attr': {
         const attrName = args[0] as string
-        return value != null ? this.#provider.getAttribute(value as N, attrName) : null
+        return value != null
+          ? this.#provider.getAttribute(value as N, attrName)
+          : null
       }
       case 'data': {
         const dataKey = args[0] as string
-        return value != null ? this.#provider.getAttribute(value as N, `data-${dataKey}`) : null
+        return value != null
+          ? this.#provider.getAttribute(value as N, `data-${dataKey}`)
+          : null
       }
       case 'exists':
         return value != null
@@ -716,11 +716,7 @@ class Evaluator<N> {
     return () => {}
   }
 
-  collectReactiveSources(
-    expr: Expr,
-    root: N,
-    onFire: () => void,
-  ): () => void {
+  collectReactiveSources(expr: Expr, root: N, onFire: () => void): () => void {
     const topLevelSource =
       expr.kind === 'fallback_expr' ? expr.primary.source : null
     if (topLevelSource && hasReactiveSource(topLevelSource)) {
@@ -770,11 +766,7 @@ export class HtmlegyExpr<N> {
   }
 }
 
-function buildReactive<N>(
-  expr: Expr,
-  root: N,
-  ev: Evaluator<N>,
-): ReactiveExpr {
+function buildReactive<N>(expr: Expr, root: N, ev: Evaluator<N>): ReactiveExpr {
   const subscribers = new Set<(value: unknown) => void>()
   let currentValue: unknown
   let started = false
