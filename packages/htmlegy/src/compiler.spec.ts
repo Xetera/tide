@@ -58,6 +58,10 @@ const provider: HtmlegyProvider<TestNode> = {
   getContextHtml: (node) => `<${node.tag}>`,
   getTagName: (node) => node.tag,
   getText: (node) => node.text ?? null,
+  getLines: (node) =>
+    node.text != null
+      ? node.text.split('\n').map((s) => s.trim()).filter((s) => s.length > 0)
+      : null,
   getAttribute: (node, name) => node.attrs?.[name] ?? null,
   resolveUrl: (url) => `https://example.com${url}`,
   watch: (_node, _selector, _cb) => () => {},
@@ -375,12 +379,75 @@ describe('scoped match expression', () => {
 
   it('falls through all call arms when all conditions are falsy', () => {
     expect(
-      run('match $(h1) { attr($, "href") => "a" attr($, "id") => "b" _ => "none" }', root),
+      run(
+        'match $(h1) { attr($, "href") => "a" attr($, "id") => "b" _ => "none" }',
+        root,
+      ),
     ).toBe('none')
   })
 
   it('returns undefined when all call arms are falsy and there is no fallback', () => {
     expect(run('match $(h1) { attr($, "href") => "a" }', root)).toBeUndefined()
+  })
+})
+
+describe('match expression with scrutinee', () => {
+  it('matches a literal arm by equality', () => {
+    expect(
+      run('match $(h1) | text { "Hello" => "yes", _ => "no" }', root),
+    ).toBe('yes')
+  })
+
+  it('falls through to fallback when no literal arm matches', () => {
+    expect(run('match $(h1) | text { "nope" => "yes", _ => "no" }', root)).toBe(
+      'no',
+    )
+  })
+
+  it('runs a pipe arm and binds $ to the piped result', () => {
+    expect(
+      run(
+        'match $(p) | text | trim { regex("(lots)", 1) => $, _ => "nope" }',
+        root,
+      ),
+    ).toBe('lots')
+  })
+
+  it('skips a non-matching pipe arm and tries the next one', () => {
+    expect(
+      run(
+        'match $(p) | text | trim { regex("(zzz)", 1) => $, regex("(space)", 1) => $, _ => "nope" }',
+        root,
+      ),
+    ).toBe('space')
+  })
+
+  it('supports a bare pipe step in arm LHS', () => {
+    expect(run('match $(p) { text | trim => $, _ => "nope" }', root)).toBe(
+      'lots of space',
+    )
+  })
+
+  it('returns undefined when no arm matches and there is no fallback', () => {
+    expect(run('match $(h1) | text { "nope" => "yes" }', root)).toBeUndefined()
+  })
+
+  it('uses the scrutinee as $ inside a literal arm body', () => {
+    expect(run('match $(h1) | text { "Hello" => $ | lowercase }', root)).toBe(
+      'hello',
+    )
+  })
+
+  it('uses the scrutinee as $ inside the fallback body', () => {
+    expect(
+      run('match $(h1) | text { "nope" => "x", _ => $ | lowercase }', root),
+    ).toBe('hello')
+  })
+
+  it('allows trailing comma after last arm', () => {
+    expect(
+      run('match $(h1) | text { "Hello" => "yes", _ => "no", }', root),
+    ).toBe('yes')
   })
 })
 
@@ -479,6 +546,61 @@ describe('pipe |date', () => {
       children: [{ tag: 'time', text: 'not-a-date' }],
     }
     expect(run('{ "d": $(time)? | text | date }', node)).toEqual({})
+  })
+
+  it('parses a Turkish-formatted date with locale and format kwargs', () => {
+    const node: TestNode = {
+      tag: 'div',
+      children: [{ tag: 'time', text: '30 Mayıs 2026' }],
+    }
+    const result = run(
+      '$(time) | text | date(locale: "tr", format: "d MMMM yyyy")',
+      node,
+    )
+    expect(result).toBeInstanceOf(Date)
+    expect((result as Date).getFullYear()).toBe(2026)
+    expect((result as Date).getMonth()).toBe(4)
+    expect((result as Date).getDate()).toBe(30)
+  })
+
+  it('returns null when the format does not match the input', () => {
+    const node: TestNode = {
+      tag: 'div',
+      children: [{ tag: 'time', text: 'nope' }],
+    }
+    expect(
+      run(
+        '{ "d": $(time)? | text | date(locale: "tr", format: "d MMMM yyyy") }',
+        node,
+      ),
+    ).toEqual({})
+  })
+})
+
+describe('pipe |at', () => {
+  it('indexes into an array with a positive index', () => {
+    const node: TestNode = {
+      tag: 'td',
+      text: 'Afyonkarahisar\nMerkez\nKocatepe Mah.',
+    }
+    expect(run('$(td) | lines | at(0)', node)).toBe('Afyonkarahisar')
+    expect(run('$(td) | lines | at(1)', node)).toBe('Merkez')
+    expect(run('$(td) | lines | at(2)', node)).toBe('Kocatepe Mah.')
+  })
+
+  it('returns null for an out-of-range index', () => {
+    const node: TestNode = {
+      tag: 'td',
+      text: 'only',
+    }
+    expect(run('{ "v": $(td)? | lines | at(5) }', node)).toEqual({})
+  })
+
+  it('throws when applied to a non-array input', () => {
+    const node: TestNode = { tag: 'td', text: 'hello' }
+    expect(() => run('$(td) | text | at(0)', node)).toThrow(
+      /must be an array/,
+    )
   })
 })
 
@@ -608,7 +730,7 @@ describe('function call syntax', () => {
   })
 })
 
-describe('zip $$(a, b, ...)', () => {
+describe('zip(a, b, ...)', () => {
   const table: TestNode = {
     tag: 'table',
     attrs: { id: 't' },
@@ -654,21 +776,14 @@ describe('zip $$(a, b, ...)', () => {
 
   it('zips two lane lists by index, binding $1 and $2 in the block', () => {
     expect(
-      run(
-        '$$($$(.h), $$(.c)) { [$1 | text]:  $2 | text }',
-        table,
-      ),
-    ).toEqual([
-      { Make: 'Audi' },
-      { Model: 'A5' },
-      { Year: '2024' },
-    ])
+      run('zip($$(.h), $$(.c)) { [$1 | text]:  $2 | text }', table),
+    ).toEqual([{ Make: 'Audi' }, { Model: 'A5' }, { Year: '2024' }])
   })
 
   it('produces attribute maps per row when nested under each-row iteration', () => {
     expect(
       run(
-        '$$(.row) { "attrs": $$(@.($$(.h)), $$(.c)) { [$1 | text]: $2 | text } | merge }',
+        '$$(.row) { "attrs": zip(@.($$(.h)), $$(.c)) { [$1 | text]: $2 | text } | merge }',
         table,
       ),
     ).toEqual([
@@ -689,7 +804,7 @@ describe('zip $$(a, b, ...)', () => {
       ],
     }
     expect(
-      run('$$($$(.k), $$(.v)) { [$1 | text]:  $2 | text }', short),
+      run('zip($$(.k), $$(.v)) { [$1 | text]:  $2 | text }', short),
     ).toEqual([{ a: '1' }, { b: '2' }])
   })
 
@@ -707,7 +822,7 @@ describe('zip $$(a, b, ...)', () => {
     }
     expect(
       run(
-        '$$($$(.k), $$(.v), $$(.u)) { "k":  $1 | text, "v":  $2 | text, "u":  $3 | text }',
+        'zip($$(.k), $$(.v), $$(.u)) { "k":  $1 | text, "v":  $2 | text, "u":  $3 | text }',
         triple,
       ),
     ).toEqual([
@@ -718,13 +833,10 @@ describe('zip $$(a, b, ...)', () => {
 
   it('returns an empty array when any lane is empty', () => {
     expect(
-      run(
-        '$$($$(.k), $$(.missing)) { [$1 | text]:  $2 | text }',
-        {
-          tag: 'div',
-          children: [{ tag: 'span', text: 'a', attrs: { class: 'k' } }],
-        },
-      ),
+      run('zip($$(.k), $$(.missing)) { [$1 | text]:  $2 | text }', {
+        tag: 'div',
+        children: [{ tag: 'span', text: 'a', attrs: { class: 'k' } }],
+      }),
     ).toEqual([])
   })
 })
@@ -753,4 +865,100 @@ test('must be able to extract url from attributes', () => {
   expect(
     run('$(div) | attr(text) | regex("https://test.com/in/(.+)", 1)', node),
   ).toBe('hi')
+})
+
+describe('root selectors @$(…) and @$$(…)', () => {
+  const table: TestNode = {
+    tag: 'div',
+    children: [
+      {
+        tag: 'tr',
+        attrs: { class: 'row' },
+        children: [
+          { tag: 'th', text: 'Make', attrs: { class: 'h' } },
+          { tag: 'th', text: 'Model', attrs: { class: 'h' } },
+          { tag: 'th', text: 'Year', attrs: { class: 'h' } },
+          { tag: 'th', text: 'Games', attrs: { class: 'c' } },
+        ],
+      },
+      {
+        tag: 'tr',
+        attrs: { class: 'row' },
+        children: [
+          { tag: 'td', text: 'Audi', attrs: { class: 'c' } },
+          { tag: 'td', text: 'A5', attrs: { class: 'c' } },
+          { tag: 'td', text: '2024', attrs: { class: 'c' } },
+        ],
+      },
+    ],
+  }
+
+  it('@$$(sel) selects from root inside a nested scope', () => {
+    expect(
+      run(
+        '$$(.row) { "attrs": zip(@$$(.h), $$(.c)) { [$1 | text]: $2 | text } | merge }',
+        table,
+      ),
+    ).toEqual([
+      { attrs: { Make: 'Games' } },
+      { attrs: { Make: 'Audi', Model: 'A5', Year: '2024' } },
+    ])
+  })
+
+  it('@$(sel) selects a single match from root inside a nested scope', () => {
+    expect(run('$$(.row) { "first": @$(.h) | text }', table)).toEqual([
+      { first: 'Make' },
+      { first: 'Make' },
+    ])
+  })
+
+  it('@$$(sel) at top level behaves like $$(sel)', () => {
+    expect(run('@$$(.h) { "v": $ | text }', table)).toEqual([
+      { v: 'Make' },
+      { v: 'Model' },
+      { v: 'Year' },
+    ])
+  })
+})
+
+describe('alias bind-or-use', () => {
+  const tree: TestNode = {
+    tag: 'div',
+    attrs: { id: 'outer' },
+    children: [
+      {
+        tag: 'ul',
+        children: [
+          { tag: 'li', text: 'one' },
+          { tag: 'li', text: 'two' },
+        ],
+      },
+    ],
+  }
+
+  it('binds the alias the first time and reuses it on subsequent occurrences', () => {
+    expect(
+      run(
+        '@outer$(ul) { "list": $$(li) { "v": $ | text, "outerId": @outer | attr(id) } }',
+        tree,
+      ),
+    ).toEqual({
+      list: [
+        { v: 'one', outerId: 'outer' },
+        { v: 'two', outerId: 'outer' },
+      ],
+    })
+  })
+
+  it('@name$(sel) re-uses an already-bound alias as scope', () => {
+    expect(
+      run(
+        '@outer$(ul) { "again": @outer$(ul) | attr(class) ?? "noclass", "items": @outer$$(li) { "v": $ | text } }',
+        tree,
+      ),
+    ).toEqual({
+      again: 'noclass',
+      items: [{ v: 'one' }, { v: 'two' }],
+    })
+  })
 })

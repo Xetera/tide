@@ -6,7 +6,11 @@ HTMLegy {
     | FallbackExpr
     | Literal
 
-  FuncCall = ident "(" Expr ("," PipeArg)* ","? ")"
+  FuncCall = ident "(" Expr ("," FuncArg)* ","? ")"
+
+  FuncArg
+    = PipeArg  -- pipe
+    | Expr     -- expr
 
   Array = "[" ListOf<Expr, ","?> ","? "]"
 
@@ -18,12 +22,31 @@ HTMLegy {
     | "(" FallbackExpr ")"            -- expr
 
   Match
-    = "match" SingleSelector "{" ScopedMatchArm* "}"  -- scoped
+    = "match" SingleSelector "{" ScopedMatchArm* "}"   -- scoped
+    | "match" MatchScrutinee "{" ListOf<ExprMatchArm, ","> ","? "}"  -- expr
     | "match" "{" MatchArm* "}"                        -- plain
+
+  MatchScrutinee = MatchChain ("??" MatchChain)?
+
+  MatchChain = Source MatchChainStep*
+
+  MatchChainStep
+    = PipeTransform
+    | Conditional
+    | ScopedExpr
 
   ScopedMatchArm
     = FuncCall "=>" Expr  -- call
     | ident    "=>" Expr  -- fallback
+
+  ExprMatchArm
+    = Literal "=>" Expr                     -- literal
+    | "_" "=>" Expr                          -- fallback
+    | ArmPipeStep ChainStep* "=>" Expr      -- pipe
+
+  ArmPipeStep
+    = ident "(" ListOf<PipeArg, ","> ")"  -- call
+    | ident                                -- bare
 
   MatchArm
     = EachSelector   "=>" Expr  -- each
@@ -40,9 +63,10 @@ HTMLegy {
     | "await" Source                                       -- awaitSelf
     | "@" ident EachSelector                              -- aliasEach
     | "@" ident SingleSelector                            -- aliasSingle
+    | "@" EachSelector                                    -- rootEach
+    | "@" SingleSelector                                  -- rootSingle
     | "@" ident                                           -- aliasRef
     | "@" ~alnum                                          -- rootRef
-    | EachZip
     | EachSelector
     | SingleSelector
     | PositionalRef
@@ -52,7 +76,6 @@ HTMLegy {
   ContextRef = "$" ~"$" ~"(" ~alnum ~digit
   PositionalRef = "$" digit+
 
-  EachZip        = "$$" "(" Expr ("," Expr)+ ","? ")"
   EachSelector   = "$$" "(" selectorBody ")" "+"?
   SingleSelector = "$"  "(" selectorBody ")" (~"??" "?")?
 

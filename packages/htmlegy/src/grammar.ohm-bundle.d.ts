@@ -14,6 +14,9 @@ import {
 export interface HTMLegyActionDict<T> extends BaseActionDict<T> {
   Expr?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   FuncCall?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: IterationNode, arg4: IterationNode, arg5: IterationNode, arg6: TerminalNode) => T;
+  FuncArg_pipe?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  FuncArg_expr?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  FuncArg?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   Array?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: IterationNode, arg3: TerminalNode) => T;
   Object?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: IterationNode, arg3: TerminalNode) => T;
   Field_dynamic?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode, arg3: TerminalNode, arg4: NonterminalNode) => T;
@@ -21,11 +24,22 @@ export interface HTMLegyActionDict<T> extends BaseActionDict<T> {
   Field_expr?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode) => T;
   Field?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   Match_scoped?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode, arg3: IterationNode, arg4: TerminalNode) => T;
+  Match_expr?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode, arg3: NonterminalNode, arg4: IterationNode, arg5: TerminalNode) => T;
   Match_plain?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: IterationNode, arg3: TerminalNode) => T;
   Match?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  MatchScrutinee?: (this: NonterminalNode, arg0: NonterminalNode, arg1: IterationNode, arg2: IterationNode) => T;
+  MatchChain?: (this: NonterminalNode, arg0: NonterminalNode, arg1: IterationNode) => T;
+  MatchChainStep?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   ScopedMatchArm_call?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
   ScopedMatchArm_fallback?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
   ScopedMatchArm?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  ExprMatchArm_literal?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
+  ExprMatchArm_fallback?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
+  ExprMatchArm_pipe?: (this: NonterminalNode, arg0: NonterminalNode, arg1: IterationNode, arg2: TerminalNode, arg3: NonterminalNode) => T;
+  ExprMatchArm?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  ArmPipeStep_call?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: TerminalNode) => T;
+  ArmPipeStep_bare?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  ArmPipeStep?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   MatchArm_each?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
   MatchArm_selector?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
   MatchArm_fallback?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
@@ -37,6 +51,8 @@ export interface HTMLegyActionDict<T> extends BaseActionDict<T> {
   Source_awaitSelf?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode) => T;
   Source_aliasEach?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: NonterminalNode) => T;
   Source_aliasSingle?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: NonterminalNode) => T;
+  Source_rootEach?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode) => T;
+  Source_rootSingle?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode) => T;
   Source_aliasRef?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode) => T;
   Source_rootRef?: (this: NonterminalNode, arg0: TerminalNode) => T;
   Source_funcCall?: (this: NonterminalNode, arg0: NonterminalNode) => T;
@@ -44,7 +60,6 @@ export interface HTMLegyActionDict<T> extends BaseActionDict<T> {
   Source?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   ContextRef?: (this: NonterminalNode, arg0: TerminalNode) => T;
   PositionalRef?: (this: NonterminalNode, arg0: TerminalNode, arg1: IterationNode) => T;
-  EachZip?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: IterationNode, arg4: IterationNode, arg5: IterationNode, arg6: TerminalNode) => T;
   EachSelector?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: TerminalNode, arg4: IterationNode) => T;
   SingleSelector?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: TerminalNode, arg4: IterationNode) => T;
   selectorBody?: (this: NonterminalNode, arg0: IterationNode) => T;

@@ -229,7 +229,7 @@ export interface RawEntityPatch {
   _id: EntityId
   [key: string]: unknown
   // optional
-  _createdAt?: number
+  _createdAt?: string
 }
 
 declare const validatedBrand: unique symbol

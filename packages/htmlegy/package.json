@@ -10,6 +10,7 @@
     "ohm": "pnpm exec ohm generateBundles --withTypes 'src/**/*.ohm'"
   },
   "dependencies": {
+    "date-fns": "^4.4.0",
     "ohm-js": "^17.5.0"
   },
   "devDependencies": {

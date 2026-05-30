@@ -1,4 +1,23 @@
 ---
 name: "Search Results"
-url: /*
+url: "/*"
 ---
+
+[
+@entry $$(.searchResultsItem:not(.nativeAd)) {
+  "_entity": "@sahibinden/listing",
+  "_id": $ | data(id),
+  "_createdAt": $(.searchResultsDateValue)? | text | trim | date(locale: 'tr', format: "d MMMM yyyy"),
+  // may not exist for all tables
+  "images": $(picture img)? | media,
+  "location": $(.searchResultsLocationValue)? | lines {
+    "city": $ | at(0),
+    "district": $ | at(1)
+  },
+  "price": $(.searchResultsPriceValue) | innerText | regex('(.+) TL', 1) | number(locale: 'tr'),
+  "attributes": zip(@$$(#searchResultsTable thead td:not(.searchResultsFirstColumn, :empty))
+				, @entry$$(td)) {
+  		[$1 | text | trim]: $2 | text | trim
+    } | merge
+  }
+]

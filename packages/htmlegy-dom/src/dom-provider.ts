@@ -3,6 +3,73 @@ import { schema as basicSchema } from 'prosemirror-schema-basic'
 import type { Node as ProseMirrorNode } from 'prosemirror-model'
 import type { HtmlegyProvider, PipeArg } from '@tide/htmlegy'
 
+const BLOCK_TAGS = new Set([
+  'address',
+  'article',
+  'aside',
+  'blockquote',
+  'br',
+  'div',
+  'dl',
+  'dt',
+  'dd',
+  'fieldset',
+  'figcaption',
+  'figure',
+  'footer',
+  'form',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'header',
+  'hr',
+  'li',
+  'main',
+  'nav',
+  'ol',
+  'p',
+  'pre',
+  'section',
+  'table',
+  'tr',
+  'ul',
+])
+
+function collectLines(node: Node, out: string[]): void {
+  if (node.nodeType === 3) {
+    out.push(node.nodeValue ?? '')
+    return
+  }
+  if (node.nodeType !== 1) {
+    return
+  }
+  const el = node as Element
+  const tag = el.tagName.toLowerCase()
+  const isBlock = BLOCK_TAGS.has(tag)
+  if (isBlock) {
+    out.push('\n')
+  }
+  for (const child of Array.from(node.childNodes)) {
+    collectLines(child, out)
+  }
+  if (isBlock) {
+    out.push('\n')
+  }
+}
+
+function linesFor(node: Element): string[] {
+  const parts: string[] = []
+  collectLines(node, parts)
+  return parts
+    .join('')
+    .split('\n')
+    .map((line) => line.replace(/[ \t]+/g, ' ').trim())
+    .filter((line) => line.length > 0)
+}
+
 function inferMediaType(url: string): 'image' | 'video' | 'media' {
   const ext = url.split('?')[0]!.split('.').pop()?.toLowerCase() ?? ''
   if (ext === 'mp4' || ext === 'webm' || ext === 'mov' || ext === 'ogg') {
@@ -54,6 +121,12 @@ export const domProvider: HtmlegyProvider<Element> = {
   getTagName: (node) => node.tagName.toLowerCase(),
 
   getText: (node) => node.textContent,
+  getInnerText: (node) => {
+    const t = (node as HTMLElement).innerText
+    return t != null ? t : node.textContent
+  },
+  getTextContent: (node) => node.textContent,
+  getLines: (node) => linesFor(node),
   getAttribute: (node, name) => node.getAttribute(name),
 
   resolveUrl(url) {

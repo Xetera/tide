@@ -19,6 +19,48 @@ describe('text', () => {
   })
 })
 
+describe('textContent', () => {
+  it('returns raw textContent including no separator for br', () => {
+    expect(
+      run(
+        '{ "v": $(td) | textContent }',
+        '<table><tr><td>İstanbul<br>Pendik</td></tr></table>',
+      ),
+    ).toEqual({ v: 'İstanbulPendik' })
+  })
+})
+
+describe('innerText', () => {
+  it('falls back to textContent when innerText is unavailable', () => {
+    expect(
+      run(
+        '{ "v": $(td) | innerText }',
+        '<table><tr><td>İstanbul<br>Pendik</td></tr></table>',
+      ),
+    ).toBeDefined()
+  })
+})
+
+describe('lines', () => {
+  it('splits on br into an array of segments', () => {
+    expect(
+      run(
+        '{ "v": $(td) | lines }',
+        '<table><tr><td>İstanbul<br>Pendik</td></tr></table>',
+      ),
+    ).toEqual({ v: ['İstanbul', 'Pendik'] })
+  })
+
+  it('splits on block-level children', () => {
+    expect(
+      run(
+        '{ "v": $(div) | lines }',
+        '<div><p>one</p><p>two</p></div>',
+      ),
+    ).toEqual({ v: ['one', 'two'] })
+  })
+})
+
 describe('attr', () => {
   it('extracts an attribute', () => {
     expect(run('{ "v": $(a) | attr(href) }', '<a href="/foo">x</a>')).toEqual({
@@ -1094,7 +1136,7 @@ describe('zip $$(a, b)', () => {
   it('zips per-row cells against global headers into an attributes map', () => {
     expect(
       run(
-        '$$(.row) { "attrs": $$(@.($$(#t thead td)), $$(td:not(.ignored))) { [$1 | text | trim]: $2 | text | trim } | merge }',
+        '$$(.row) { "attrs": zip(@$$(#t thead td), $$(td:not(.ignored))) { [$1 | text | trim]: $2 | text | trim } | merge }',
         tableHtml,
       ),
     ).toEqual([

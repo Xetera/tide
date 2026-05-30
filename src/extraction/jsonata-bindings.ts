@@ -143,11 +143,7 @@ export class JsonataExpression {
       if (Number.isNaN(timestamp.getTime())) {
         throw new Error('Invalid time: ' + value)
       }
-      return {
-        _type: 'timestamp',
-        value: timestamp.toISOString(),
-        precision: 'full',
-      }
+      return timestamp.toISOString()
     })
     return evaluator
   }

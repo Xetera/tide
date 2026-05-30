@@ -13,6 +13,7 @@ export type Expr =
   | { kind: 'array'; items: Expr[] }
   | { kind: 'object'; fields: Field[] }
   | { kind: 'match'; source: string | null; arms: MatchArm[] }
+  | { kind: 'match_expr'; scrutinee: Expr; arms: ExprMatchArm[] }
   | {
       kind: 'fallback_expr'
       primary: Chain
@@ -31,19 +32,31 @@ export type MatchArm =
   | { kind: 'call'; name: string; expr: Expr; args: PipeArg[]; body: Expr }
   | { kind: 'fallback'; body: Expr }
 
+export type ExprMatchArm =
+  | { kind: 'literal'; value: unknown; body: Expr }
+  | { kind: 'pipe'; ops: PipeOp[]; body: Expr }
+  | { kind: 'fallback'; body: Expr }
+
 export type Source =
   | { kind: 'alias_ref'; name: string }
   | { kind: 'alias_each'; name: string; selector: string; requireOne: boolean }
   | { kind: 'alias_single'; name: string; selector: string; omit: boolean }
   | { kind: 'each'; selector: string; requireOne: boolean }
-  | { kind: 'each_zip'; lanes: Expr[] }
   | { kind: 'single'; selector: string; omit: boolean }
   | { kind: 'context' }
   | { kind: 'positional_ref'; index: number }
   | { kind: 'root_ref' }
+  | { kind: 'root_each'; selector: string; requireOne: boolean }
+  | { kind: 'root_single'; selector: string; omit: boolean }
   | { kind: 'watch'; inner: Source }
   | { kind: 'await'; condition: string | null; inner: Source }
-  | { kind: 'func_call'; name: string; expr: Expr; args: PipeArg[] }
+  | {
+      kind: 'func_call'
+      name: string
+      expr: Expr
+      args: PipeArg[]
+      exprArgs: Expr[]
+    }
   | { kind: 'literal'; value: unknown }
 
 export type ChainStep =
@@ -56,14 +69,21 @@ export type PipeArg = string | number | { key: string; value: string | number }
 
 export type PipeOp = { name: string; args: PipeArg[] }
 
+type FuncArg =
+  | { kind: 'pipe'; value: PipeArg }
+  | { kind: 'expr'; value: Expr }
+
 type AstResult =
   | Expr
   | Field
   | MatchArm
+  | ExprMatchArm
   | Source
   | Chain
   | ChainStep
+  | PipeOp
   | PipeArg
+  | FuncArg
   | string
   | number
   | string[]
@@ -128,6 +148,73 @@ const exprActions: HTMLegyActionDict<AstResult> = {
       source: src.selector,
       arms: arms.children.map((c) => toAst(c) as MatchArm),
     } satisfies Expr
+  },
+  Match_expr(_kw, scrutinee, _l, arms, _trailing, _r) {
+    return {
+      kind: 'match_expr',
+      scrutinee: toAst(scrutinee) as Expr,
+      arms: arms
+        .asIteration()
+        .children.map((c) => toAst(c) as ExprMatchArm),
+    } satisfies Expr
+  },
+  MatchScrutinee(primary, _qq, fallback) {
+    return {
+      kind: 'fallback_expr',
+      primary: toAst(primary) as unknown as Chain,
+      fallback:
+        fallback.children.length > 0
+          ? (toAst(fallback.children[0]!) as unknown as Chain)
+          : null,
+    } satisfies Expr
+  },
+  MatchChain(source, tail) {
+    return {
+      source: toAst(source) as Source,
+      tail: tail.children.map((c) => toAst(c) as ChainStep),
+    } satisfies Chain
+  },
+  MatchChainStep(t) {
+    return t.toAst()
+  },
+  ExprMatchArm_literal(lit, _arrow, body) {
+    const litExpr = toAst(lit) as Expr & { kind: 'literal' }
+    return {
+      kind: 'literal',
+      value: litExpr.value,
+      body: toAst(body) as Expr,
+    } satisfies ExprMatchArm
+  },
+  ExprMatchArm_pipe(firstStep, rest, _arrow, body) {
+    const firstOp = toAst(firstStep) as PipeOp
+    const restSteps = rest.children.map((c) => toAst(c) as ChainStep)
+    const ops: PipeOp[] = [firstOp]
+    for (const step of restSteps) {
+      if (step.kind !== 'pipe_transform') {
+        throw new Error('only pipe steps are supported in match arm LHS')
+      }
+      ops.push(step.op)
+    }
+    return {
+      kind: 'pipe',
+      ops,
+      body: toAst(body) as Expr,
+    } satisfies ExprMatchArm
+  },
+  ArmPipeStep_call(name, _lp, argList, _rp) {
+    const args = argList
+      .asIteration()
+      .children.map((c) => toAst(c) as PipeArg)
+    return { name: name.sourceString, args } satisfies PipeOp
+  },
+  ArmPipeStep_bare(name) {
+    return { name: name.sourceString, args: [] } satisfies PipeOp
+  },
+  ExprMatchArm_fallback(_ident, _arrow, body) {
+    return {
+      kind: 'fallback',
+      body: toAst(body) as Expr,
+    } satisfies ExprMatchArm
   },
   ScopedMatchArm_call(funcCall, _arrow, body) {
     const fc = toAst(funcCall) as Source & { kind: 'func_call' }
@@ -219,6 +306,22 @@ const exprActions: HTMLegyActionDict<AstResult> = {
   Source_aliasRef(_at, name) {
     return { kind: 'alias_ref', name: name.sourceString } satisfies Source
   },
+  Source_rootEach(_at, sel) {
+    const s = toAst(sel) as Source & { kind: 'each' }
+    return {
+      kind: 'root_each',
+      selector: s.selector,
+      requireOne: s.requireOne,
+    } satisfies Source
+  },
+  Source_rootSingle(_at, sel) {
+    const s = toAst(sel) as Source & { kind: 'single' }
+    return {
+      kind: 'root_single',
+      selector: s.selector,
+      omit: s.omit,
+    } satisfies Source
+  },
   Source_rootRef(_at) {
     return { kind: 'root_ref' } satisfies Source
   },
@@ -228,12 +331,29 @@ const exprActions: HTMLegyActionDict<AstResult> = {
   },
 
   FuncCall(name, _lp, firstExpr, _commas, restArgs, _trailing, _rp) {
+    const pipeArgs: PipeArg[] = []
+    const exprArgs: Expr[] = []
+    for (const c of restArgs.children) {
+      const arg = toAst(c) as FuncArg
+      if (arg.kind === 'pipe') {
+        pipeArgs.push(arg.value)
+      } else {
+        exprArgs.push(arg.value)
+      }
+    }
     return {
       kind: 'func_call',
       name: name.sourceString,
       expr: toAst(firstExpr) as Expr,
-      args: restArgs.children.map((c) => toAst(c) as PipeArg),
+      args: pipeArgs,
+      exprArgs,
     } satisfies Source
+  },
+  FuncArg_pipe(arg) {
+    return { kind: 'pipe', value: toAst(arg) as PipeArg } satisfies FuncArg
+  },
+  FuncArg_expr(arg) {
+    return { kind: 'expr', value: toAst(arg) as Expr } satisfies FuncArg
   },
 
   ContextRef(_dollar) {
@@ -244,13 +364,6 @@ const exprActions: HTMLegyActionDict<AstResult> = {
       kind: 'positional_ref',
       index: parseInt(digits.sourceString, 10),
     } satisfies Source
-  },
-  EachZip(_dd, _l, firstExpr, _commas, restExprs, _trailing, _r) {
-    const lanes: Expr[] = [
-      toAst(firstExpr) as Expr,
-      ...restExprs.children.map((c) => toAst(c) as Expr),
-    ]
-    return { kind: 'each_zip', lanes } satisfies Source
   },
   EachSelector(_dd, _l, body, _r, plus) {
     return {

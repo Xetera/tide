@@ -1,7 +1,9 @@
 import { parse } from './parser'
+import { parseLocaleDate } from './date-parser'
 import { expandLocaleSuffix, parseLocaleNumber } from './number-parser'
 import type {
   Expr,
+  ExprMatchArm,
   Field,
   MatchArm,
   Source,
@@ -81,6 +83,11 @@ function exprContainsReactive(expr: Expr): boolean {
       return expr.items.some(exprContainsReactive)
     case 'match':
       return expr.arms.some((arm) => exprContainsReactive(arm.body))
+    case 'match_expr':
+      return (
+        exprContainsReactive(expr.scrutinee) ||
+        expr.arms.some((arm) => exprContainsReactive(arm.body))
+      )
     case 'literal':
       return false
   }
@@ -123,6 +130,9 @@ function selectorForSource(src: Source): string | null {
     return src.selector
   }
   if (src.kind === 'alias_each' || src.kind === 'alias_single') {
+    return src.selector
+  }
+  if (src.kind === 'root_each' || src.kind === 'root_single') {
     return src.selector
   }
   if (src.kind === 'watch' || src.kind === 'await') {
@@ -171,6 +181,10 @@ class Evaluator<N> {
           return this.evalMatch(expr.arms, el, env, ctx, scoped)
         }
         return this.evalMatch(expr.arms, el, env, ctx)
+      }
+      case 'match_expr': {
+        const scrutinee = this.evalExpr(expr.scrutinee, el, env, ctx)
+        return this.evalMatchExpr(expr.arms, scrutinee, env, ctx)
       }
       case 'fallback_expr': {
         let primary: unknown
@@ -234,6 +248,34 @@ class Evaluator<N> {
       }
     }
     return result
+  }
+
+  private evalMatchExpr(
+    arms: ExprMatchArm[],
+    scrutinee: unknown,
+    env: Env<N>,
+    ctx: EvalContext,
+  ): unknown {
+    for (const arm of arms) {
+      if (arm.kind === 'fallback') {
+        return this.evalExpr(arm.body, scrutinee as N, env, ctx)
+      }
+      if (arm.kind === 'literal') {
+        if (scrutinee === arm.value) {
+          return this.evalExpr(arm.body, scrutinee as N, env, ctx)
+        }
+        continue
+      }
+      let piped = scrutinee
+      for (const op of arm.ops) {
+        piped = this.applyPipeOp(op, piped)
+      }
+      const truthy = piped != null && piped !== false && piped !== ''
+      if (truthy) {
+        return this.evalExpr(arm.body, piped as N, env, ctx)
+      }
+    }
+    return undefined
   }
 
   private evalMatch(
@@ -328,43 +370,67 @@ class Evaluator<N> {
         current = els
         break
       }
-      case 'each_zip': {
-        const lanes = expr.source.lanes.map((laneExpr) => {
-          const v = this.evalExpr(laneExpr, el, currentEnv, ctx)
-          return Array.isArray(v) ? (v as unknown[]) : v == null ? [] : [v]
-        })
-        const length = lanes.reduce(
-          (min, l) => (l.length < min ? l.length : min),
-          lanes[0]?.length ?? 0,
-        )
-        const tuples: unknown[][] = []
-        for (let i = 0; i < length; i++) {
-          tuples.push(lanes.map((l) => l[i]))
-        }
-        current = tuples
-        break
-      }
       case 'alias_each': {
-        currentEnv = new Map(env)
-        currentEnv.set(expr.source.name, el)
-        const els = this.#provider.querySelectorAll(el, expr.source.selector)
+        const existing = env.get(expr.source.name) as N | undefined
+        const scope = existing ?? el
+        if (existing === undefined) {
+          currentEnv = new Map(env)
+          currentEnv.set(expr.source.name, el)
+        }
+        const els = this.#provider.querySelectorAll(
+          scope,
+          expr.source.selector,
+        )
         if (expr.source.requireOne && els.length === 0) {
           throw new SelectorError({
             selector: expr.source.selector,
             kind: 'each',
             field: ctx.label.at(-1) ?? '',
-            ctxTag: this.#provider.getTagName(el),
-            ctxHtml: this.#provider.getContextHtml(el),
+            ctxTag: this.#provider.getTagName(scope),
+            ctxHtml: this.#provider.getContextHtml(scope),
           })
         }
         current = els
         break
       }
       case 'alias_single': {
-        currentEnv = new Map(env)
-        currentEnv.set(expr.source.name, el)
+        const existing = env.get(expr.source.name) as N | undefined
+        const scope = existing ?? el
+        if (existing === undefined) {
+          currentEnv = new Map(env)
+          currentEnv.set(expr.source.name, el)
+        }
         const found =
-          this.#provider.querySelector(el, expr.source.selector) ?? null
+          this.#provider.querySelector(scope, expr.source.selector) ?? null
+        if (found && this.#onElement) {
+          this.#onElement(found, { field: ctx.label }, false)
+        }
+        current = found
+        omitOnNull = expr.source.omit
+        if (!expr.source.omit) {
+          requiredSelector = expr.source.selector
+        }
+        break
+      }
+      case 'root_each': {
+        const root = (currentEnv.get('') as N | undefined) ?? el
+        const els = this.#provider.querySelectorAll(root, expr.source.selector)
+        if (expr.source.requireOne && els.length === 0) {
+          throw new SelectorError({
+            selector: expr.source.selector,
+            kind: 'each',
+            field: ctx.label.at(-1) ?? '',
+            ctxTag: this.#provider.getTagName(root),
+            ctxHtml: this.#provider.getContextHtml(root),
+          })
+        }
+        current = els
+        break
+      }
+      case 'root_single': {
+        const root = (currentEnv.get('') as N | undefined) ?? el
+        const found =
+          this.#provider.querySelector(root, expr.source.selector) ?? null
         if (found && this.#onElement) {
           this.#onElement(found, { field: ctx.label }, false)
         }
@@ -376,6 +442,23 @@ class Evaluator<N> {
         break
       }
       case 'func_call': {
+        if (expr.source.name === 'zip') {
+          const laneExprs = [expr.source.expr, ...expr.source.exprArgs]
+          const lanes = laneExprs.map((laneExpr) => {
+            const v = this.evalExpr(laneExpr, el, currentEnv, ctx)
+            return Array.isArray(v) ? (v as unknown[]) : v == null ? [] : [v]
+          })
+          const length = lanes.reduce(
+            (min, l) => (l.length < min ? l.length : min),
+            lanes[0]?.length ?? 0,
+          )
+          const tuples: unknown[][] = []
+          for (let i = 0; i < length; i++) {
+            tuples.push(lanes.map((l) => l[i]))
+          }
+          current = tuples
+          break
+        }
         const inner = this.evalExpr(expr.source.expr, el, currentEnv, ctx)
         current = this.applyPipeOp(
           { name: expr.source.name, args: expr.source.args },
@@ -399,14 +482,18 @@ class Evaluator<N> {
 
         case 'block': {
           const isEach =
-            expr.source.kind === 'each' || expr.source.kind === 'alias_each'
-          if (expr.source.kind === 'each_zip') {
-            current = (current as unknown[][]).map((tuple) => {
+            expr.source.kind === 'each' ||
+            expr.source.kind === 'alias_each' ||
+            expr.source.kind === 'root_each'
+          if (expr.source.kind === 'func_call' && Array.isArray(current)) {
+            current = (current as unknown[]).map((item) => {
               const iterEnv = new Map(currentEnv)
-              for (let i = 0; i < tuple.length; i++) {
-                iterEnv.set(POSITIONAL_PREFIX + (i + 1), tuple[i])
+              if (Array.isArray(item)) {
+                for (let i = 0; i < item.length; i++) {
+                  iterEnv.set(POSITIONAL_PREFIX + (i + 1), item[i])
+                }
               }
-              return this.evalFields(step.fields, el, iterEnv, {
+              return this.evalFields(step.fields, item as N, iterEnv, {
                 label: ctx.label,
               })
             })
@@ -477,6 +564,33 @@ class Evaluator<N> {
     switch (name) {
       case 'text':
         return value != null ? this.#provider.getText(value as N) : null
+      case 'innerText': {
+        if (value == null) {
+          return null
+        }
+        if (!this.#provider.getInnerText) {
+          throw new Error('provider does not support pipe function: innerText')
+        }
+        return this.#provider.getInnerText(value as N)
+      }
+      case 'textContent': {
+        if (value == null) {
+          return null
+        }
+        if (!this.#provider.getTextContent) {
+          throw new Error('provider does not support pipe function: textContent')
+        }
+        return this.#provider.getTextContent(value as N)
+      }
+      case 'lines': {
+        if (value == null) {
+          return null
+        }
+        if (!this.#provider.getLines) {
+          throw new Error('provider does not support pipe function: lines')
+        }
+        return this.#provider.getLines(value as N)
+      }
       case 'attr': {
         const attrName = args[0] as string
         return value != null ? this.#provider.getAttribute(value as N, attrName) : null
@@ -534,12 +648,38 @@ class Evaluator<N> {
       }
       case 'lowercase':
         return value == null ? null : String(value).toLowerCase()
+      case 'at': {
+        if (value == null) {
+          return null
+        }
+        if (!Array.isArray(value)) {
+          throw new Error('pipe function at: input must be an array')
+        }
+        const raw = args[0]
+        if (typeof raw !== 'number') {
+          throw new Error('pipe function at: requires a numeric index argument')
+        }
+        return value.at(raw) ?? null
+      }
       case 'date': {
         if (value == null) {
           return null
         }
-        const d = new Date(String(value))
-        return isNaN(d.getTime()) ? null : d
+        const kwLocale = args.find(
+          (a): a is Extract<PipeArg, object> =>
+            typeof a === 'object' &&
+            (a as Extract<PipeArg, object>).key === 'locale',
+        )
+        const kwFormat = args.find(
+          (a): a is Extract<PipeArg, object> =>
+            typeof a === 'object' &&
+            (a as Extract<PipeArg, object>).key === 'format',
+        )
+        return parseLocaleDate(
+          String(value),
+          kwLocale ? String(kwLocale.value) : this.#locale,
+          kwFormat ? String(kwFormat.value) : undefined,
+        )
       }
       case 'merge':
         return Array.isArray(value) ? Object.assign({}, ...value) : value

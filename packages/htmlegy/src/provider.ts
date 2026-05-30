@@ -8,6 +8,9 @@ export interface HtmlegyProvider<N> {
   getTagName(node: N): string
 
   getText(node: N): string | null
+  getInnerText?(node: N): string | null
+  getTextContent?(node: N): string | null
+  getLines?(node: N): string[] | null
   getAttribute(node: N, name: string): string | null
 
   resolveUrl(url: string): string

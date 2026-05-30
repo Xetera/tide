@@ -19,15 +19,7 @@ import { pageEntries as _allPageEntries, networkEntries as _allNetworkEntries } 
 // just a type to correlate unsafe references
 type TReference = symbol
 
-const TimestampPrecision = Type.Enum(['full', 'year', 'month', 'day'], {
-  default: 'full',
-})
-
-const Timestamp = Type.Object({
-  _type: Type.Literal('timestamp'),
-  value: Type.String({ description: 'ISO 8601 string timestamp' }),
-  precision: TimestampPrecision,
-})
+const Timestamp = Type.String({ description: 'ISO 8601 string timestamp', format: 'date-time' })
 
 const EntityId = Type.Union([Type.Array(Type.String()), Type.String()])
 
