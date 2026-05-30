@@ -1,6 +1,6 @@
 import { Type } from 'typebox'
-import { EntityBuilder, Many, One, RichText } from '~/site-spec/site-builder'
-import { Image, Video } from '~/extraction/media-types'
+import { EntityBuilder, Many, One, RichText } from '~/funnels/site-builder'
+import { Image, Video } from '~/funnels/media-types'
 
 const LinkedinImage = Image.offload().ephemeral()
 

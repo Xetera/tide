@@ -1,5 +1,5 @@
 import { Type } from 'typebox'
-import { EntityBuilder } from '~/site-spec/site-builder'
+import { EntityBuilder } from '~/funnels/site-builder'
 
 export const robloxEntities = [
   new EntityBuilder('@roblox/game').fields({

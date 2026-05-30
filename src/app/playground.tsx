@@ -12,7 +12,7 @@ import {
 } from 'solid-js'
 import { sendMessage } from 'webext-bridge/popup'
 import { allSites } from '~/sites'
-import { matchesGlob } from '~/extraction/glob'
+import { matchesGlob } from '~/funnels/glob'
 import type {
   FunnelInfo,
   FunnelFixture,

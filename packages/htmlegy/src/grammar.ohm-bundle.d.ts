@@ -74,6 +74,7 @@ export interface HTMLegyActionDict<T> extends BaseActionDict<T> {
   PipeTransform?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: IterationNode, arg3: IterationNode, arg4: IterationNode) => T;
   PipeArg_kwarg?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
   PipeArg_kwargInt?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
+  PipeArg_kwargExpr?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
   PipeArg_string?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   PipeArg_integer?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   PipeArg_ident?: (this: NonterminalNode, arg0: NonterminalNode) => T;

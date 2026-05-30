@@ -1,6 +1,6 @@
 import { Type } from 'typebox'
-import { EntityBuilder, Many, One } from '~/site-spec/site-builder'
-import { Image } from '~/extraction/media-types'
+import { EntityBuilder, Many, One } from '~/funnels/site-builder'
+import { Image } from '~/funnels/media-types'
 
 const TwitterImage = Image.offload().ephemeral()
 

@@ -1,4 +1,4 @@
-import { defineSite } from '~/site-spec/site-builder'
+import { defineSite } from '~/funnels/site-builder'
 import { linkedinEntities } from './entities'
 
 export const linkedinSite = defineSite({

@@ -7,8 +7,10 @@ export const LOCALE_SUFFIXES: Record<string, Record<string, number>> = {
   tr: {
     bin: 1_000,
     b: 1_000,
+    k: 1_000,
     milyon: 1_000_000,
     mn: 1_000_000,
+    m: 1_000_000,
     milyar: 1_000_000_000,
     mr: 1_000_000_000,
   },

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { PageEvaluator } from './page-evaluator'
-import { PageFunnel } from '~/site-spec/types'
-import type { PageFunnelEntry } from '~/site-spec/types'
+import { PageFunnel } from '~/funnels/types'
+import type { PageFunnelEntry } from '~/funnels/types'
 import { JSDOM } from 'jsdom'
 
 function makeFunnel(opts: {

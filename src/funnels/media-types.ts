@@ -91,3 +91,11 @@ export const Image = mediaBuilder(ImageType)
 export const Video = mediaBuilder(VideoType)
 
 export const MediaType = Type.Union([ImageType, VideoType])
+
+export const MoneyType = Type.Object({
+  _type: Type.Literal('money'),
+  amount: Type.Integer(),
+  currency: Type.String({ pattern: '^[A-Z]{3}$' }),
+})
+
+export const Money = MoneyType

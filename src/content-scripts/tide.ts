@@ -1,11 +1,11 @@
 import { sendMessage } from 'webext-bridge/content-script'
 import { allSites } from '~/sites'
-import { funnelProvider } from '~/site-spec/funnel-loader'
-import { DebugUIManager } from '~/sources/debug/debug-ui-manager'
-import { HtmlPageSource } from '~/sources/runtime/html-page-source'
-import { registerFunnels } from '~/sources/runtime/network-source'
-import { EntityValidator } from '~/extraction/entity-validator'
-import type { ScrapeResult } from '~/extraction/scrape-result'
+import { funnelProvider } from '~/funnels/funnel-loader'
+import { DebugUIManager } from '~/runtime/debug/debug-ui-manager'
+import { HtmlPageSource } from '~/runtime/html-page-source'
+import { registerFunnels } from '~/runtime/network-source'
+import { EntityValidator } from '~/funnels/entity-validator'
+import type { ScrapeResult } from '~/funnels/scrape-result'
 import './stream-capture'
 
 ;(async () => {

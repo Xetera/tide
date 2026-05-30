@@ -1,4 +1,4 @@
-import type { HighlightEntry } from '~/extraction/scrape-result'
+import type { HighlightEntry } from '~/funnels/scrape-result'
 import { strokeColor, labelBg, labelFg } from './legend-overlay'
 
 const CANVAS_ID = 'tide-highlight-canvas'

@@ -1,6 +1,6 @@
 import { createSignal, onMount } from 'solid-js'
 import { sendMessage } from 'webext-bridge/popup'
-import type { SiteSpec } from '~/site-spec/types'
+import type { SiteSpec } from '~/funnels/types'
 
 export function SchemaEditor() {
   const [text, setText] = createSignal('')

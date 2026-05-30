@@ -12,7 +12,7 @@
     "paths": {
       "~gleam/*": ["gleam/build/dev/javascript/tide_shared/*"],
       "~/*": ["src/*"],
-      "~/site-spec/funnel-loader": ["src/site-spec/funnel-loader.vite.ts"]
+      "~/funnels/funnel-loader": ["src/funnels/funnel-loader.vite.ts"]
     },
     "noUncheckedIndexedAccess": true,
     "resolveJsonModule": true,

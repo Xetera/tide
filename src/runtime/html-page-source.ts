@@ -1,12 +1,12 @@
 import { onMessage } from 'webext-bridge/content-script'
 import { createExpr, type HtmlegyExpr } from '@tide/htmlegy-dom'
-import { PageEvaluator } from '~/extraction/page-evaluator'
-import type { JobParameters, JobSource, PageFunnel } from '~/site-spec/types'
-import { EntityValidator } from '~/extraction/entity-validator'
+import { PageEvaluator } from '~/funnels/page-evaluator'
+import type { JobParameters, JobSource, PageFunnel } from '~/funnels/types'
+import { EntityValidator } from '~/funnels/entity-validator'
 import { Timeout, timeoutReject } from '~/shared/uid'
-import { sendLog } from '../debug/content-script-log'
-import { iframeScrape } from '../debug/iframe-injector'
-import type { HighlightEntry, ScrapeResult } from '~/extraction/scrape-result'
+import { sendLog } from './debug/content-script-log'
+import { iframeScrape } from './debug/iframe-injector'
+import type { HighlightEntry, ScrapeResult } from '~/funnels/scrape-result'
 
 export type { ScrapeResult }
 

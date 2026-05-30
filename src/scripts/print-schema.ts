@@ -1,9 +1,9 @@
 import { writeFileSync, mkdirSync, readdirSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ImageType, VideoType } from '~/extraction/media-types'
-import { buildEntityRefs, entityKey } from '~/site-spec/site-builder'
-import type { SiteDefinition, Entity } from '~/site-spec/types'
+import { ImageType, VideoType, MoneyType } from '~/funnels/media-types'
+import { buildEntityRefs, entityKey } from '~/funnels/site-builder'
+import type { SiteDefinition, Entity } from '~/funnels/types'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const sitesDir = resolve(__dirname, '../sites')
@@ -57,6 +57,7 @@ const defs: Record<string, unknown> = {
   ...buildEntityRefs(),
   ImageRef: ImageType,
   VideoRef: VideoType,
+  Money: MoneyType,
 }
 
 for (const entity of allEntities) {

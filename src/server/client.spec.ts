@@ -4,7 +4,7 @@ import { sahibindenSmallJobs } from '~/sites/sahibinden'
 import { server } from '~/msw'
 import { TEST_URL_ENDPOINT } from '~/setup-tools'
 import { Client, type ServerDefinition } from './client'
-import { type JobPollResponse, ServerAutonomy } from '~/site-spec/types'
+import { type JobPollResponse, ServerAutonomy } from '~/funnels/types'
 
 const serverDefinition: ServerDefinition = {
   id: '----',

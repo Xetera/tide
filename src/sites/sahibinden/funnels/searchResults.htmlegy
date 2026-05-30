@@ -25,8 +25,7 @@ url: "/*"
     },
     "price": $(.searchResultsPriceValue)
       | innerText
-      | regex('(.+) TL', 1)
-      | number(locale: 'tr'),
+      | money(),
     "attributes": zip(
       @$$(#searchResultsTable thead td:nth-child(n + 2)),
       $$(td:nth-child(n + 2))

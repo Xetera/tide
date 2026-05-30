@@ -32,6 +32,7 @@
     "@tide/frontmatter": "workspace:*",
     "@tide/htmlegy": "workspace:*",
     "@tide/htmlegy-dom": "workspace:*",
+    "@tide/parsers": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.20",

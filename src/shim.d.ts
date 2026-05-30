@@ -8,10 +8,10 @@ import type {
   RawEntityPatch,
   JobSource,
   SiteSpec,
-} from './site-spec/types'
+} from './funnels/types'
 import type { PlainLog, ScrapeLog, ScrapeSource } from './shared'
-import type { EntityPatch } from './site-spec/types'
-import type { ScrapeResult } from './extraction/scrape-result'
+import type { EntityPatch } from './funnels/types'
+import type { ScrapeResult } from './funnels/scrape-result'
 import type { HeartbeatStatus } from './server/client'
 import type {
   CaptureEntry,

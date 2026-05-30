@@ -18,9 +18,9 @@ import type {
   JobSource,
   SiteSpec,
   SubmitEvent,
-} from '~/site-spec/types'
-import { ServerAutonomy } from '~/site-spec/types'
-import type { ScrapeResult } from '~/extraction/scrape-result'
+} from '~/funnels/types'
+import { ServerAutonomy } from '~/funnels/types'
+import type { ScrapeResult } from '~/funnels/scrape-result'
 import type {
   PollResponse,
   SetSitesRequest,

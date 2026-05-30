@@ -1,6 +1,6 @@
 import type { HighlightLabel } from '@tide/htmlegy'
-import type { EntityPatch, JobSource } from '~/site-spec/types'
-import type { EntityValidationError } from '~/extraction/entity-validator'
+import type { EntityPatch, JobSource } from '~/funnels/types'
+import type { EntityValidationError } from '~/funnels/entity-validator'
 import type { ScrapeSource } from '~/shared/log'
 
 export interface HighlightEntry {

@@ -1,7 +1,12 @@
 import jsonata from 'jsonata'
-import type { RawEntityPatch, EntityRef } from '~/site-spec/types'
+import type { RawEntityPatch, EntityRef } from '~/funnels/types'
 import { EntityValidator } from './entity-validator'
-import { expandLocaleSuffix, parseLocaleNumber } from './number-parser'
+import {
+  expandLocaleSuffix,
+  parseLocaleNumber,
+  parseMoney,
+  type MoneyValue,
+} from '@tide/parsers'
 
 type MediaRef = {
   _type: 'image' | 'video'
@@ -101,6 +106,24 @@ export class JsonataExpression {
           typeof locale === 'string' ? locale : 'en',
         )
         return Number.isNaN(result) ? null : result
+      },
+    )
+
+    evaluator.assign(
+      'money',
+      (
+        value: unknown,
+        currency: unknown,
+        locale: unknown,
+      ): MoneyValue | null => {
+        if (value == null) {
+          return null
+        }
+        return parseMoney(
+          String(value),
+          typeof locale === 'string' ? locale : 'en',
+          typeof currency === 'string' ? currency : null,
+        )
       },
     )
 

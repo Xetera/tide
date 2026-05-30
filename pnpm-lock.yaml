@@ -50,6 +50,9 @@ importers:
       '@tide/htmlegy-dom':
         specifier: workspace:*
         version: link:packages/htmlegy-dom
+      '@tide/parsers':
+        specifier: workspace:*
+        version: link:packages/parsers
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -189,6 +192,9 @@ importers:
 
   packages/htmlegy:
     dependencies:
+      '@tide/parsers':
+        specifier: workspace:*
+        version: link:../parsers
       date-fns:
         specifier: ^4.4.0
         version: 4.4.0
@@ -242,6 +248,18 @@ importers:
       happy-dom:
         specifier: ^20.8.4
         version: 20.8.4
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^8.0.0
+        version: 8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.0(@types/node@25.5.0)(@vitest/ui@4.1.0)(happy-dom@20.8.4)(jsdom@29.0.0)(msw@2.12.12(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))
+
+  packages/parsers:
+    devDependencies:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3

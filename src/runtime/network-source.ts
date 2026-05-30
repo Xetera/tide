@@ -1,7 +1,7 @@
 import { sendMessage } from 'webext-bridge/content-script'
-import { EntityValidator } from '~/extraction/entity-validator'
-import type { SiteDefinition } from '~/site-spec/types'
-import type { ScrapeResult } from '~/extraction/scrape-result'
+import { EntityValidator } from '~/funnels/entity-validator'
+import type { SiteDefinition } from '~/funnels/types'
+import type { ScrapeResult } from '~/funnels/scrape-result'
 
 let validator: EntityValidator | null = null
 let onNetworkResult: ((result: ScrapeResult) => void) | null = null

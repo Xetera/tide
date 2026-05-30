@@ -1,5 +1,5 @@
-import { defineSite } from '~/site-spec/site-builder'
-import type { JobParameters } from '~/site-spec/types'
+import { defineSite } from '~/funnels/site-builder'
+import type { JobParameters } from '~/funnels/types'
 import { sahibindenEntities } from './entities'
 
 export const sahibindenSmallJobs: JobParameters[] = [

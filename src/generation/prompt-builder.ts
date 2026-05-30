@@ -1,4 +1,4 @@
-import type { Entity } from '~/site-spec/types'
+import type { Entity } from '~/funnels/types'
 import type { CaptureEntry } from './types'
 
 const MAX_BODY_IN_PROMPT = 8_000

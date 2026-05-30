@@ -14,8 +14,8 @@ import {
   TextFieldRoot,
 } from '~/components/ui/textfield'
 import { useBrowserStorage } from '~/shared/hooks'
-import type { SiteSpec } from '~/site-spec/types'
-import { toOrigin } from '~/site-spec/resource'
+import type { SiteSpec } from '~/funnels/types'
+import { toOrigin } from '~/funnels/url'
 import { Storage, type BrowserStorageSchema } from '~/shared/storage'
 import type { HeartbeatStatus } from '~/server/client'
 import type {

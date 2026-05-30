@@ -30,7 +30,7 @@ export type ScrapeLog = {
   severity: 'info'
   /** unix timestamp */
   date: number
-  patches: import('../site-spec/types').EntityPatch[]
+  patches: import('../funnels/types').EntityPatch[]
   warnings: readonly string[]
   status: ScrapeLogStatus
   source?: ScrapeSource

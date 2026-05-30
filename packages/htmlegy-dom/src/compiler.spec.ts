@@ -286,7 +286,7 @@ describe('date', () => {
       '{ "v": $(time) | attr(datetime) | date }',
       '<time datetime="2024-06-15T12:00:00Z"></time>',
     )
-    expect((result as any).v).toBeInstanceOf(Date)
+    expect((result as any).v).toBe('2024-06-15T12:00:00.000Z')
   })
 })
 

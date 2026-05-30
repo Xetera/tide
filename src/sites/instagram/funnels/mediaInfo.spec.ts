@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { JsonataExpression } from '~/extraction/jsonata-bindings'
-import { EntityValidator } from '~/extraction/entity-validator'
+import { JsonataExpression } from '~/funnels/jsonata-bindings'
+import { EntityValidator } from '~/funnels/entity-validator'
 import { instagramSite } from '~/sites/instagram'
 import { parseFrontmatter } from '@tide/frontmatter'
 import rawExpression from './mediaInfo.jsonata?raw'

@@ -1,7 +1,7 @@
 import { Type } from 'typebox'
-import { Image } from '~/extraction/media-types'
+import { Image, Money } from '~/funnels/media-types'
 import { shbdn_image_identity } from '~gleam/media/identity.mjs'
-import { EntityBuilder, One, RichText } from '~/site-spec/site-builder'
+import { EntityBuilder, One, RichText } from '~/funnels/site-builder'
 
 const SahibindenImage = Image.offload().identity({
   fn: shbdn_image_identity,
@@ -17,13 +17,16 @@ export const sahibindenEntities = [
   new EntityBuilder('@sahibinden/listing').fields({
     id: Type.String(),
     name: Type.String(),
-    price: Type.Number(),
+    price: Money,
     agency: One('@sahibinden/agency'),
     location: Location,
     description: RichText,
     latitude: Type.Number(),
     longitude: Type.Number(),
-    attributes: Type.Record(Type.String(), Type.String()),
+    attributes: Type.Record(Type.String(), Type.String(), {
+      description:
+        'Sahinbinden has a lot of different attributes for different kinds of listings',
+    }),
     images: Type.Array(SahibindenImage),
   }),
   new EntityBuilder('@sahibinden/agency').fields({

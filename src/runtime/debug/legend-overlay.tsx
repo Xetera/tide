@@ -3,7 +3,7 @@ import { render } from 'solid-js/web'
 import { sendMessage } from 'webext-bridge/content-script'
 import { Storage } from '~/shared/storage'
 import type { BrowserStorageSchema } from '~/shared/storage'
-import type { Funnel } from '~/site-spec/types'
+import type { Funnel } from '~/funnels/types'
 import {
   getRecording,
   isRecordingFor,

@@ -65,7 +65,11 @@ export type ChainStep =
   | { kind: 'conditional'; then_: Expr; else_: Expr | null }
   | { kind: 'scoped_expr'; expr: Expr }
 
-export type PipeArg = string | number | { key: string; value: string | number }
+export type PipeArg =
+  | string
+  | number
+  | { key: string; value: string | number }
+  | { key: string; expr: Chain }
 
 export type PipeOp = { name: string; args: PipeArg[] }
 
@@ -401,6 +405,9 @@ const exprActions: HTMLegyActionDict<AstResult> = {
   },
   PipeArg_kwargInt(key, _colon, val) {
     return { key: key.sourceString, value: toAst(val) as number }
+  },
+  PipeArg_kwargExpr(key, _colon, chain) {
+    return { key: key.sourceString, expr: toAst(chain) as Chain }
   },
   PipeArg_string(s) {
     return s.toAst() as string

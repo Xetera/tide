@@ -1,6 +1,6 @@
 import { onMessage } from 'webext-bridge/background'
 import { Client } from '~/server/client'
-import { ServerAutonomy, type ResourceSpec } from '~/site-spec/types'
+import { ServerAutonomy, type ResourceSpec } from '~/funnels/types'
 import { instagramSite } from '~/sites/instagram'
 import { allSites } from '~/sites'
 import { generateUID } from '~/shared/uid'
@@ -19,11 +19,12 @@ import {
   getCapturesForHostname,
   storeCaptureEntry,
 } from './capture'
-import { EntityValidator } from '~/extraction/entity-validator'
-import { JsonataExpression } from '~/extraction/jsonata-bindings'
+import { EntityValidator } from '~/funnels/entity-validator'
+import { JsonataExpression } from '~/funnels/jsonata-bindings'
 import type { CaptureEntry, FunnelMatchResult } from '~/generation/types'
 import { runGenerationLoop, runHtmlegyGenerationLoop } from '~/generation/llm'
-import { funnelProvider } from '~/site-spec/funnel-loader'
+import { buildFunnelInfos } from '~/generation/funnel-info'
+import { funnelProvider } from '~/funnels/funnel-loader'
 import { getRecording, isRecordingFor, setRecording } from '~/shared/recording'
 
 const storage = new Storage<BrowserStorageSchema>()
@@ -427,7 +428,7 @@ log({
     })
 
     onMessage('get-funnels', () => {
-      return funnelProvider.buildFunnelInfos(allSites)
+      return buildFunnelInfos(funnelProvider)
     })
 
     onMessage('write-funnel', async ({ data }) => {

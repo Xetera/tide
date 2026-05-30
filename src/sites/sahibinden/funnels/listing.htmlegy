@@ -7,10 +7,7 @@ url: "/ilan/*/detay"
     "_entity": "@sahibinden/listing",
     "_id": $(.classifiedId) | data(classifiedid) ?? $(#classifiedId) | text,
     "name": $(.classifiedDetailTitle h1) | text | trim,
-    "price":
-      $(.classified-price-wrapper) | text | regex("(.+) TL", 1)
-      | trim
-      | number(locale: 'tr'),
+    "price": $(.classified-price-wrapper) | text | money(),
     "description": $(#classifiedDescription) | rich_text,
     "attributes": $$(.classifiedInfoList li, .classified-info-list li) {
       [$(strong) | text | trim]: $(span) | text | trim

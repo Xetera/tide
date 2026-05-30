@@ -1,4 +1,4 @@
-import { originToUrl } from '~/site-spec/resource'
+import { originToUrl } from '~/funnels/url'
 
 const CF_CLEARANCE = 'cf_clearance'
 

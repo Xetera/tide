@@ -1,5 +1,4 @@
-import { constructPathRegexes } from '~/site-spec/resource'
-import type { JobParameters, SiteSpec, ServerAutonomy } from '~/site-spec/types'
+import type { JobParameters, SiteSpec, ServerAutonomy } from '~/funnels/types'
 
 export class Job {
   readonly url: URL
@@ -14,17 +13,6 @@ export class Job {
         `Invalid job hostname: ${url.hostname}. Expected ${site.hostname}`,
       )
     }
-    const patterns = constructPathRegexes(site.url)
-
-    if (!patterns.some((pattern) => pattern.test(url.pathname))) {
-      throw new InvalidJobUrlError(url)
-    }
     this.url = url
-  }
-}
-
-export class InvalidJobUrlError extends Error {
-  constructor(public readonly url: URL) {
-    super(`Invalid job url: ${url.toString()}`)
   }
 }

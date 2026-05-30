@@ -1,6 +1,10 @@
 import { parse } from './parser'
 import { parseLocaleDate } from './date-parser'
-import { expandLocaleSuffix, parseLocaleNumber } from './number-parser'
+import {
+  expandLocaleSuffix,
+  parseLocaleNumber,
+  parseMoney,
+} from '@tide/parsers'
 import type {
   Expr,
   ExprMatchArm,
@@ -265,7 +269,7 @@ class Evaluator<N> {
       }
       let piped = scrutinee
       for (const op of arm.ops) {
-        piped = this.applyPipeOp(op, piped)
+        piped = this.applyPipeOp(op, piped, scrutinee as N, env, ctx)
       }
       const truthy = piped != null && piped !== false && piped !== ''
       if (truthy) {
@@ -291,6 +295,9 @@ class Evaluator<N> {
         const condValue = this.applyPipeOp(
           { name: arm.name, args: arm.args },
           this.evalExpr(arm.expr, subject, env, ctx),
+          subject,
+          env,
+          ctx,
         )
         const truthy =
           condValue != null && condValue !== false && condValue !== ''
@@ -457,6 +464,9 @@ class Evaluator<N> {
         current = this.applyPipeOp(
           { name: expr.source.name, args: expr.source.args },
           inner,
+          el,
+          currentEnv,
+          ctx,
         )
         break
       }
@@ -471,7 +481,7 @@ class Evaluator<N> {
           if (current == null && omitOnNull) {
             return OMIT
           }
-          current = this.applyPipeOp(step.op, current)
+          current = this.applyPipeOp(step.op, current, el, currentEnv, ctx)
           break
 
         case 'block': {
@@ -552,8 +562,65 @@ class Evaluator<N> {
     return current
   }
 
-  private applyPipeOp(op: PipeOp, value: unknown): unknown {
-    const { name, args } = op
+  private resolvePipeArgs(
+    args: PipeArg[],
+    el: N,
+    env: Env<N>,
+    ctx: EvalContext,
+  ): PipeArg[] {
+    let resolved: PipeArg[] | null = null
+    for (let i = 0; i < args.length; i++) {
+      const a = args[i]!
+      if (
+        typeof a === 'object' &&
+        'expr' in a &&
+        (a as { expr?: Chain }).expr !== undefined
+      ) {
+        const value = this.evalChain(a.expr, el, env, ctx)
+        if (resolved === null) {
+          resolved = args.slice(0, i)
+        }
+        const coerced =
+          typeof value === 'number'
+            ? value
+            : value == null
+              ? ''
+              : String(value)
+        resolved.push({ key: a.key, value: coerced })
+      } else if (resolved !== null) {
+        resolved.push(a)
+      }
+    }
+    return resolved ?? args
+  }
+
+  private resolveLocale(kwLocale: string | null, env: Env<N>): string {
+    if (kwLocale) {
+      return kwLocale
+    }
+    const root = env.get('') as N | undefined
+    if (root != null) {
+      const html =
+        this.#provider.getTagName(root) === 'html'
+          ? root
+          : this.#provider.querySelector(root, 'html')
+      const lang = html ? this.#provider.getAttribute(html, 'lang') : null
+      if (lang) {
+        return lang
+      }
+    }
+    return this.#locale
+  }
+
+  private applyPipeOp(
+    op: PipeOp,
+    value: unknown,
+    el: N,
+    env: Env<N>,
+    ctx: EvalContext,
+  ): unknown {
+    const { name } = op
+    const args = this.resolvePipeArgs(op.args, el, env, ctx)
 
     switch (name) {
       case 'text':
@@ -612,14 +679,14 @@ class Evaluator<N> {
         )
         return parseLocaleNumber(
           String(value),
-          kwLocale ? String(kwLocale.value) : this.#locale,
+          this.resolveLocale(kwLocale ? String(kwLocale.value) : null, env),
         )
       }
       case 'url':
         return value ? this.#provider.resolveUrl(String(value)) : null
       case 'expandSuffix':
         return value != null
-          ? expandLocaleSuffix(String(value), this.#locale)
+          ? expandLocaleSuffix(String(value), this.resolveLocale(null, env))
           : null
       case 'regex': {
         if (value == null) {
@@ -677,8 +744,33 @@ class Evaluator<N> {
         )
         return parseLocaleDate(
           String(value),
-          kwLocale ? String(kwLocale.value) : this.#locale,
+          this.resolveLocale(kwLocale ? String(kwLocale.value) : null, env),
           kwFormat ? String(kwFormat.value) : undefined,
+        )
+      }
+      case 'money': {
+        if (value == null) {
+          return null
+        }
+        const kwCurrency = args.find(
+          (a): a is Extract<PipeArg, object> =>
+            typeof a === 'object' &&
+            (a as Extract<PipeArg, object>).key === 'currency',
+        )
+        const kwLocale = args.find(
+          (a): a is Extract<PipeArg, object> =>
+            typeof a === 'object' &&
+            (a as Extract<PipeArg, object>).key === 'locale',
+        )
+        return parseMoney(
+          String(value),
+          this.resolveLocale(
+            kwLocale ? String((kwLocale as { value: unknown }).value) : null,
+            env,
+          ),
+          kwCurrency != null
+            ? String((kwCurrency as { value: unknown }).value)
+            : null,
         )
       }
       case 'merge':

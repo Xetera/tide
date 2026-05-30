@@ -1,19 +1,18 @@
-import type { FunnelInfo } from '~/generation/types'
 import {
   SiteDefinition,
   PageFunnel,
   NetworkFunnel,
   NetworkFunnelGroup,
   RequestMatcher,
-} from '~/site-spec/types'
-import { matchesGlob } from '~/extraction/glob'
+} from '~/funnels/types'
+import { matchesGlob } from '~/funnels/glob'
 import { parseFrontmatter } from '@tide/frontmatter'
 export { matchesGlob }
 import type {
   PageFunnelEntry,
   NetworkFunnelEntry,
   FixtureEntry,
-} from '~/site-spec/types'
+} from '~/funnels/types'
 export type { PageFunnelEntry, NetworkFunnelEntry, FixtureEntry }
 
 export const LOADER_FLAT_RE =
@@ -112,6 +111,14 @@ export class FunnelProvider {
 
   getEntries(): readonly (PageFunnelEntry | NetworkFunnelEntry)[] {
     return [...this.#pageEntries, ...this.#networkEntries]
+  }
+
+  getPageEntries(): readonly PageFunnelEntry[] {
+    return this.#pageEntries
+  }
+
+  getNetworkEntries(): readonly NetworkFunnelEntry[] {
+    return this.#networkEntries
   }
 
   getFixtures(): readonly FixtureEntry[] {
@@ -261,46 +268,6 @@ export class FunnelProvider {
       return true
     }
     return false
-  }
-
-  buildFunnelInfos(_sites: SiteDefinition[]): FunnelInfo[] {
-    const toInfo = (
-      entry: PageFunnelEntry | NetworkFunnelEntry,
-      format: 'htmlegy' | 'jsonata',
-    ): FunnelInfo | null => {
-      const { frontmatter } = entry
-      let request: FunnelInfo['request']
-      if (format === 'jsonata') {
-        const url = frontmatter.url as string | string[]
-        const method =
-          typeof frontmatter.method === 'string' ? frontmatter.method : 'GET'
-        request = { method, url }
-      } else {
-        const urlPattern = frontmatter.url
-        if (!urlPattern) {
-          return null
-        }
-        const url = Array.isArray(urlPattern) ? urlPattern[0] : urlPattern
-        request = { method: 'GET', url: String(url) }
-      }
-      const fixtures = this.#fixtures
-        .filter((f) => f.site === entry.site && f.funnel === entry.funnel)
-        .map((f) => ({ path: f.path, name: f.name, data: f.data }))
-      return {
-        site: entry.site,
-        funnel: entry.funnel,
-        file: entry.file,
-        path: entry.path,
-        expression: entry.expression,
-        format,
-        fixtures,
-        request,
-      }
-    }
-    return [
-      ...this.#pageEntries.flatMap((e) => toInfo(e, 'htmlegy') ?? []),
-      ...this.#networkEntries.flatMap((e) => toInfo(e, 'jsonata') ?? []),
-    ]
   }
 
   buildBuiltinExamples(

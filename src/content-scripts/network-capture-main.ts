@@ -1,5 +1,5 @@
-import { JsonataExpression } from '~/extraction/jsonata-bindings'
-import { matchesGlob } from '~/extraction/glob'
+import { JsonataExpression } from '~/funnels/jsonata-bindings'
+import { matchesGlob } from '~/funnels/glob'
 
 interface FunnelEntry {
   file: string

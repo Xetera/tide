@@ -11,10 +11,10 @@ import {
   TRecord,
   TNumber,
 } from 'typebox'
-import { SiteDefinition, PageFunnel, NetworkFunnel, NetworkFunnelGroup } from '~/site-spec/types'
-import type { Entity, RequestMatcher } from '~/site-spec/types'
-import { MediaBuilder } from '~/extraction/media-types'
-import { pageEntries as _allPageEntries, networkEntries as _allNetworkEntries } from '~/site-spec/funnel-loader'
+import { SiteDefinition, PageFunnel, NetworkFunnel, NetworkFunnelGroup } from '~/funnels/types'
+import type { Entity, RequestMatcher } from '~/funnels/types'
+import { MediaBuilder } from '~/funnels/media-types'
+import { pageEntries as _allPageEntries, networkEntries as _allNetworkEntries } from '~/funnels/funnel-loader'
 
 // just a type to correlate unsafe references
 type TReference = symbol

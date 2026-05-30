@@ -1,10 +1,10 @@
-import { JsonataExpression } from '~/extraction/jsonata-bindings'
+import { JsonataExpression } from '~/funnels/jsonata-bindings'
 import {
   EntityValidator,
   type IdentityWarning,
-} from '~/extraction/entity-validator'
+} from '~/funnels/entity-validator'
 import { allSites } from '~/sites'
-import type { RawEntityPatch } from '~/site-spec/types'
+import type { RawEntityPatch } from '~/funnels/types'
 import { createExpr } from '@tide/htmlegy-dom'
 import { parseFrontmatter } from '@tide/frontmatter'
 

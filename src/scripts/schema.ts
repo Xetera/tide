@@ -6,7 +6,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
 const jiti = createJiti(import.meta.url, {
   alias: {
-    '~/site-spec/funnel-loader': resolve(root, 'src/site-spec/funnel-loader.node.ts'),
+    '~/funnels/funnel-loader': resolve(root, 'src/funnels/funnel-loader.node.ts'),
     '~': resolve(root, 'src'),
     '~gleam': resolve(root, 'gleam', 'build', 'dev', 'javascript', 'tide_shared') },
 })

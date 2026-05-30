@@ -101,6 +101,7 @@ HTMLegy {
   PipeArg
     = ident ":" stringLit  -- kwarg
     | ident ":" integer    -- kwargInt
+    | ident ":" Chain      -- kwargExpr
     | stringLit            -- string
     | integer              -- integer
     | ident                -- ident

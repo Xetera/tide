@@ -963,3 +963,82 @@ describe('alias bind-or-use', () => {
     })
   })
 })
+
+describe('| money', () => {
+  const usd: TestNode = {
+    tag: 'div',
+    children: [{ tag: 'span', attrs: { class: 'price' }, text: '$1,234.56' }],
+  }
+
+  const tl: TestNode = {
+    tag: 'div',
+    children: [
+      { tag: 'span', attrs: { class: 'price' }, text: '1.234,56 TL' },
+      { tag: 'span', attrs: { class: 'code' }, text: 'TRY' },
+    ],
+  }
+
+  const jpy: TestNode = {
+    tag: 'div',
+    children: [{ tag: 'span', attrs: { class: 'price' }, text: '¥4980' }],
+  }
+
+  it('infers currency from a leading symbol', () => {
+    expect(run('$(.price) | text | money', usd)).toEqual({
+      _type: 'money',
+      amount: 1234.56,
+      currency: 'USD',
+    })
+  })
+
+  it('infers currency from a JPY symbol with zero decimals', () => {
+    expect(run('$(.price) | text | money', jpy)).toEqual({
+      _type: 'money',
+      amount: 4980,
+      currency: 'JPY',
+    })
+  })
+
+  it('accepts an explicit currency literal kwarg', () => {
+    expect(run("$(.price) | text | money(currency: 'TRY')", tl, 'tr')).toEqual({
+      _type: 'money',
+      amount: 1234.56,
+      currency: 'TRY',
+    })
+  })
+
+  it('resolves an expression-valued currency kwarg', () => {
+    expect(
+      run('$(.price) | text | money(currency: $(.code) | text)', tl, 'tr'),
+    ).toEqual({
+      _type: 'money',
+      amount: 1234.56,
+      currency: 'TRY',
+    })
+  })
+
+  it('returns null when text is empty', () => {
+    expect(run("'' | money(currency: 'USD')", usd)).toBeNull()
+  })
+
+  it('throws when no currency can be inferred and none is given', () => {
+    const node: TestNode = {
+      tag: 'div',
+      children: [{ tag: 'span', attrs: { class: 'price' }, text: '49.99' }],
+    }
+    expect(() => run('$(.price) | text | money', node)).toThrow(/currency/)
+  })
+
+  it('defaults locale to html[lang] when no kwarg is given', () => {
+    const node: TestNode = {
+      tag: 'html',
+      attrs: { lang: 'tr' },
+      children: [{ tag: 'span', attrs: { class: 'price' }, text: '$ 51.000 ' }],
+    }
+    expect(run('$(.price) | text | money', node)).toEqual({
+      _type: 'money',
+      amount: 51000,
+      currency: 'USD',
+    })
+  })
+})

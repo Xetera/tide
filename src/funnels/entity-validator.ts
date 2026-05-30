@@ -4,8 +4,8 @@ import type {
   EntityPatch,
   RawEntityPatch,
   SiteDefinition,
-} from '~/site-spec/types'
-import { identityRegistry, type IdentityFn } from '~/extraction/media-types'
+} from '~/funnels/types'
+import { identityRegistry, type IdentityFn } from '~/funnels/media-types'
 import { MediaRecord$MediaRecord } from '~gleam/media/fingerprint/types.mjs'
 import { Result$isOk, Result$Ok$0, Result$Error$0 } from '~gleam/gleam.mjs'
 

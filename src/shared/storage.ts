@@ -2,8 +2,8 @@ import PQueue from 'p-queue'
 import type { HeartbeatStatus, ServerDefinition } from '~/server/client'
 import type {
   ServerAutonomy,
-} from '~/site-spec/types'
-import type { ScrapeResult } from '~/extraction/scrape-result'
+} from '~/funnels/types'
+import type { ScrapeResult } from '~/funnels/scrape-result'
 import type { Log } from './log'
 import type {
   GenerationAttempt,
@@ -119,7 +119,7 @@ export type BrowserStorageSchema = {
   'legend:hidden'?: string[]
   'legend:collapsed'?: boolean
   'debug:visual'?: boolean
-  'sites:all'?: import('~/site-spec/types').SiteSpec[]
+  'sites:all'?: import('~/funnels/types').SiteSpec[]
   'gemini:api-key'?: string
   'zai:api-key'?: string
   'generation:progress'?: GenerationProgress

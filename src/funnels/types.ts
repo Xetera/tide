@@ -1,5 +1,5 @@
-import { matchesGlob } from '~/extraction/glob'
-import { normalizePath } from '~/site-spec/resource'
+import { matchesGlob } from '~/funnels/glob'
+import { normalizePath } from '~/funnels/url'
 
 export interface PageFunnelEntry {
   site: string

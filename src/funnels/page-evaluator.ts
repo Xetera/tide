@@ -1,5 +1,5 @@
 import { isCloudflareChallengePage } from './detection'
-import type { PageFunnel } from '~/site-spec/types'
+import type { PageFunnel } from '~/funnels/types'
 
 export class PageEvaluator {
   constructor(

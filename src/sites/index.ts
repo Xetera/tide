@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import type { SiteDefinition } from '~/site-spec/types'
+import type { SiteDefinition } from '~/funnels/types'
 
 const siteModules = import.meta.glob('./*/index.ts', {
   import: 'default',
