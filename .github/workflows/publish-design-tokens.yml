@@ -1,0 +1,49 @@
+name: Publish Design Tokens
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/design-tokens/**'
+      - '.github/workflows/publish-design-tokens.yml'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    defaults:
+      run:
+        working-directory: packages/design-tokens
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: pnpm/action-setup@v5.0.0
+
+      - uses: actions/setup-node@v6.3.0
+        with:
+          node-version: '25'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@xetera'
+
+      - name: Check if version is already published
+        id: check
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "$name@$version already published, skipping"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish
+        if: steps.check.outputs.exists == 'false'
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

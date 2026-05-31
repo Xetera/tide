@@ -38,9 +38,6 @@ importers:
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3
-      '@tide/design-tokens':
-        specifier: workspace:*
-        version: link:packages/design-tokens
       '@tide/frontmatter':
         specifier: workspace:*
         version: link:packages/frontmatter
@@ -56,6 +53,9 @@ importers:
       '@tide/parsers':
         specifier: workspace:*
         version: link:packages/parsers
+      '@xetera/tide-design-tokens':
+        specifier: workspace:*
+        version: link:packages/design-tokens
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

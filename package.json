@@ -28,7 +28,7 @@
     "@internationalized/number": "^3.6.5",
     "@kobalte/core": "^0.13.11",
     "@lezer/highlight": "^1.2.3",
-    "@tide/design-tokens": "workspace:*",
+    "@xetera/tide-design-tokens": "workspace:*",
     "@tide/frontmatter": "workspace:*",
     "@tide/htmlegy": "workspace:*",
     "@tide/htmlegy-dom": "workspace:*",
