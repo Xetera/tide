@@ -1,4 +1,4 @@
-import { JsonataExpression } from '~/funnels/jsonata-bindings'
+import { JsonataExpression } from '@tide/jsonata'
 import {
   EntityValidator,
   type IdentityWarning,

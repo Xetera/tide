@@ -17,181 +17,17 @@
     <input type="hidden" id="masthead-enabled" value="true" />
     <input type="hidden" id="page-language" value="tr" />
     <div class="content">
-      <script type="text/javascript">
-        var isMastheadEnabled = true
-        var isMastheadActive = false
-        var mastHeadIframeHeight = 25
-        var isMastheadPreview =
-          location.href.indexOf('?google_preview=') != -1 ||
-          location.href.indexOf('&google_preview=') != -1
-
-        function checkmastHeadIframeHeight() {
-          var currentHeight = $('#div-gpt-ad-1439371178201-0 iframe').height()
-          if (currentHeight > 100) {
-            isMastheadActive = true
-          } else {
-            isMastheadActive = false
-          }
-          $('#div-gpt-ad-1439371178201-0').attr('isactive', isMastheadActive)
-
-          controlVisibility()
-
-          setTimeout(function () {
-            checkmastHeadIframeHeight()
-          }, 100)
-        }
-
-        document.createElement = (function (create) {
-          return function () {
-            var obj = create.apply(this, arguments)
-            if (obj.tagName.toLowerCase() === 'iframe') {
-              obj.setAttribute('allowfullscreen', 'true')
-            }
-            return obj
-          }
-        })(document.createElement)
-
-        googletag.cmd.push(function () {
-          googletag.pubads().enableSingleRequest()
-          googletag.pubads().collapseEmptyDivs()
-          googletag
-            .pubads()
-            .addEventListener('slotRenderEnded', function (event) {
-              if (
-                event.slot.getSlotElementId() === 'div-gpt-ad-1439371178201-0'
-              ) {
-                if (event.isEmpty) {
-                  controlVisibility()
-                  return
-                }
-
-                adjustMastheadClasses()
-              }
-            })
-
-          if (isMastheadEnabled || isMastheadPreview) {
-            googletag
-              .defineSlot(
-                '/32607536/mainpage_masthead',
-                [
-                  [970, 25],
-                  [970, 250],
-                ],
-                'div-gpt-ad-1439371178201-0',
-              )
-              .addService(googletag.pubads())
-          }
-
-          googletag.enableServices()
-
-          var adjustMastheadClasses = function () {
-            var adSlotElement = $('#div-gpt-ad-1439371178201-0')
-
-            var iframe = $('#div-gpt-ad-1439371178201-0 iframe')
-
-            iframe.load(function () {
-              var documentOfIframe = iframe.context
-
-              $(iframe).attr('allowfullscreen', 'true')
-              $(iframe).attr('webkitallowfullscreen', 'true')
-              $(iframe).attr('mozallowfullscreen', 'true')
-
-              if (documentOfIframe) {
-                $(documentOfIframe).ready(function () {
-                  var isBannerClosedBefore = getCookie('bannerClosed') == 'true'
-
-                  if (!isBannerClosedBefore) {
-                    adSlotElement
-                      .removeClass('banner-masthead-opened')
-                      .addClass('banner-masthead')
-                  }
-                  checkmastHeadIframeHeight()
-                })
-              }
-            })
-          }
-        })
-
-        function controlVisibility() {
-          var fallbackBanner = document.getElementById(
-            'masthead-fallback-banner',
-          )
-          var fallbackBannerContainer = document.getElementById(
-            'masthead-banner-container',
-          )
-          var adElement = document.getElementById('div-gpt-ad-1439371178201-0')
-
-          var isAdHidden = false
-          if (adElement) {
-            isAdHidden = window.getComputedStyle(adElement).display === 'none'
-          }
-
-          var shouldShowFallback = isMastheadActive || isAdHidden
-
-          if (fallbackBanner) {
-            fallbackBanner.style.display = shouldShowFallback ? 'block' : 'none'
-          }
-
-          if (fallbackBannerContainer) {
-            fallbackBannerContainer.style.height = shouldShowFallback
-              ? '266px'
-              : '25px'
-          }
-
-          if (fallbackBanner === null && isAdHidden) {
-            fallbackBannerContainer.style.height = '25px'
-          }
-        }
-      </script>
-
       <div
         id="masthead-banner-container"
         class="masthead-banner-container"
         style="position: relative; height: 266px"
       >
-        <script type="text/javascript">
-          window.mastheadFallbackBanner = {}
-        </script>
         <div
           id="div-gpt-ad-1439371178201-0"
           class="banner-masthead-opened"
           style="position: relative; z-index: 2"
-        >
-          <script type="text/javascript">
-            var getCookie = function (key) {
-              var regexForMatch = new RegExp('(; )?' + key + '=([^;]*);?'),
-                mathced = document.cookie.match(regexForMatch)
-
-              return mathced !== null && mathced.length > 2 ? mathced[2] : null
-            }
-
-            var adjustSlotMainContainer = function () {
-              var isBannerClosedBefore = getCookie('bannerClosed') == 'true'
-
-              var defaultCssClass = isBannerClosedBefore
-                ? 'banner-masthead'
-                : 'banner-masthead-opened'
-
-              document
-                .getElementById('div-gpt-ad-1439371178201-0')
-                .setAttribute('class', defaultCssClass)
-            }
-
-            if (isMastheadEnabled || isMastheadPreview) {
-              adjustSlotMainContainer()
-              googletag.cmd.push(function () {
-                googletag.display('div-gpt-ad-1439371178201-0')
-              })
-            } else {
-              document.getElementById(
-                'div-gpt-ad-1439371178201-0',
-              ).style.display = 'none'
-            }
-          </script>
-        </div>
+        ></div>
       </div>
-      <!-- Banner Masthead -->
-      <!-- /32607536/mainpage_masthead_floating -->
       <div
         id="div-gpt-ad-1634545955552-0"
         style="height: 0px; width: 0px"
@@ -1820,56 +1656,14 @@
           id="div-gpt-ad-1553629-3"
           class="banner-left"
           style="display: none"
-        >
-          <script type="text/javascript">
-            var isMastheadEnabled = true
-            var isMastheadPreview =
-              location.href.indexOf('?google_preview=') != -1 ||
-              location.href.indexOf('&google_preview=') != -1
-            if (!isMastheadEnabled && !isMastheadPreview) {
-              googletag.cmd.push(function () {
-                googletag.pubads().setTargeting('language', 'tr')
-                googletag
-                  .defineSlot(
-                    '/32607536/mainpage_topcenter_w',
-                    [[522, 250]],
-                    'div-gpt-ad-1553629-3',
-                  )
-                  .addService(googletag.pubads())
-                googletag.display('div-gpt-ad-1553629-3')
-              })
-            } else {
-              document.getElementById('div-gpt-ad-1553629-3').style.display =
-                'none'
-            }
-          </script>
-        </div>
+        ></div>
 
         <!-- Banner Right -->
         <div
           id="div-gpt-ad-31667776-0"
           class="banner-right"
           style="display: none"
-        >
-          <script type="text/javascript">
-            if (!isMastheadEnabled && !isMastheadPreview) {
-              googletag.cmd.push(function () {
-                googletag.pubads().setTargeting('language', 'tr')
-                googletag
-                  .defineSlot(
-                    '/32607536/mainpage_topright',
-                    [300, 250],
-                    'div-gpt-ad-31667776-0',
-                  )
-                  .addService(googletag.pubads())
-                googletag.display('div-gpt-ad-31667776-0')
-              })
-            } else {
-              document.getElementById('div-gpt-ad-31667776-0').style.display =
-                'none'
-            }
-          </script>
-        </div>
+        ></div>
         <!-- Banner Right --><!-- Banners -->
 
         <div class="uiBox showcase">
@@ -3855,14 +3649,6 @@
         <!-- Homepage Showcase -->
 
         <div class="center-banner">
-          <script type="text/javascript">
-            getBanner(
-              120,
-              '&amp;CATEGORY_ID=0&amp;PARENT_ID=0&amp;PAGE_NAME=ana_sayfa&amp;c=0&amp;c2=0&amp;LANGUAGE=' +
-                'tr',
-            )
-          </script>
-
           <!-- /32607536/anasayfa728x90 -->
           <div
             id="div-gpt-ad-1446829212361-0"
@@ -5010,7 +4796,5 @@
       ]
     }
   </script>
-  <div id="conversational-search-container" data-user-logged-in="">
-    <!-- Content will be dynamically generated via JavaScript (conversationalSearch.js) -->
-  </div>
+  <div id="conversational-search-container" data-user-logged-in=""></div>
 </div>

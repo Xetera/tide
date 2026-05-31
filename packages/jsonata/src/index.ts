@@ -1,6 +1,4 @@
 import jsonata from 'jsonata'
-import type { RawEntityPatch, EntityRef } from '~/funnels/types'
-import { EntityValidator } from './entity-validator'
 import {
   expandLocaleSuffix,
   parseLocaleNumber,
@@ -8,11 +6,16 @@ import {
   type MoneyValue,
 } from '@tide/parsers'
 
-type MediaRef = {
+export type MediaRef = {
   _type: 'image' | 'video'
   url: string
   width?: number
   height?: number
+}
+
+export type EntityRef = {
+  _type: 'ref'
+  _id: string
 }
 
 export interface JsonataContext {
@@ -173,13 +176,5 @@ export class JsonataExpression {
 
   async evaluate(input: unknown): Promise<unknown> {
     return this.#expr.evaluate(input as Record<string, unknown>)
-  }
-
-  async entities(input: unknown): Promise<RawEntityPatch[]> {
-    const result = await this.#expr.evaluate(input as Record<string, unknown>)
-    if (!Array.isArray(result)) {
-      return []
-    }
-    return result.filter(EntityValidator.isEntityPatch)
   }
 }

@@ -1,5 +1,5 @@
 import type { Entity } from '~/funnels/types'
-import { JsonataExpression } from '~/funnels/jsonata-bindings'
+import { JsonataExpression } from '@tide/jsonata'
 import { buildPrompt, buildHtmlegyPrompt } from './prompt-builder'
 import type { CaptureEntry, GenerationAttempt, GenerationResult } from './types'
 import type { EntityValidator } from '~/funnels/entity-validator'

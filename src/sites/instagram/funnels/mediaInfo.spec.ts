@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { JsonataExpression } from '~/funnels/jsonata-bindings'
+import { JsonataExpression } from '@tide/jsonata'
 import { EntityValidator } from '~/funnels/entity-validator'
 import { instagramSite } from '~/sites/instagram'
 import { parseFrontmatter } from '@tide/frontmatter'
+import type { RawEntityPatch } from '~/funnels/types'
 import rawExpression from './mediaInfo.jsonata?raw'
 import validRequest from './validRequest.json'
 import notFound from './notFound.json'
@@ -10,10 +11,23 @@ import notFound from './notFound.json'
 const validator = new EntityValidator([instagramSite])
 const { body: expression } = parseFrontmatter(rawExpression)
 
+async function runEntities(
+  expr: JsonataExpression,
+  input: unknown,
+): Promise<RawEntityPatch[]> {
+  const result = await expr.evaluate(input)
+  if (!Array.isArray(result)) {
+    return []
+  }
+  return result.filter(EntityValidator.isEntityPatch)
+}
+
 describe('instagram mediaInfo funnel', () => {
   it('parses valid response entities against schema', async () => {
-    const entities =
-      await JsonataExpression.default(expression).entities(validRequest.response.body)
+    const entities = await runEntities(
+      JsonataExpression.default(expression),
+      validRequest.response.body,
+    )
 
     const post = entities.find((e) => e._entity === '@instagram/post')
     const user = entities.find((e) => e._entity === '@instagram/user')
@@ -25,10 +39,13 @@ describe('instagram mediaInfo funnel', () => {
   })
 
   it('returns no entities for not found response', async () => {
-    const entities = await new JsonataExpression(expression, {
-      request: notFound.request,
-      response: notFound.response as any,
-    }).entities(notFound.response.body)
+    const entities = await runEntities(
+      new JsonataExpression(expression, {
+        request: notFound.request,
+        response: notFound.response as any,
+      }),
+      notFound.response.body,
+    )
 
     expect(entities).toHaveLength(0)
   })

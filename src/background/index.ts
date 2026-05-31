@@ -20,7 +20,7 @@ import {
   storeCaptureEntry,
 } from './capture'
 import { EntityValidator } from '~/funnels/entity-validator'
-import { JsonataExpression } from '~/funnels/jsonata-bindings'
+import { JsonataExpression } from '@tide/jsonata'
 import type { CaptureEntry, FunnelMatchResult } from '~/generation/types'
 import { runGenerationLoop, runHtmlegyGenerationLoop } from '~/generation/llm'
 import { buildFunnelInfos } from '~/generation/funnel-info'

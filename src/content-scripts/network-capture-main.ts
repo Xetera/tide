@@ -1,4 +1,4 @@
-import { JsonataExpression } from '~/funnels/jsonata-bindings'
+import { JsonataExpression } from '@tide/jsonata'
 import { matchesGlob } from '~/funnels/glob'
 
 interface FunnelEntry {
