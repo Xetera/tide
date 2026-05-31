@@ -19,6 +19,11 @@ jobs:
           node-version: '25'
           cache: 'pnpm'
 
+      - uses: erlef/setup-beam@v1.23.0
+        with:
+          otp-version: '27'
+          gleam-version: '1.16.0'
+
       - run: pnpm install --frozen-lockfile
 
       - name: Generate schemas
