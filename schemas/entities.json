@@ -107,6 +107,27 @@
         }
       }
     },
+    "Money": {
+      "type": "object",
+      "required": [
+        "_type",
+        "amount",
+        "currency"
+      ],
+      "properties": {
+        "_type": {
+          "type": "string",
+          "const": "money"
+        },
+        "amount": {
+          "type": "integer"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
+      }
+    },
     "instagram__user": {
       "type": "object",
       "required": [
@@ -1255,7 +1276,25 @@
         "price": {
           "anyOf": [
             {
-              "type": "number"
+              "type": "object",
+              "required": [
+                "_type",
+                "amount",
+                "currency"
+              ],
+              "properties": {
+                "_type": {
+                  "type": "string",
+                  "const": "money"
+                },
+                "amount": {
+                  "type": "integer"
+                },
+                "currency": {
+                  "type": "string",
+                  "pattern": "^[A-Z]{3}$"
+                }
+              }
             },
             {
               "type": "null"
@@ -1362,7 +1401,8 @@
                 "^.*$": {
                   "type": "string"
                 }
-              }
+              },
+              "description": "Sahinbinden has a lot of different attributes for different kinds of listings"
             },
             {
               "type": "null"
