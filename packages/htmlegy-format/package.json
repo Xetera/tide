@@ -1,0 +1,22 @@
+{
+  "name": "@tide/htmlegy-format",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "htmlegy-format": "./src/cli.ts"
+  },
+  "scripts": {
+    "test": "vitest --no-isolate"
+  },
+  "dependencies": {
+    "@tide/htmlegy": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "vitest": "^4.1.0"
+  }
+}

@@ -1,36 +1,34 @@
 [
   {
     "_entity": "@sahibinden/listing",
-    "_id": $(.classifiedId) | data(classifiedid),
+    "_id": $(.classifiedId) | data("classifiedid"),
     "name": $(.classifiedDetailTitle h1) | text | trim,
-    "price":
-      $(.classified-price-wrapper) | text | regex("(.+) TL", 1)
+    "price": $(.classified-price-wrapper)
+      | text
+      | regex("(.+) TL", 1)
       | trim
-      | number(locale: 'tr'),
+      | number(locale: "tr"),
     "description": $(#classifiedDescription) | text | trim,
-    "attributes": $$(.classifiedInfoList li) {
+    "attributes": $$(.classifiedI nfoList li) {
       [$(strong) | text | trim]: $(span) | text | trim
-    } | merge,
+    }
+      | merge,
     ($(#gmap) {
-      "latitude": $ | data(lat) | number(locale: 'en'),
-      "longitude": $ | data(lon) | number(locale: 'en')
+      "latitude": $ | data("lat") | number(locale: "en"),
+      "longitude": $ | data("lon") | number(locale: "en")
     })
   },
-
   $$(.megaPhotoThmbItem) {
     "_entity": "@sahibinden/image",
-    "_id": $ | data(img-index),
-    "listingId": @.(
-      $(.classifiedId) | data(classifiedid)
-    ),
-    "image": $(img) | data(source) | url
+    "_id": $ | data("img-index"),
+    "listingId": @.($(.classifiedId) | data("classifiedid")),
+    "image": $(img) | data("source") | url
   },
-
   $(.classifiedUserBox) {
     "_entity": "@sahibinden/agency",
-    "_id": $(.storeBox a) | attr(href) | url,
+    "_id": $(.storeBox a) | attr("href") | url,
     "name": $(.storeInfo) | text | trim,
-    "link": $(.storeBox a) | attr(href) | url,
+    "link": $(.storeBox a) | attr("href") | url,
     "logo": $(img) | media
   }
 ]

@@ -1,20 +1,18 @@
 {
   "showcase": $$(.vitrin-list > li:has(a[href*="/ilan/"])) {
     "title": $(a > span) | text,
-    "url": $(a) | attr(href) | url,
+    "url": $(a) | attr("href") | url,
     "image": $(a picture.s-picture img.s-image) ?? $(a > img) | media
   },
-
   "interestingAds": $$(#interestingAds > li) {
     "title": $(a > span) | text,
-    "url": $(a) | attr(href) | url,
+    "url": $(a) | attr("href") | url,
     "image": $(a > img) | media
   },
-
   "realEstateProjects": $$(.estate-projects .projects) {
-    "id": $ | data(id),
+    "id": $ | data("id"),
     "name": $(.project-name > a) | text,
-    "url": $(a) | attr(href) | url,
+    "url": $(a) | attr("href") | url,
     "image": $(a > img) | media,
     "location": $(.info > .location) | text | trim,
     "deliveryDate": $(.info > .project-date) | text | trim

@@ -1,0 +1,13 @@
+id = "htmlegy"
+name = "HTMLegy"
+version = "0.0.1"
+schema_version = 1
+authors = ["Xetera"]
+description = "Registers the .htmlegy language so it can be formatted with htmlegy-format"
+repository = "file:///Users/xetera/projects/tide/packages/htmlegy-zed"
+
+languages = ["HTMLegy"]
+
+[grammars.htmlegy]
+repository = "file:///Users/xetera/projects/tide/tree-sitter-htmlegy"
+rev = "29b77e7d28b06a5469b84f3011468d8e2b997d31"

@@ -4,12 +4,11 @@ url:
   - "/kategori/*"
   - "/alt-kategori/*"
 ---
-
 [
   $$(.showCaseListItem a:where([href$='/detay'])) {
     "_entity": "@sahibinden/listing",
-  	"_id": $ | attr(href) | regex("([0-9]+)/detay", 1),
-  	"thumbnail": $(img) | media,
-  	"name": $ | attr(title)
+    "_id": $ | attr("href") | regex("([0-9]+)/detay", 1),
+    "thumbnail": $(img) | media,
+    "name": $ | attr("title")
   }
 ]

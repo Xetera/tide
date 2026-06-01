@@ -7,15 +7,21 @@ url: /feed
     "_entity": "@linkedin/post",
     "content": $([componentKey^="feed-commentary_"]) | rich_text,
     "media": $(figure > img)? | media,
-	  "author": match {
-  		$(a[href^="https://www.linkedin.com/in"]) => {
-  			"type": "user",
-  			"user": $ | attr(href) | regex("https://www.linkedin.com/in/(.+)/", 1) | ref
-  		}
-  		$(a[href^="https://www.linkedin.com/company/"]) => {
-  			"type": "company",
-  			"company": $ | attr(href) | regex("https://www.linkedin.com/company/(.+)/posts/", 1) | ref
-  		}
-  	}
+    "author": match {
+      $(a[href^="https://www.linkedin.com/in"]) => {
+        "type": "user",
+        "user": $
+          | attr("href")
+          | regex("https://www.linkedin.com/in/(.+)/", 1)
+          | ref
+      },
+      $(a[href^="https://www.linkedin.com/company/"]) => {
+        "type": "company",
+        "company": $
+          | attr("href")
+          | regex("https://www.linkedin.com/company/(.+)/posts/", 1)
+          | ref
+      }
+    }
   }
 ]
