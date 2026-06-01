@@ -1,0 +1,82 @@
+name: Release Extension
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: pnpm/action-setup@v5.0.0
+
+      - uses: actions/setup-node@v6.3.0
+        with:
+          node-version: '25'
+          cache: 'pnpm'
+
+      - uses: erlef/setup-beam@v1.23.0
+        with:
+          otp-version: '27'
+          gleam-version: '1.16.0'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build Chrome
+        run: pnpm build
+        env:
+          BROWSER: chrome
+
+      - name: Read version
+        id: version
+        run: |
+          version=$(node -p "require('./extension/dist/manifest.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check if release already exists
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release ${{ steps.version.outputs.tag }} already exists, skipping"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Package Chrome
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          cd extension/dist
+          zip -r "../../tide-chrome-${{ steps.version.outputs.version }}.zip" .
+
+      - name: Build Firefox
+        if: steps.check.outputs.exists == 'false'
+        run: pnpm build
+        env:
+          BROWSER: firefox
+
+      - name: Package Firefox
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          cd extension/dist
+          zip -r "../../tide-firefox-${{ steps.version.outputs.version }}.zip" .
+
+      - name: Create release
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --title "${{ steps.version.outputs.tag }}" \
+            --generate-notes \
+            --target "${{ github.sha }}" \
+            "tide-chrome-${{ steps.version.outputs.version }}.zip" \
+            "tide-firefox-${{ steps.version.outputs.version }}.zip"
