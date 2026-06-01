@@ -1,24 +1,24 @@
 {
   "name": "@xetera/tide-design-tokens",
   "version": "0.1.0",
-  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Xetera/tide.git",
+    "directory": "packages/design-tokens"
+  },
   "files": [
     "tokens.css",
     "theme.css",
     "components.css"
   ],
+  "type": "module",
   "exports": {
     "./tokens.css": "./tokens.css",
     "./theme.css": "./theme.css",
     "./components.css": "./components.css"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "restricted"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Xetera/scrapeer.git",
-    "directory": "packages/design-tokens"
+    "access": "restricted",
+    "registry": "https://npm.pkg.github.com"
   }
 }
