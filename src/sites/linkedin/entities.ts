@@ -71,8 +71,11 @@ export const linkedinEntities = [
       commentsDisabled: Type.Boolean(),
       likeCount: Type.Integer(),
       author: Type.Union([
-        Type.Object({ type: 'user', user: One('@linkedin/user') }),
-        Type.Object({ type: 'company', company: One('@linkedin/company') }),
+        Type.Object({ type: Type.Literal('user'), user: One('@linkedin/user') }),
+        Type.Object({
+          type: Type.Literal('company'),
+          company: One('@linkedin/company'),
+        }),
       ]),
     })
     .unique(['code'])

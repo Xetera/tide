@@ -1004,7 +1004,10 @@
                     "user"
                   ],
                   "properties": {
-                    "type": "user",
+                    "type": {
+                      "type": "string",
+                      "const": "user"
+                    },
                     "user": {
                       "$ref": "#/$defs/EntityRef",
                       "x-cardinality": "one",
@@ -1019,7 +1022,10 @@
                     "company"
                   ],
                   "properties": {
-                    "type": "company",
+                    "type": {
+                      "type": "string",
+                      "const": "company"
+                    },
                     "company": {
                       "$ref": "#/$defs/EntityRef",
                       "x-cardinality": "one",
