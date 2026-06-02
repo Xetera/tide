@@ -1,5 +1,5 @@
 ;(function () {
-  type QueuedCapture = {
+  type NetworkCapture = {
     url: string
     method: string
     body: string
@@ -10,35 +10,8 @@
     capturedAt: number
   }
 
-  const w = window as typeof window & {
-    __tide?: { setFlush: (fn: (c: QueuedCapture) => void) => void }
-  }
-  if (w.__tide) {
-    return
-  }
-
-  let queue: QueuedCapture[] = []
-  let flush: ((c: QueuedCapture) => void) | null = null
-
-  Object.defineProperty(window, '__tide', {
-    value: {
-      setFlush(fn: (c: QueuedCapture) => void) {
-        flush = fn
-        queue.forEach(fn)
-        queue = []
-      },
-    },
-    enumerable: false,
-    configurable: false,
-    writable: false,
-  })
-
-  function enqueue(capture: QueuedCapture) {
-    if (flush) {
-      flush(capture)
-    } else {
-      queue.push(capture)
-    }
+  function emit(capture: NetworkCapture) {
+    window.postMessage({ __tide: true, kind: 'network-capture', capture }, '*')
   }
 
   window.fetch = new Proxy(window.fetch, {
@@ -82,7 +55,7 @@
                   ? init.body.slice(0, 200000)
                   : '[binary]'
                 : null
-            enqueue({
+            emit({
               url: resolvedUrl,
               method: method,
               body: body,
@@ -129,7 +102,7 @@
         var xhrMethod = thisArg.__tide_method || 'GET'
         var requestBody =
           typeof args[0] === 'string' ? args[0].slice(0, 200000) : null
-        enqueue({
+        emit({
           url: xhrUrl,
           method: xhrMethod,
           body: thisArg.responseText,

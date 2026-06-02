@@ -3,7 +3,7 @@ import { allSites } from '~/sites'
 import { funnelProvider } from '~/funnels/funnel-loader'
 import { DebugUIManager } from '~/runtime/debug/debug-ui-manager'
 import { HtmlPageSource } from '~/runtime/html-page-source'
-import { registerFunnels } from '~/runtime/network-source'
+import { NetworkCapture } from '~/content-scripts/network-capture'
 import { EntityValidator } from '~/funnels/entity-validator'
 import type { ScrapeResult } from '~/funnels/scrape-result'
 import './stream-capture'
@@ -65,7 +65,7 @@ import './stream-capture'
       pageFunnels.map((p) => p.url),
     )
 
-    registerFunnels(allSites, (result) => {
+    new NetworkCapture(allSites, networkFunnels, (result) => {
       sendMessage('entity-patches', result)
       debugUI.onScrapeResult(result)
     })

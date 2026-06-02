@@ -22,7 +22,7 @@ url: "/ilan/*/detay"
       $$([data-extra-class="mega-image"] ul > li) => {
         "_type": "image",
         "url": $(source[type="image/png"]) | attr("srcset") | url
-      },
+      }
       // desktop
       $$(.megaPhotoThmbItem) => {
         "_type": "image",

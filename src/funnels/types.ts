@@ -153,6 +153,14 @@ export class NetworkFunnelGroup {
   get key(): string {
     return this.funnels[0]?.key ?? this.name
   }
+
+  matchesRequest(url: URL, method: string): boolean {
+    if (this.request.method.toUpperCase() !== method.toUpperCase()) {
+      return false
+    }
+    const urls = Array.isArray(this.request.url) ? this.request.url : [this.request.url]
+    return urls.some((u) => matchesGlob(u, url.pathname))
+  }
 }
 
 export class SiteDefinition {

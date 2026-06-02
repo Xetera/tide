@@ -42,21 +42,10 @@ export default defineManifest({
     },
     {
       matches: ['<all_urls>'],
-      js: ['src/content-scripts/network-capture-main.ts'],
-      run_at: 'document_idle',
-      world: 'MAIN',
+      js: ['src/content-scripts/tide.ts'],
+      run_at: 'document_idle' as const,
       all_frames: true,
     },
-    ...(true
-      ? [
-          {
-            matches: ['<all_urls>'],
-            js: ['src/content-scripts/tide.ts'],
-            run_at: 'document_idle' as const,
-            all_frames: true,
-          },
-        ]
-      : []),
   ],
   background: isFirefox
     ? { scripts: ['src/background/index.ts'], type: 'module' as const }

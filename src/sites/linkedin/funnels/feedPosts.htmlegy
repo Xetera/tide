@@ -14,7 +14,7 @@ url: /feed
           | attr("href")
           | regex("https://www.linkedin.com/in/(.+)/", 1)
           | ref
-      },
+      }
       $(a[href^="https://www.linkedin.com/company/"]) => {
         "type": "company",
         "company": $

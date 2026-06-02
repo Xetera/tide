@@ -95,9 +95,7 @@ export type PipeArg =
 
 export type PipeOp = { name: string; args: PipeArg[] }
 
-type FuncArg =
-  | { kind: 'pipe'; value: PipeArg }
-  | { kind: 'expr'; value: Expr }
+type FuncArg = { kind: 'pipe'; value: PipeArg } | { kind: 'expr'; value: Expr }
 
 type AstResult =
   | Bare<Expr>
@@ -157,7 +155,10 @@ const exprActions: HTMLegyActionDict<AstResult> = {
     } satisfies Bare<Field>
   },
   Field_expr(_lp, fallbackExpr, _rp) {
-    return { expr: true, value: toAst(fallbackExpr) as Expr } satisfies Bare<Field>
+    return {
+      expr: true,
+      value: toAst(fallbackExpr) as Expr,
+    } satisfies Bare<Field>
   },
 
   Match_plain(_kw, _l, arms, _r) {
@@ -179,9 +180,7 @@ const exprActions: HTMLegyActionDict<AstResult> = {
     return {
       kind: 'match_expr',
       scrutinee: toAst(scrutinee) as Expr,
-      arms: arms
-        .asIteration()
-        .children.map((c) => toAst(c) as ExprMatchArm),
+      arms: arms.asIteration().children.map((c) => toAst(c) as ExprMatchArm),
     } satisfies Bare<Expr>
   },
   MatchScrutinee(primary, _qq, fallback) {
@@ -228,9 +227,7 @@ const exprActions: HTMLegyActionDict<AstResult> = {
     } satisfies Bare<ExprMatchArm>
   },
   ArmPipeStep_call(name, _lp, argList, _rp) {
-    const args = argList
-      .asIteration()
-      .children.map((c) => toAst(c) as PipeArg)
+    const args = argList.asIteration().children.map((c) => toAst(c) as PipeArg)
     return { name: name.sourceString, args } satisfies PipeOp
   },
   ArmPipeStep_bare(name) {
@@ -253,10 +250,16 @@ const exprActions: HTMLegyActionDict<AstResult> = {
     } satisfies Bare<MatchArm>
   },
   ScopedMatchArm_fallback(_ident, _arrow, body) {
-    return { kind: 'fallback', body: toAst(body) as Expr } satisfies Bare<MatchArm>
+    return {
+      kind: 'fallback',
+      body: toAst(body) as Expr,
+    } satisfies Bare<MatchArm>
   },
   MatchArm_fallback(_ident, _arrow, body) {
-    return { kind: 'fallback', body: toAst(body) as Expr } satisfies Bare<MatchArm>
+    return {
+      kind: 'fallback',
+      body: toAst(body) as Expr,
+    } satisfies Bare<MatchArm>
   },
   MatchArm_each(sel, _arrow, body) {
     const src = toAst(sel) as Source & { kind: 'each' }
@@ -294,7 +297,10 @@ const exprActions: HTMLegyActionDict<AstResult> = {
   },
 
   Source_watch(_kw, inner) {
-    return { kind: 'watch', inner: toAst(inner) as Source } satisfies Bare<Source>
+    return {
+      kind: 'watch',
+      inner: toAst(inner) as Source,
+    } satisfies Bare<Source>
   },
   Source_awaitCond(_kw, _l, cond, _r, inner) {
     return {
@@ -537,26 +543,96 @@ const exprActions: HTMLegyActionDict<AstResult> = {
   },
 }
 
+type SpanCtx = { source: { startIdx: number; endIdx: number } }
+
+function withSpan(
+  fn: (...args: unknown[]) => AstResult,
+): (...args: unknown[]) => AstResult {
+  const stamp = function (this: SpanCtx, ...args: unknown[]) {
+    const r = fn.apply(this, args)
+    if (
+      r !== null &&
+      typeof r === 'object' &&
+      !Array.isArray(r) &&
+      !('span' in r)
+    ) {
+      ;(r as Record<string, unknown>).span = {
+        start: this.source.startIdx,
+        end: this.source.endIdx,
+      }
+    }
+    return r
+  }
+  const arityWrappers: ((...args: unknown[]) => unknown)[] = [
+    function (this: SpanCtx) {
+      return stamp.apply(this, [])
+    },
+    function (this: SpanCtx, a0: unknown) {
+      return stamp.apply(this, [a0])
+    },
+    function (this: SpanCtx, a0: unknown, a1: unknown) {
+      return stamp.apply(this, [a0, a1])
+    },
+    function (this: SpanCtx, a0: unknown, a1: unknown, a2: unknown) {
+      return stamp.apply(this, [a0, a1, a2])
+    },
+    function (
+      this: SpanCtx,
+      a0: unknown,
+      a1: unknown,
+      a2: unknown,
+      a3: unknown,
+    ) {
+      return stamp.apply(this, [a0, a1, a2, a3])
+    },
+    function (
+      this: SpanCtx,
+      a0: unknown,
+      a1: unknown,
+      a2: unknown,
+      a3: unknown,
+      a4: unknown,
+    ) {
+      return stamp.apply(this, [a0, a1, a2, a3, a4])
+    },
+    function (
+      this: SpanCtx,
+      a0: unknown,
+      a1: unknown,
+      a2: unknown,
+      a3: unknown,
+      a4: unknown,
+      a5: unknown,
+    ) {
+      return stamp.apply(this, [a0, a1, a2, a3, a4, a5])
+    },
+    function (
+      this: SpanCtx,
+      a0: unknown,
+      a1: unknown,
+      a2: unknown,
+      a3: unknown,
+      a4: unknown,
+      a5: unknown,
+      a6: unknown,
+    ) {
+      return stamp.apply(this, [a0, a1, a2, a3, a4, a5, a6])
+    },
+  ]
+  return (arityWrappers[fn.length] ?? stamp) as (
+    ...args: unknown[]
+  ) => AstResult
+}
+
 function stampSpans(
   actions: HTMLegyActionDict<AstResult>,
 ): HTMLegyActionDict<AstResult> {
   const wrapped: Record<string, (...args: unknown[]) => AstResult> = {}
   for (const [name, fn] of Object.entries(actions)) {
-    if (typeof fn !== 'function') continue
-    const params = Array.from({ length: fn.length }, (_, i) => `a${i}`).join(
-      ',',
-    )
-    const make = new Function(
-      'fn',
-      `return function(${params}) {
-        const r = fn.apply(this, arguments)
-        if (r !== null && typeof r === 'object' && !Array.isArray(r) && !('span' in r)) {
-          r.span = { start: this.source.startIdx, end: this.source.endIdx }
-        }
-        return r
-      }`,
-    ) as (fn: unknown) => (...args: unknown[]) => AstResult
-    wrapped[name] = make(fn)
+    if (typeof fn !== 'function') {
+      continue
+    }
+    wrapped[name] = withSpan(fn as (...args: unknown[]) => AstResult)
   }
   return wrapped as HTMLegyActionDict<AstResult>
 }
@@ -572,13 +648,19 @@ function scanComments(src: string): Comment[] {
   for (let i = 0; i < src.length; i++) {
     const ch = src[i]
     if (inDouble) {
-      if (ch === '\\') i++
-      else if (ch === '"') inDouble = false
+      if (ch === '\\') {
+        i++
+      } else if (ch === '"') {
+        inDouble = false
+      }
       continue
     }
     if (inSingle) {
-      if (ch === '\\') i++
-      else if (ch === "'") inSingle = false
+      if (ch === '\\') {
+        i++
+      } else if (ch === "'") {
+        inSingle = false
+      }
       continue
     }
     if (ch === '"') {
@@ -607,10 +689,14 @@ function collectNodes(root: Expr): AnyNode[] {
   const nodes: AnyNode[] = []
   const visit = (value: unknown): void => {
     if (Array.isArray(value)) {
-      for (const v of value) visit(v)
+      for (const v of value) {
+        visit(v)
+      }
       return
     }
-    if (value === null || typeof value !== 'object') return
+    if (value === null || typeof value !== 'object') {
+      return
+    }
     const obj = value as Record<string, unknown>
     if (
       typeof obj.span === 'object' &&
@@ -620,7 +706,9 @@ function collectNodes(root: Expr): AnyNode[] {
       nodes.push(obj as AnyNode)
     }
     for (const key of Object.keys(obj)) {
-      if (key === 'span' || key === 'leading' || key === 'trailing') continue
+      if (key === 'span' || key === 'leading' || key === 'trailing') {
+        continue
+      }
       visit(obj[key])
     }
   }
@@ -634,7 +722,9 @@ function lineStartIndex(src: string, offset: number): number {
 }
 
 function bindComments(src: string, root: Expr, comments: Comment[]): void {
-  if (comments.length === 0) return
+  if (comments.length === 0) {
+    return
+  }
   const nodes = collectNodes(root)
 
   for (const comment of comments) {
@@ -661,11 +751,19 @@ function pickTrailingHost(
   let best: AnyNode | null = null
   for (const node of nodes) {
     const end = node.span.end
-    if (end > comment.start) continue
-    if (end < commentLineStart) continue
+    if (end > comment.start) {
+      continue
+    }
+    if (end < commentLineStart) {
+      continue
+    }
     const between = src.slice(end, comment.start).trim()
-    if (between !== '' && !/^[,\])}]*$/.test(between)) continue
-    if (!best || node.span.end > best.span.end) best = node
+    if (between !== '' && !/^[,\])}]*$/.test(between)) {
+      continue
+    }
+    if (!best || node.span.end > best.span.end) {
+      best = node
+    }
   }
   return best
 }
@@ -673,7 +771,9 @@ function pickTrailingHost(
 function pickLeadingHost(nodes: AnyNode[], comment: Comment): AnyNode | null {
   let best: AnyNode | null = null
   for (const node of nodes) {
-    if (node.span.start < comment.end) continue
+    if (node.span.start < comment.end) {
+      continue
+    }
     if (
       !best ||
       node.span.start < best.span.start ||
