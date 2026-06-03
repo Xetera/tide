@@ -20,7 +20,7 @@ export function downloadCachedMedia(
   return new Promise((resolve) => {
     function handler(evt: MessageEvent) {
       if (
-        !evt.data?.__tide ||
+        !evt.data?.[__TIDE_MSG_KEY__] ||
         evt.data.kind !== 'download-cached-media:response' ||
         evt.data.id !== id
       ) {
@@ -45,7 +45,7 @@ export function downloadCachedMedia(
     }
     window.addEventListener('message', handler)
     window.postMessage(
-      { __tide: true, kind: 'download-cached-media', refs, id },
+      { [__TIDE_MSG_KEY__]: true, kind: 'download-cached-media', refs, id },
       '*',
     )
   })

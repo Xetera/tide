@@ -12,39 +12,10 @@ export function registerFunnels(
 ) {
   onNetworkResult = onResult
   validator = new EntityValidator(sites)
-  const funnels: Record<
-    string,
-    {
-      site: string
-      url: string | string[]
-      method: string
-      funnels: {
-        file: string
-        source: string
-        format: 'jsonata' | 'htmlegy'
-      }[]
-    }
-  > = {}
-  for (const site of sites) {
-    for (const group of site.getNetworkFunnels()) {
-      funnels[group.name] = {
-        site: site.id,
-        url: group.request.url,
-        method: group.request.method,
-        funnels: group.funnels.map((l) => ({
-          file: l.file,
-          source: l.source,
-          format: l.format,
-          label: l.label,
-        })),
-      }
-    }
-  }
-  window.postMessage({ __tide: true, kind: 'register-funnels', funnels }, '*')
 }
 
 window.addEventListener('message', (evt) => {
-  if (!evt.data?.__tide) {
+  if (!evt.data?.[__TIDE_MSG_KEY__]) {
     return
   }
 

@@ -34,7 +34,7 @@ export class NetworkCapture {
       hostname: window.location.hostname,
     })
     window.addEventListener('message', (evt) => {
-      if (!evt.data?.__tide || evt.data.kind !== 'network-capture') {
+      if (!evt.data?.[__TIDE_MSG_KEY__] || evt.data.kind !== 'network-capture') {
         return
       }
       console.log('[tide:capture] capture received', evt.data.capture.method, evt.data.capture.url)
@@ -85,7 +85,7 @@ export class NetworkCapture {
 
     window.postMessage(
       {
-        __tide: true,
+        [__TIDE_MSG_KEY__]: true,
         kind: 'raw-capture',
         url,
         method,

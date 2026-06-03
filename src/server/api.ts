@@ -53,4 +53,6 @@ export type HeartbeatResponse = ResponseBody<
   200
 >
 
+export type PoolSitesResponse = components['schemas']['SitesResponse']
+
 export type ErrorResponse = components['schemas']['ErrorResponse']

@@ -1,6 +1,7 @@
 /// <reference types="chrome" />
 
-/// <reference types="chrome" />
+// compile time constant
+declare const __TIDE_MSG_KEY__: string
 
 declare module '*?script&module' {
   const src: string
@@ -45,7 +46,7 @@ declare module 'webext-bridge' {
     'toggle-highlight': void
     'run-job': JobParameters
     'update-sites': SiteSpec[]
-    'toggle-site': { site: string; enabled: boolean }
+    'toggle-site': ProtocolWithReturn<{ site: SiteSpec; enabled: boolean }, void>
     start: unknown
     log:
       | Omit<PlainLog, 'date' | 'id' | 'type'>
@@ -63,10 +64,7 @@ declare module 'webext-bridge' {
       responseHeaders: Record<string, string>
       capturedAt: number
     }
-    'get-captures': ProtocolWithReturn<
-      { hostname: string },
-      CaptureEntry[]
-    >
+    'get-captures': ProtocolWithReturn<{ hostname: string }, CaptureEntry[]>
     'set-recording': ProtocolWithReturn<
       { hostname: string; enabled: boolean },
       void
@@ -94,8 +92,7 @@ declare module 'webext-bridge' {
       | { ok: true; expression: string; explanation: string }
       | { ok: false; error: string }
     >
-    'put-sites': ProtocolWithReturn<string[], void>
-    'sync-permissions': ProtocolWithReturn<{ hostnames: string[] }, void>
+    'pool-sites': ProtocolWithReturn<void, SiteSpec[]>
     heartbeat: ProtocolWithReturn<void, HeartbeatStatus>
     'generate-htmlegy': ProtocolWithReturn<
       {
@@ -104,8 +101,7 @@ declare module 'webext-bridge' {
         currentExpression: string
         userNote?: string
       },
-      | { ok: true; expression: string }
-      | { ok: false; error: string }
+      { ok: true; expression: string } | { ok: false; error: string }
     >
   }
 }

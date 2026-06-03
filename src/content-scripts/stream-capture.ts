@@ -12,7 +12,7 @@ async function fetchMedia(
 }
 
 window.addEventListener('message', (evt) => {
-  if (!evt.data?.__tide) {
+  if (!evt.data?.[__TIDE_MSG_KEY__]) {
     return
   }
 
@@ -36,7 +36,7 @@ window.addEventListener('message', (evt) => {
       const buffers = filtered.map((r) => r.buffer)
       window.postMessage(
         {
-          __tide: true,
+          [__TIDE_MSG_KEY__]: true,
           kind: 'download-cached-media:response',
           id,
           results: filtered,

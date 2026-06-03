@@ -97,7 +97,7 @@
       const reconstructable = firstBox === 'ftyp' || firstBox === 'moov'
       window.postMessage(
         {
-          __tide: true,
+          [__TIDE_MSG_KEY__]: true,
           kind: 'stream-end',
           mimeType,
           segments,

@@ -1,5 +1,5 @@
 import networkInterceptUrl from '../content-scripts/network-intercept.ts?script&module'
-import assetCaptureUrl from '../content-scripts/asset-capture-main.ts?script&module'
+// import assetCaptureUrl from '../content-scripts/asset-capture-main.ts?script&module'
 import tideUrl from '../content-scripts/tide.ts?script'
 
 const CONTENT_SCRIPT_IDS = [
@@ -19,13 +19,13 @@ const CONTENT_SCRIPT_DEFS: Omit<
     world: 'MAIN',
     allFrames: true,
   },
-  {
-    id: 'tide:asset-capture',
-    js: [assetCaptureUrl],
-    runAt: 'document_start',
-    world: 'MAIN',
-    allFrames: true,
-  },
+  // {
+  //   id: 'tide:asset-capture',
+  //   js: [assetCaptureUrl],
+  //   runAt: 'document_start',
+  //   world: 'MAIN',
+  //   allFrames: true,
+  // },
   {
     id: 'tide:main',
     js: [tideUrl],

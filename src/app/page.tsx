@@ -1,5 +1,5 @@
 import { createDateFormatter } from '@kobalte/core/i18n'
-import { For, Show, createEffect, createMemo, createSignal } from 'solid-js'
+import { For, Show, createEffect, createMemo, createSignal, onMount } from 'solid-js'
 import { sendMessage } from 'webext-bridge/popup'
 /* @refresh reload */
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
@@ -259,6 +259,15 @@ function Page() {
   }
 
   const [tab, setTab] = createSignal('dashboard')
+
+  onMount(async () => {
+    const result = await chrome.storage.session.get('popup:initial-tab')
+    const initial = result['popup:initial-tab'] as string | undefined
+    if (initial) {
+      await chrome.storage.session.remove('popup:initial-tab')
+      setTab(initial)
+    }
+  })
 
   return (
     <div class='w-[400px] bg-[var(--background)] text-[var(--foreground)] overflow-y-scroll'>

@@ -1,8 +1,8 @@
 {
   "language_servers": [
-    "tsgo",
+    "!tsgo",
     "oxlint",
-    "!typescript-language-server",
+    "typescript-language-server",
     "!vtsls",
     "!deno",
     "!eslint",

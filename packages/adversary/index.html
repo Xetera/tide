@@ -1,0 +1,982 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tide Adversary</title>
+    <style>
+      :root {
+        --bg: #0d0d0f;
+        --surface: #141416;
+        --surface-2: #1c1c20;
+        --border: #2a2a30;
+        --text: #e8e8ec;
+        --text-muted: #6b6b7a;
+        --green: #3ddc84;
+        --red: #ff4d6a;
+        --yellow: #f5c542;
+        --blue: #4d9fff;
+        --font-mono:
+          'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace,
+          monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-mono);
+        font-size: 13px;
+        line-height: 1.6;
+        min-height: 100vh;
+        padding: 32px;
+      }
+
+      header {
+        margin-bottom: 32px;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 16px;
+      }
+
+      h1 {
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: var(--text);
+      }
+
+      h1 span {
+        color: var(--red);
+      }
+
+      .subtitle {
+        color: var(--text-muted);
+        font-size: 11px;
+        margin-top: 4px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 16px;
+      }
+
+      .probe {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .probe-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface-2);
+      }
+
+      .probe-title {
+        font-size: 12px;
+        font-weight: 600;
+        flex: 1;
+        color: var(--text);
+      }
+
+      .badge {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        padding: 2px 7px;
+        border-radius: 4px;
+        text-transform: uppercase;
+      }
+
+      .badge-pending {
+        background: rgba(107, 107, 122, 0.15);
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+      }
+
+      .badge-detected {
+        background: rgba(255, 77, 106, 0.12);
+        color: var(--red);
+        border: 1px solid rgba(255, 77, 106, 0.3);
+      }
+
+      .badge-clean {
+        background: rgba(61, 220, 132, 0.1);
+        color: var(--green);
+        border: 1px solid rgba(61, 220, 132, 0.25);
+      }
+
+      .badge-partial {
+        background: rgba(245, 197, 66, 0.1);
+        color: var(--yellow);
+        border: 1px solid rgba(245, 197, 66, 0.25);
+      }
+
+      .probe-body {
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .probe-desc {
+        color: var(--text-muted);
+        font-size: 11px;
+        margin-bottom: 4px;
+      }
+
+      .finding {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+
+      .finding-key {
+        color: var(--blue);
+        flex-shrink: 0;
+        min-width: 120px;
+      }
+
+      .finding-value {
+        color: var(--text);
+        word-break: break-all;
+      }
+
+      .finding-value.hit {
+        color: var(--red);
+      }
+
+      .finding-value.miss {
+        color: var(--text-muted);
+      }
+
+      .finding-value.info {
+        color: var(--yellow);
+      }
+
+      .summary-bar {
+        display: flex;
+        gap: 24px;
+        margin-bottom: 24px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px 20px;
+        align-items: center;
+      }
+
+      .summary-stat {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .summary-stat-value {
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .summary-stat-label {
+        font-size: 10px;
+        color: var(--text-muted);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .verdict {
+        margin-left: auto;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+      }
+
+      .verdict.detected {
+        color: var(--red);
+      }
+
+      .verdict.clean {
+        color: var(--green);
+      }
+
+      .verdict.inconclusive {
+        color: var(--yellow);
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border: 2px solid var(--border);
+        border-top-color: var(--text-muted);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        flex-shrink: 0;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      #log {
+        margin-top: 24px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      #log-header {
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface-2);
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      #log-body {
+        padding: 12px 16px;
+        font-size: 11px;
+        color: var(--text-muted);
+        max-height: 240px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .log-entry {
+        display: flex;
+        gap: 12px;
+      }
+
+      .log-ts {
+        color: var(--text-muted);
+        flex-shrink: 0;
+        opacity: 0.5;
+      }
+
+      .log-msg {
+        color: var(--text);
+      }
+
+      .log-msg.warn {
+        color: var(--yellow);
+      }
+
+      .log-msg.hit {
+        color: var(--red);
+      }
+
+      .log-msg.ok {
+        color: var(--green);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>tide <span>adversary</span></h1>
+      <div class="subtitle">
+        passive extension fingerprinting — no user interaction required
+      </div>
+    </header>
+
+    <div class="summary-bar">
+      <div class="summary-stat">
+        <div class="summary-stat-value" id="stat-probes">0</div>
+        <div class="summary-stat-label">probes</div>
+      </div>
+      <div class="summary-stat">
+        <div
+          class="summary-stat-value"
+          style="color: var(--red)"
+          id="stat-hits"
+        >
+          0
+        </div>
+        <div class="summary-stat-label">hits</div>
+      </div>
+      <div class="summary-stat">
+        <div
+          class="summary-stat-value"
+          style="color: var(--green)"
+          id="stat-clean"
+        >
+          0
+        </div>
+        <div class="summary-stat-label">clean</div>
+      </div>
+      <div class="summary-stat">
+        <div
+          class="summary-stat-value"
+          style="color: var(--yellow)"
+          id="stat-pending"
+        >
+          0
+        </div>
+        <div class="summary-stat-label">pending</div>
+      </div>
+      <div class="verdict inconclusive" id="verdict">running...</div>
+    </div>
+
+    <div class="grid" id="probes"></div>
+
+    <div id="log">
+      <div id="log-header">event log</div>
+      <div id="log-body"></div>
+    </div>
+
+    <script>
+      const $ = (sel) => document.querySelector(sel)
+      const ts = () => new Date().toISOString().slice(11, 23)
+
+      const logBody = $('#log-body')
+      function log(msg, cls = '') {
+        const el = document.createElement('div')
+        el.className = 'log-entry'
+        el.innerHTML = `<span class="log-ts">${ts()}</span><span class="log-msg ${cls}">${msg}</span>`
+        logBody.appendChild(el)
+        logBody.scrollTop = logBody.scrollHeight
+      }
+
+      const probeData = {}
+      const probeEls = {}
+      let totalProbes = 0
+
+      function updateStats() {
+        let hits = 0,
+          clean = 0,
+          pending = 0
+        for (const id in probeData) {
+          const s = probeData[id].status
+          if (s === 'detected') hits++
+          else if (s === 'clean') clean++
+          else if (s === 'partial') hits++
+          else pending++
+        }
+        $('#stat-probes').textContent = totalProbes
+        $('#stat-hits').textContent = hits
+        $('#stat-clean').textContent = clean
+        $('#stat-pending').textContent = pending
+
+        if (pending === 0) {
+          const verdict = $('#verdict')
+          if (hits > 0) {
+            verdict.textContent = `DETECTED (${hits}/${totalProbes} signals)`
+            verdict.className = 'verdict detected'
+          } else {
+            verdict.textContent = 'NOT DETECTED'
+            verdict.className = 'verdict clean'
+          }
+        }
+      }
+
+      function registerProbe(id, title, desc) {
+        totalProbes++
+        probeData[id] = { status: 'pending', findings: [] }
+
+        const el = document.createElement('div')
+        el.className = 'probe'
+        el.innerHTML = `
+          <div class="probe-header">
+            <div class="probe-title">${title}</div>
+            <div class="badge badge-pending" id="badge-${id}">
+              <span class="spinner"></span>
+            </div>
+          </div>
+          <div class="probe-body" id="body-${id}">
+            <div class="probe-desc">${desc}</div>
+          </div>
+        `
+        $('#probes').appendChild(el)
+        probeEls[id] = el
+        updateStats()
+        return id
+      }
+
+      function addFinding(id, key, value, cls = '') {
+        const body = $(`#body-${id}`)
+        const row = document.createElement('div')
+        row.className = 'finding'
+        row.innerHTML = `<span class="finding-key">${key}</span><span class="finding-value ${cls}">${value}</span>`
+        body.appendChild(row)
+      }
+
+      function resolveProbe(id, status, summary) {
+        probeData[id].status = status
+        const badge = $(`#badge-${id}`)
+        badge.innerHTML = summary || status
+        badge.className = `badge badge-${status}`
+        updateStats()
+      }
+
+      // --- Probe 1: fetch proxy detection ---
+      registerProbe(
+        'fetch-proxy',
+        'fetch() proxy',
+        'Tide patches window.fetch via Proxy to intercept network calls. A patched fetch exposes non-native toString and is detectable via Proxy traps.',
+      )
+      ;(function () {
+        const nativeFetch = fetch
+        const toStr = Function.prototype.toString.call(nativeFetch)
+        const isNative = toStr.includes('native code')
+        const isProxy = !isNative
+
+        addFinding(
+          'fetch-proxy',
+          'toString()',
+          toStr.slice(0, 60),
+          isProxy ? 'hit' : 'miss',
+        )
+        addFinding(
+          'fetch-proxy',
+          'native code?',
+          String(!isProxy),
+          isProxy ? 'miss' : 'ok',
+        )
+
+        let trapDetected = false
+        try {
+          const handler = {
+            get() {
+              return undefined
+            },
+          }
+          const p = new Proxy({}, handler)
+          // if fetch is a proxy its prototype chain behaves differently
+          if (nativeFetch instanceof Proxy) trapDetected = true
+        } catch {}
+
+        // timing side-channel: proxied fetch has overhead on property access
+        const ITERS = 10000
+        let t0 = performance.now()
+        for (let i = 0; i < ITERS; i++) nativeFetch.name
+        let native = performance.now() - t0
+
+        const realFetch = window.fetch
+        t0 = performance.now()
+        for (let i = 0; i < ITERS; i++) realFetch.name
+        let patched = performance.now() - t0
+
+        const overhead = (((patched - native) / native) * 100).toFixed(1)
+        addFinding(
+          'fetch-proxy',
+          'timing overhead',
+          `${overhead}%`,
+          Math.abs(patched - native) > 0.5 ? 'info' : 'miss',
+        )
+
+
+        // cross-frame comparison: about:blank iframes don't run content scripts,
+        // so their fetch is always the real native. comparing toString catches
+        // any proxy even if it spoofs its own toString via a get trap.
+        let frameFetchStr = null
+        let crossFrameHit = false
+        try {
+          const iframe = document.createElement('iframe')
+          iframe.src = 'about:blank'
+          iframe.style.display = 'none'
+          document.body.appendChild(iframe)
+          const frameFetch = iframe.contentWindow?.fetch
+          if (frameFetch) {
+            frameFetchStr = Function.prototype.toString.call(frameFetch)
+            const windowFetchStr = Function.prototype.toString.call(window.fetch)
+            crossFrameHit = frameFetchStr !== windowFetchStr
+          }
+          document.body.removeChild(iframe)
+        } catch {}
+
+        if (frameFetchStr !== null) {
+          addFinding('fetch-proxy', 'frame fetch str', frameFetchStr.slice(0, 60), crossFrameHit ? 'hit' : 'ok')
+          addFinding('fetch-proxy', 'cross-frame mismatch', String(crossFrameHit), crossFrameHit ? 'hit' : 'ok')
+        }
+
+        // property descriptor: if window.fetch was replaced the descriptor value
+        // is the proxy object; its toString will differ from a native function's
+        const desc = Object.getOwnPropertyDescriptor(window, 'fetch')
+        const descValueStr = desc?.value
+          ? Function.prototype.toString.call(desc.value)
+          : null
+        const descNative = descValueStr?.includes('native code') ?? true
+        addFinding(
+          'fetch-proxy',
+          'descriptor.value native',
+          String(descNative),
+          descNative ? 'ok' : 'hit',
+        )
+
+        const anyHit = isProxy || crossFrameHit || !descNative
+        if (anyHit) {
+          log(
+            'fetch-proxy: fetch.toString() is not native — Proxy detected',
+            'hit',
+          )
+          resolveProbe('fetch-proxy', 'detected', 'non-native')
+        } else {
+          log('fetch-proxy: fetch appears native', 'ok')
+          log(`fetch-proxy: ${toStr}`)
+          resolveProbe('fetch-proxy', 'clean', 'native')
+        }
+      })()
+
+      // --- Probe 1b: Function.prototype.toString tampering ---
+      registerProbe('fn-tostring', 'Function.prototype.toString', 'Spoofing the fetch proxy toString requires patching Function.prototype.toString itself, which is detectable by checking if it is still native using an iframe\'s unpatched copy.')
+
+      ;(function() {
+        const ownToStr = Function.prototype.toString
+        const directStr = ownToStr.call(ownToStr)
+        const directNative = directStr.includes('native code')
+
+        addFinding('fn-tostring', 'toString of toString', directStr.slice(0, 60), directNative ? 'ok' : 'hit')
+
+        let crossFrameHit = false
+        let frameToStrStr = null
+        try {
+          const iframe = document.createElement('iframe')
+          iframe.src = 'about:blank'
+          iframe.style.display = 'none'
+          document.body.appendChild(iframe)
+          const frameFnToString = iframe.contentWindow?.Function.prototype.toString
+          if (frameFnToString) {
+            frameToStrStr = ownToStr.call(frameFnToString)
+            const windowToStrStr = ownToStr.call(ownToStr)
+            crossFrameHit = frameToStrStr !== windowToStrStr
+          }
+          document.body.removeChild(iframe)
+        } catch {}
+
+        if (frameToStrStr !== null) {
+          addFinding('fn-tostring', 'cross-frame mismatch', String(crossFrameHit), crossFrameHit ? 'hit' : 'ok')
+        }
+
+        const anyHit = !directNative || crossFrameHit
+        if (anyHit) {
+          log('fn-tostring: Function.prototype.toString has been patched', 'hit')
+          resolveProbe('fn-tostring', 'detected', 'patched')
+        } else {
+          log('fn-tostring: Function.prototype.toString appears native', 'ok')
+          resolveProbe('fn-tostring', 'clean', 'native')
+        }
+      })()
+
+      // --- Probe 2: postMessage raw-capture listener ---
+      registerProbe(
+        'postmessage',
+        'postMessage raw-capture',
+        "Tide's isolated-world content script broadcasts raw-capture messages to the page world for every intercepted network request. The kind field is unprotected — passively listening for it reveals the extension without needing the key.",
+      )
+      ;(function () {
+        let detected = false
+
+        const handler = (evt) => {
+          if (!evt.data || evt.data.kind !== 'raw-capture') {
+            return
+          }
+          if (detected) {
+            return
+          }
+          detected = true
+          window.removeEventListener('message', handler)
+          log(
+            'postmessage: received raw-capture message — content script present',
+            'hit',
+          )
+          addFinding('postmessage', 'kind', evt.data.kind, 'hit')
+          addFinding('postmessage', 'url', evt.data.url ?? '?', 'hit')
+          addFinding('postmessage', 'method', evt.data.method ?? '?', 'hit')
+          resolveProbe('postmessage', 'detected', 'observed')
+        }
+        window.addEventListener('message', handler)
+        log('postmessage: listening for raw-capture messages (passive)...')
+
+        setTimeout(() => {
+          window.removeEventListener('message', handler)
+          if (!detected) {
+            log(
+              'postmessage: no raw-capture seen within timeout — no matching traffic or extension absent',
+              'ok',
+            )
+            addFinding('postmessage', 'response', 'none', 'miss')
+            resolveProbe('postmessage', 'clean', 'silent')
+          }
+        }, 10000)
+      })()
+
+      // --- Probe 2b: postMessage register-funnels listener ---
+      registerProbe(
+        'postmessage-init',
+        'postMessage register-funnels',
+        "network-source.ts posts kind:register-funnels once on content script init, before any network traffic. Because the message target is '*' the page world can observe it unconditionally — no matching requests needed.",
+      )
+      ;(function () {
+        let detected = false
+
+        const handler = (evt) => {
+          if (!evt.data || evt.data.kind !== 'register-funnels') {
+            return
+          }
+          if (detected) {
+            return
+          }
+          detected = true
+          window.removeEventListener('message', handler)
+          const funnelNames = evt.data.funnels
+            ? Object.keys(evt.data.funnels)
+            : []
+          log(
+            `postmessage-init: received register-funnels — ${funnelNames.length} funnel groups registered`,
+            'hit',
+          )
+          addFinding('postmessage-init', 'kind', evt.data.kind, 'hit')
+          addFinding(
+            'postmessage-init',
+            'funnel count',
+            funnelNames.length,
+            'hit',
+          )
+          if (funnelNames.length > 0) {
+            addFinding(
+              'postmessage-init',
+              'sample funnels',
+              funnelNames.slice(0, 3).join(', '),
+              'hit',
+            )
+          }
+          resolveProbe('postmessage-init', 'detected', 'observed')
+        }
+        window.addEventListener('message', handler)
+        log('postmessage-init: listening for register-funnels init message...')
+
+        setTimeout(() => {
+          window.removeEventListener('message', handler)
+          if (!detected) {
+            log(
+              'postmessage-init: no register-funnels seen — extension absent or site not monitored',
+              'ok',
+            )
+            addFinding('postmessage-init', 'response', 'none', 'miss')
+            resolveProbe('postmessage-init', 'clean', 'silent')
+          }
+        }, 5000)
+      })()
+
+      // --- Probe 3: console log interception ---
+      registerProbe(
+        'console-log',
+        'console.log intercept',
+        'Tide logs [tide] init <url> on every page load. Intercepting console.log before the content script runs captures this signal.',
+      )
+      ;(function () {
+        const messages = []
+        const orig = console.log
+        console.log = function (...args) {
+          const joined = args.join(' ')
+          if (joined.includes('[tide]')) {
+            messages.push(joined)
+            log(`console-log: caught tide log: ${joined}`, 'hit')
+          }
+          orig.apply(console, args)
+        }
+
+        setTimeout(() => {
+          console.log = orig
+          if (messages.length > 0) {
+            addFinding('console-log', 'messages caught', messages.length, 'hit')
+            addFinding(
+              'console-log',
+              'first message',
+              messages[0].slice(0, 80),
+              'hit',
+            )
+            resolveProbe('console-log', 'detected', `${messages.length} msg`)
+          } else {
+            addFinding('console-log', 'messages caught', '0', 'miss')
+            resolveProbe('console-log', 'clean', 'silent')
+          }
+        }, 3000)
+        log('console-log: intercepting console.log for 3s...')
+      })()
+
+      // --- Probe 4: web accessible resources ---
+      registerProbe(
+        'war',
+        'web accessible resources',
+        "Tide's manifest exposes scrape-viewer.html and playground.html as web_accessible_resources. These are reachable via chrome-extension:// URLs with dynamic IDs, but their existence can be probed by injecting a script tag and checking if it loads.",
+      )
+      ;(function () {
+        // can't enumerate extension IDs from a web page with dynamic WAR,
+        // but we can check if fetch of chrome-extension:// URLs is blocked or
+        // succeeds by attempting to load a resource with a dummy ID and observing the error type
+        const findings = []
+
+        const img = new Image()
+        const probeUrl =
+          'chrome-extension://invalid-probe-id-000000000000/scrape-viewer.html'
+        img.onload = () => {
+          findings.push({
+            key: 'resource load',
+            value: 'succeeded (unexpected)',
+            cls: 'hit',
+          })
+          log(
+            'war: chrome-extension:// resource loaded — extension accessible',
+            'hit',
+          )
+          addFinding('war', 'resource load', 'loaded', 'hit')
+          resolveProbe('war', 'detected', 'loaded')
+        }
+        img.onerror = (e) => {
+          // error type can differ: ERR_BLOCKED_BY_CLIENT vs ERR_FAILED
+          // with dynamic WAR the resource always 404s with an opaque error
+          addFinding(
+            'war',
+            'resource load',
+            'blocked/not found (expected)',
+            'miss',
+          )
+          addFinding('war', 'error type', 'opaque — cannot distinguish', 'info')
+          log(
+            'war: chrome-extension:// resource blocked (dynamic WAR prevents direct access)',
+          )
+          resolveProbe('war', 'clean', 'opaque')
+        }
+        img.src = probeUrl
+
+        // secondary: check performance.getEntriesByType for any chrome-extension:// entries
+        // that the extension itself may have already loaded
+        setTimeout(() => {
+          const entries = performance
+            .getEntriesByType('resource')
+            .filter((e) => e.name.startsWith('chrome-extension://'))
+          if (entries.length > 0) {
+            log(
+              `war: found ${entries.length} chrome-extension:// resource entries in performance timeline`,
+              'hit',
+            )
+            for (const e of entries.slice(0, 3)) {
+              addFinding('war', 'perf entry', e.name.slice(0, 70), 'hit')
+            }
+          } else {
+            addFinding(
+              'war',
+              'perf timeline',
+              'no chrome-extension:// entries',
+              'miss',
+            )
+          }
+        }, 500)
+      })()
+
+      // --- Probe 5: XHR proxy detection ---
+      registerProbe(
+        'xhr-proxy',
+        'XMLHttpRequest proxy',
+        'Tide intercepts XHR alongside fetch. Checking if XMLHttpRequest.prototype.open and send are native reveals tampering.',
+      )
+      ;(function () {
+        const openStr = Function.prototype.toString.call(
+          XMLHttpRequest.prototype.open,
+        )
+        const sendStr = Function.prototype.toString.call(
+          XMLHttpRequest.prototype.send,
+        )
+
+        const openNative = openStr.includes('native code')
+        const sendNative = sendStr.includes('native code')
+
+        addFinding(
+          'xhr-proxy',
+          'open native?',
+          String(openNative),
+          openNative ? 'ok' : 'hit',
+        )
+        addFinding(
+          'xhr-proxy',
+          'send native?',
+          String(sendNative),
+          sendNative ? 'ok' : 'hit',
+        )
+
+        if (!openNative || !sendNative) {
+          log('xhr-proxy: XHR methods are not native — patched', 'hit')
+          resolveProbe('xhr-proxy', 'detected', 'patched')
+        } else {
+          log('xhr-proxy: XHR appears native')
+          log(`xhr-proxy: open: ${openStr}`)
+          log(`xhr-proxy: send: ${sendStr}`)
+          resolveProbe('xhr-proxy', 'clean', 'native')
+        }
+      })()
+
+      // --- Probe 6: DOM mutation observer injection ---
+      registerProbe(
+        'dom-mutation',
+        'DOM mutation observer',
+        'Tide watches MutationObserver on the page for added video elements (asset-capture-main.ts). Injecting a video element and observing whether extra handlers fire can reveal the observer.',
+      )
+      ;(function () {
+        let tideReacted = false
+        const origPlay = HTMLVideoElement.prototype.play
+        HTMLVideoElement.prototype.play = function () {
+          tideReacted = true
+          log(
+            'dom-mutation: HTMLVideoElement.play() was called — likely by asset-capture-main.ts',
+            'hit',
+          )
+          return origPlay.apply(this, arguments)
+        }
+
+        const video = document.createElement('video')
+        video.src = 'data:video/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAgAAAAA='
+        video.muted = true
+        video.style.display = 'none'
+        document.body.appendChild(video)
+
+        setTimeout(() => {
+          HTMLVideoElement.prototype.play = origPlay
+          document.body.removeChild(video)
+
+          if (tideReacted) {
+            addFinding('dom-mutation', 'video.play() called', 'yes', 'hit')
+            resolveProbe('dom-mutation', 'detected', 'auto-played')
+          } else {
+            addFinding('dom-mutation', 'video.play() called', 'no', 'miss')
+            log('dom-mutation: no auto-play triggered')
+            resolveProbe('dom-mutation', 'clean', 'no reaction')
+          }
+        }, 1500)
+
+        log(
+          'dom-mutation: injected hidden video element, watching for auto-play...',
+        )
+      })()
+
+      // --- Probe 7: content script global side effects ---
+      registerProbe(
+        'globals',
+        'global side effects',
+        'Content scripts run in an isolated world but may leak via window properties, prototype modifications, or timing gaps during injection.',
+      )
+      ;(function () {
+        const suspiciousKeys = []
+        const baseline = new Set(Object.getOwnPropertyNames(window))
+
+        // check for any __tide-prefixed globals
+        for (const key of Object.getOwnPropertyNames(window)) {
+          if (key.toLowerCase().includes('tide') || key.includes('__ext')) {
+            suspiciousKeys.push(key)
+          }
+        }
+
+        // check prototype chain for tampering on EventTarget (webext-bridge patches)
+        const addListenerStr = Function.prototype.toString.call(
+          EventTarget.prototype.addEventListener,
+        )
+        const etNative = addListenerStr.includes('native code')
+
+        addFinding(
+          'globals',
+          'tide globals found',
+          suspiciousKeys.length > 0 ? suspiciousKeys.join(', ') : 'none',
+          suspiciousKeys.length > 0 ? 'hit' : 'miss',
+        )
+        addFinding(
+          'globals',
+          'EventTarget.addEventListener',
+          etNative ? 'native' : 'patched',
+          etNative ? 'ok' : 'hit',
+        )
+
+        // check if webext-bridge patched MessageChannel
+        const mcStr = Function.prototype.toString.call(MessageChannel)
+        const mcNative = mcStr.includes('native code')
+        addFinding(
+          'globals',
+          'MessageChannel',
+          mcNative ? 'native' : 'patched',
+          mcNative ? 'ok' : 'hit',
+        )
+
+        const hasHit = suspiciousKeys.length > 0 || !etNative || !mcNative
+        if (hasHit) {
+          log('globals: suspicious global modifications detected', 'hit')
+          resolveProbe('globals', 'detected', 'modified')
+        } else {
+          log('globals: no suspicious global modifications found')
+          resolveProbe('globals', 'clean', 'clean')
+        }
+      })()
+
+      // --- Probe 8: storage access timing ---
+      registerProbe(
+        'storage-timing',
+        'chrome.storage access timing',
+        "Content scripts that read chrome.storage.local on init produce a characteristic async timing pattern detectable by measuring when the page's own storage calls return relative to a baseline.",
+      )
+      ;(function () {
+        if (!window.chrome?.storage) {
+          addFinding(
+            'storage-timing',
+            'chrome.storage',
+            'not available (not in extension context)',
+            'miss',
+          )
+          resolveProbe('storage-timing', 'clean', 'no API')
+          log('storage-timing: chrome.storage not available from page context')
+          return
+        }
+
+        const t0 = performance.now()
+        chrome.storage.local.get('debug:visual', (val) => {
+          const elapsed = performance.now() - t0
+          addFinding(
+            'storage-timing',
+            'get latency',
+            `${elapsed.toFixed(2)}ms`,
+            elapsed > 10 ? 'info' : 'ok',
+          )
+          addFinding(
+            'storage-timing',
+            'value',
+            JSON.stringify(val),
+            val['debug:visual'] !== undefined ? 'hit' : 'miss',
+          )
+
+          if (val['debug:visual'] !== undefined) {
+            log(
+              `storage-timing: found debug:visual key set by Tide: ${val['debug:visual']}`,
+              'hit',
+            )
+            resolveProbe('storage-timing', 'detected', `key found`)
+          } else {
+            log(
+              'storage-timing: debug:visual not set — extension may not have run yet or key not present',
+            )
+            resolveProbe('storage-timing', 'partial', 'key absent')
+          }
+        })
+
+        log('storage-timing: querying chrome.storage.local for Tide keys...')
+      })()
+
+      updateStats()
+    </script>
+  </body>
+</html>

@@ -12,10 +12,21 @@
   }
 
   function emit(capture: NetworkCapture) {
-    window.postMessage({ __tide: true, kind: 'network-capture', capture }, '*')
+    window.postMessage({ [__TIDE_MSG_KEY__]: true, kind: 'network-capture', capture }, '*')
   }
 
-  window.fetch = new Proxy(window.fetch, {
+  var nativeFetchStr = Function.prototype.toString.call(window.fetch)
+  var origFunctionToString = Function.prototype.toString
+  var fetchProxy: typeof window.fetch
+  Function.prototype.toString = new Proxy(origFunctionToString, {
+    apply: function (target, thisArg, args) {
+      if (thisArg === fetchProxy) {
+        return nativeFetchStr
+      }
+      return Reflect.apply(target, thisArg, args)
+    },
+  })
+  fetchProxy = new Proxy(window.fetch, {
     apply: function (target, thisArg, args) {
       var input = args[0],
         init = args[1]
@@ -71,6 +82,7 @@
       return promise
     },
   })
+  window.fetch = fetchProxy
 
   XMLHttpRequest.prototype.open = new Proxy(XMLHttpRequest.prototype.open, {
     apply: function (target, thisArg, args) {

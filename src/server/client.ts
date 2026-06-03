@@ -22,6 +22,7 @@ import type {
 import { ServerAutonomy } from '~/funnels/types'
 import type { ScrapeResult } from '~/funnels/scrape-result'
 import type {
+  PoolSitesResponse,
   PollResponse,
   SetSitesRequest,
   WorkerSitesResponse,
@@ -307,6 +308,29 @@ export class Client {
         text: 'Failed to update opted-in sites',
         data: { error: err instanceof Error ? err.message : String(err) },
       })
+    }
+  }
+
+  async fetchPoolSites(): Promise<string[]> {
+    const server = this.servers[0]
+    if (!server?.url || !server.poolId || !server.workerSecret) {
+      return []
+    }
+    try {
+      const request = await this.#requestBase(
+        new Request(new URL(`/api/pool/${server.poolId}/sites`, server.url), {
+          method: 'GET',
+        }),
+        server,
+      )
+      const response = await fetch(request)
+      if (!response.ok) {
+        return []
+      }
+      const body = (await response.json()) as PoolSitesResponse
+      return body.sites
+    } catch {
+      return []
     }
   }
 

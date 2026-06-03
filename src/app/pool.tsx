@@ -9,7 +9,6 @@ import {
 import { useBrowserStorage } from '~/shared/hooks'
 import type { SiteSpec } from '~/funnels/types'
 import { toOrigin } from '~/funnels/url'
-import { Storage, type BrowserStorageSchema } from '~/shared/storage'
 import type { HeartbeatStatus } from '~/server/client'
 import type { ErrorResponse, JoinRequest, JoinResponse } from '~/server/api'
 
@@ -52,25 +51,9 @@ function heartbeatMessage(hb: HeartbeatStatus | null): {
   }
 }
 
-const storage = new Storage<BrowserStorageSchema>()
-
 interface StatefulSite {
   hostAllowed: boolean
   site: SiteSpec
-}
-
-async function requestPermission(site: SiteSpec): Promise<boolean> {
-  return chrome.permissions.request({
-    origins: [toOrigin(site)],
-  })
-}
-
-async function revokePermission(site: SiteSpec): Promise<void> {
-  await chrome.permissions
-    .remove({ origins: [toOrigin(site)] })
-    .catch((err) => {
-      console.error('Error removing permissions for', toOrigin(site))
-    })
 }
 
 function parseInviteUrl(
@@ -122,7 +105,7 @@ function SiteToggleRow({
       </div>
       <div class='flex items-center gap-2'>
         <Show when={!hostAllowed()}>
-          <span class='t-mono-xs t-muted'>no access</span>
+          <span class='t-mono-xs t-muted'>needs permission</span>
         </Show>
         <button
           type='button'
@@ -162,47 +145,27 @@ export function Pool(props: PoolProps = {}) {
   const [heartbeat, setHeartbeat] = createSignal<HeartbeatStatus | null>(null)
   const parsed = createMemo(() => parseInviteUrl(inviteUrl()))
 
-  const [optedIn, setOptedIn] = createSignal<string[]>([])
+  const { value: optedIn } = useBrowserStorage('sites:opted-in', [])
   const [statefulSites, setStatefulSites] = createSignal<StatefulSite[]>([])
 
-  async function buildStatefulSites(
-    specs: SiteSpec[],
-  ): Promise<StatefulSite[]> {
-    return Promise.all(
-      specs.map(async (site) => {
-        const hostAllowed = await chrome.permissions.contains({
-          origins: [toOrigin(site)],
-        })
-        return { site, hostAllowed }
-      }),
-    )
+  async function buildStatefulSites(specs: SiteSpec[]): Promise<StatefulSite[]> {
+    const { origins = [] } = await chrome.permissions.getAll()
+    return specs.map((site) => ({
+      site,
+      hostAllowed: origins.includes(toOrigin(site)),
+    }))
   }
 
   onMount(async () => {
-    const [specs, savedOptedIn] = await Promise.all([
+    const [poolSpecs, allSpecs] = await Promise.all([
+      sendMessage('pool-sites', undefined, { context: 'background', tabId: 0 }),
       sendMessage('sites', undefined, { context: 'background', tabId: 0 }),
-      storage.get('sites:opted-in', []),
     ])
-    const stateful = await buildStatefulSites(specs)
-    const savedIn = savedOptedIn ?? []
-    setStatefulSites(stateful)
-    setOptedIn(savedIn)
 
-    const enabledSites = savedIn
-    const permittedHostnames = stateful
-      .filter((s) => s.hostAllowed)
-      .map((s) => s.site.hostname)
-    await Promise.all([
-      sendMessage('put-sites', enabledSites, {
-        context: 'background',
-        tabId: 0,
-      }),
-      sendMessage(
-        'sync-permissions',
-        { hostnames: permittedHostnames },
-        { context: 'background', tabId: 0 },
-      ),
-    ])
+    const trackedIds = new Set(poolSpecs.map((s) => s.site))
+    const displaySpecs = allSpecs.filter((s) => trackedIds.has(s.site))
+    const stateful = await buildStatefulSites(displaySpecs.length > 0 ? displaySpecs : allSpecs)
+    setStatefulSites(stateful)
   })
 
   onMessage('update-sites', async ({ data }) => {
@@ -211,41 +174,10 @@ export function Pool(props: PoolProps = {}) {
 
   async function toggleSite(siteSpec: SiteSpec, enabled: boolean) {
     if (enabled) {
-      const granted = await requestPermission(siteSpec)
-      if (!granted) {
-        return
-      }
+      await chrome.permissions.request({ origins: [toOrigin(siteSpec)] })
     } else {
-      await revokePermission(siteSpec)
+      await chrome.permissions.remove({ origins: [toOrigin(siteSpec)] })
     }
-
-    const updated = enabled
-      ? [...new Set([...optedIn(), siteSpec.site])]
-      : optedIn().filter((s) => s !== siteSpec.site)
-    setOptedIn(updated)
-    await storage.set('sites:opted-in', updated)
-
-    const updatedStateful = statefulSites().map((s) =>
-      s.site.site === siteSpec.site ? { ...s, hostAllowed: enabled } : s,
-    )
-    setStatefulSites(updatedStateful)
-    const enabledSites = updated
-
-    const permittedHostnames = updatedStateful
-      .filter((s) => s.hostAllowed)
-      .map((s) => s.site.hostname)
-
-    await Promise.all([
-      sendMessage('put-sites', enabledSites, {
-        context: 'background',
-        tabId: 0,
-      }),
-      sendMessage(
-        'sync-permissions',
-        { hostnames: permittedHostnames },
-        { context: 'background', tabId: 0 },
-      ),
-    ])
   }
 
   async function join() {

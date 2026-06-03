@@ -12,7 +12,16 @@ import {
   allowCrossOriginForEntityPage,
   disableIframeSecurity,
 } from './iframe-security'
-import { syncContentScripts, getGrantedHostnames } from './content-script-registry'
+import {
+  syncContentScripts,
+  getGrantedHostnames,
+} from './content-script-registry'
+import {
+  addOptedInSite,
+  removeOptedInSite,
+} from '~/shared/site-optin'
+import { toOrigin } from '~/funnels/url'
+import type { SiteSpec } from '~/funnels/types'
 import { StorageListener } from './storage-listener'
 import {
   getCaptureById,
@@ -124,9 +133,70 @@ async function runHeartbeat(trigger: 'startup' | 'alarm') {
   }
 }
 
+async function applyOptedInSites(optedIn: string[]) {
+  const grantedHostnames = await getGrantedHostnames()
+  const validHostnames = grantedHostnames.filter((h) =>
+    allSites.some((s) => s.hostname === h && optedIn.includes(s.id)),
+  )
+  await syncContentScripts(validHostnames)
+  chrome.webNavigation.onHistoryStateUpdated.removeListener(emitUrlUpdate)
+  if (validHostnames.length > 0) {
+    chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
+      url: validHostnames.map((h) => ({ hostContains: h })),
+    })
+  }
+}
+
+chrome.permissions.onAdded.addListener(async (permissions) => {
+  const origins = permissions.origins ?? []
+  for (const origin of origins) {
+    const site = allSites.find((s) => toOrigin(s) === origin)
+    if (!site) {
+      continue
+    }
+    const siteSpec: SiteSpec = { site: site.id, hostname: site.hostname }
+    const optedIn = await addOptedInSite(siteSpec)
+    const c = await clientReady.catch(() => null)
+    if (c) {
+      await c.putSites(optedIn)
+    }
+    await applyOptedInSites(optedIn)
+  }
+})
+
+chrome.permissions.onRemoved.addListener(async (permissions) => {
+  const origins = permissions.origins ?? []
+  for (const origin of origins) {
+    const site = allSites.find((s) => toOrigin(s) === origin)
+    if (!site) {
+      continue
+    }
+    const siteSpec: SiteSpec = { site: site.id, hostname: site.hostname }
+    const optedIn = await removeOptedInSite(siteSpec)
+    const c = await clientReady.catch(() => null)
+    if (c) {
+      await c.putSites(optedIn)
+    }
+    await applyOptedInSites(optedIn)
+  }
+})
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type === 'open-popup') {
+    const hostname: string | undefined = message.hostname
+    const open = () => chrome.action.openPopup().catch(() => {})
+    if (hostname) {
+      chrome.storage.session
+        .set({ 'optin:pending-hostname': hostname })
+        .then(open)
+    } else {
+      open()
+    }
+  }
+})
+
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === HEARTBEAT_ALARM) {
-    console.log('GOT A HEARTBEAT AAAAAAAAAA')
     runHeartbeat('alarm')
   }
 })
@@ -228,9 +298,12 @@ log({
         }
         chrome.webNavigation.onHistoryStateUpdated.removeListener(emitUrlUpdate)
         if (hostnames.length > 0) {
-          chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
-            url: hostnames.map((h) => ({ hostContains: h })),
-          })
+          chrome.webNavigation.onHistoryStateUpdated.addListener(
+            emitUrlUpdate,
+            {
+              url: hostnames.map((h) => ({ hostContains: h })),
+            },
+          )
         }
       },
     })
@@ -246,9 +319,12 @@ log({
         await syncContentScripts(hostnames)
         chrome.webNavigation.onHistoryStateUpdated.removeListener(emitUrlUpdate)
         if (hostnames.length > 0) {
-          chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
-            url: hostnames.map((h) => ({ hostContains: h })),
-          })
+          chrome.webNavigation.onHistoryStateUpdated.addListener(
+            emitUrlUpdate,
+            {
+              url: hostnames.map((h) => ({ hostContains: h })),
+            },
+          )
         }
       },
       async () => {
@@ -256,9 +332,12 @@ log({
         await syncContentScripts(hostnames)
         chrome.webNavigation.onHistoryStateUpdated.removeListener(emitUrlUpdate)
         if (hostnames.length > 0) {
-          chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
-            url: hostnames.map((h) => ({ hostContains: h })),
-          })
+          chrome.webNavigation.onHistoryStateUpdated.addListener(
+            emitUrlUpdate,
+            {
+              url: hostnames.map((h) => ({ hostContains: h })),
+            },
+          )
         }
       },
     )
@@ -451,19 +530,13 @@ log({
       return allSites.map((s) => ({ site: s.id, hostname: s.hostname }))
     })
 
-    onMessage('put-sites', async ({ data }: { data: string[] }) => {
-      await client!.putSites(data)
+    onMessage('pool-sites', async () => {
+      const poolSiteIds = await client!.fetchPoolSites()
+      return allSites
+        .filter((s) => poolSiteIds.includes(s.id))
+        .map((s) => ({ site: s.id, hostname: s.hostname }))
     })
 
-    onMessage('sync-permissions', async ({ data }) => {
-      await syncContentScripts(data.hostnames)
-      chrome.webNavigation.onHistoryStateUpdated.removeListener(emitUrlUpdate)
-      if (data.hostnames.length > 0) {
-        chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
-          url: data.hostnames.map((h) => ({ hostContains: h })),
-        })
-      }
-    })
 
     onMessage('get-funnels', () => {
       return buildFunnelInfos(funnelProvider)
@@ -686,7 +759,6 @@ log({
 
     validator = new EntityValidator(allSites)
 
-    console.log('aaaa')
     await client.startAll()
   } catch (err) {
     rejectClient(err)

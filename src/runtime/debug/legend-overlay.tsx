@@ -182,6 +182,32 @@ const LEGEND_CSS = `
     cursor: pointer;
     height: 3px;
   }
+  .not-opted-in {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 4px 8px;
+    font-size: 9px;
+    color: light-dark(oklch(0.45 0 0), oklch(0.6 0 0));
+    border-top: 1px solid light-dark(oklch(0.75 0 0 / 0.3), oklch(0.4 0 0 / 0.3));
+  }
+  .legend.collapsed .not-opted-in { display: none; }
+  .opt-in-btn {
+    background: none;
+    border: 1px solid light-dark(oklch(0.65 0 0 / 0.5), oklch(0.45 0 0 / 0.5));
+    border-radius: 3px;
+    padding: 1px 5px;
+    cursor: pointer;
+    color: light-dark(oklch(0.35 0 0), oklch(0.75 0 0));
+    font: 9px monospace;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .opt-in-btn:hover {
+    background: light-dark(oklch(0.88 0 0 / 0.6), oklch(0.28 0 0 / 0.6));
+    border-color: light-dark(oklch(0.5 0 0 / 0.6), oklch(0.55 0 0 / 0.6));
+  }
 `
 
 export function openInPlayground(loader: Funnel): void {
@@ -259,6 +285,8 @@ function LegendComponent(props: {
   onOpacityChange: (v: number) => void
   recording: () => boolean
   toggleRecording: () => void
+  isOptedIn: () => boolean
+  onOptIn: () => void
 }) {
   const [hidden, setHidden] = createSignal(new Set<string>(), { equals: false })
   const [opacity, setOpacity] = createSignal(1)
@@ -509,6 +537,21 @@ function LegendComponent(props: {
           </For>
         </div>
       )}
+      {!props.isOptedIn() && (
+        <div class='not-opted-in'>
+          <span>not opted in</span>
+          <button
+            class='opt-in-btn'
+            on:mousedown={(e: MouseEvent) => e.stopPropagation()}
+            on:click={(e: MouseEvent) => {
+              e.stopPropagation()
+              props.onOptIn()
+            }}
+          >
+            opt in
+          </button>
+        </div>
+      )}
       {filesOpen() && props.networkFunnels().length > 0 && (
         <div class='files-dropdown'>
           <For each={props.networkFunnels()}>
@@ -550,7 +593,20 @@ export class LegendOverlay {
   #networkFunnels: Funnel[] = []
   #fileStates = new Map<string, FileState>()
   #recentFunnels: string[] = []
+  #isOptedIn: boolean
+  #setIsOptedIn: ((v: boolean) => void) | null = null
+  #onOptIn: () => void
   static readonly #BUFFER_SIZE = 3
+
+  constructor(isOptedIn: boolean, onOptIn: () => void) {
+    this.#isOptedIn = isOptedIn
+    this.#onOptIn = onOptIn
+  }
+
+  setOptedIn(value: boolean): void {
+    this.#isOptedIn = value
+    this.#setIsOptedIn?.(value)
+  }
 
   set onRedraw(cb: () => void) {
     this.#onRedraw = cb
@@ -595,9 +651,11 @@ export class LegendOverlay {
       createSignal<RecordingValue>(null)
     void getRecording().then(setRecordingState)
     const unsubscribeRecording = onRecordingChanged(setRecordingState)
+    const [isOptedIn, setIsOptedIn] = createSignal(this.#isOptedIn)
     this.#setEntries = setEntries
     this.#setErrors = setErrors
     this.#setNetworkFunnels = setNetworkFunnels
+    this.#setIsOptedIn = setIsOptedIn
     this.#unsubscribeRecording = unsubscribeRecording
 
     this.#dispose = render(
@@ -624,6 +682,8 @@ export class LegendOverlay {
             const next = !isRecordingFor(recordingState(), pageHostname)
             void setRecording({ hostname: pageHostname, enabled: next })
           }}
+          isOptedIn={isOptedIn}
+          onOptIn={this.#onOptIn}
         />
       ),
       container,
@@ -664,6 +724,7 @@ export class LegendOverlay {
     this.#setEntries = null
     this.#setErrors = null
     this.#setNetworkFunnels = null
+    this.#setIsOptedIn = null
     this.#openNetworkFiles = null
     this.#unsubscribeRecording?.()
     this.#unsubscribeRecording = null

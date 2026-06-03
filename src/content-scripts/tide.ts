@@ -12,9 +12,11 @@ import './stream-capture'
   try {
     console.log('[tide] init', window.location.href)
 
-    const { 'debug:visual': visualDebug } = await chrome.storage.local.get({
-      'debug:visual': false,
-    })
+    const { 'debug:visual': visualDebug, 'sites:opted-in': optedIn } =
+      await chrome.storage.local.get({
+        'debug:visual': false,
+        'sites:opted-in': [] as string[],
+      })
 
     const networkFunnels = allSites.flatMap((s) => {
       const funnels = s.getNetworkFunnels()
@@ -26,7 +28,17 @@ import './stream-capture'
       return funnels
     })
 
-    const debugUI = new DebugUIManager(networkFunnels)
+    const currentHostname = window.location.hostname
+    const currentSite = allSites.find((s) => s.hostname === currentHostname)
+    const isOptedIn =
+      currentSite !== undefined &&
+      (optedIn as string[]).includes(currentSite.id)
+
+    function onOptIn() {
+      chrome.runtime.sendMessage({ type: 'open-popup', hostname: currentSite?.hostname })
+    }
+
+    const debugUI = new DebugUIManager(networkFunnels, isOptedIn, currentSite !== undefined, onOptIn)
     debugUI.setEnabled(visualDebug as boolean)
 
     chrome.storage.local.onChanged.addListener((changes) => {

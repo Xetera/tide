@@ -5,21 +5,35 @@ import type { NetworkFunnelGroup, Funnel } from '~/funnels/types'
 import { scrapeSourceFunnelKey } from '~/shared/log'
 
 export class DebugUIManager {
-  #legend = new LegendOverlay()
-  #highlighter = new HighlightManager({
-    opacity: () => this.#legend.opacity,
-    isHidden: (entity) => this.#legend.isHidden(entity),
-    onDraw: (hues, counts, errors) => this.#legend.update(hues, counts, errors),
-  })
+  #legend: LegendOverlay
+  #highlighter: HighlightManager
   #enabled = false
   #lastResult: ScrapeResult | null = null
   #hasMatchingFunnels = false
+  #knownSite = false
   #funnels: Funnel[] = []
 
-  constructor(networkFunnels: NetworkFunnelGroup[]) {
+  constructor(
+    networkFunnels: NetworkFunnelGroup[],
+    isOptedIn: boolean,
+    knownSite: boolean,
+    onOptIn: () => void,
+  ) {
+    this.#legend = new LegendOverlay(isOptedIn, onOptIn)
+    this.#highlighter = new HighlightManager({
+      opacity: () => this.#legend.opacity,
+      isHidden: (entity) => this.#legend.isHidden(entity),
+      onDraw: (hues, counts, errors) =>
+        this.#legend.update(hues, counts, errors),
+    })
     const matched = this.#matchingFunnels(networkFunnels)
     this.#hasMatchingFunnels = matched.length > 0
+    this.#knownSite = knownSite
     this.#funnels = matched.flatMap((l) => l.funnels)
+  }
+
+  setOptedIn(value: boolean): void {
+    this.#legend.setOptedIn(value)
   }
 
   clear(): void {
@@ -34,7 +48,7 @@ export class DebugUIManager {
     }
     this.#enabled = enabled
     if (enabled) {
-      if (!this.#hasMatchingFunnels) {
+      if (!this.#hasMatchingFunnels && !this.#knownSite) {
         return
       }
       if (this.#lastResult) {

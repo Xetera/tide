@@ -44,9 +44,35 @@ function gleamPlugin(): Plugin {
   }
 }
 
+const TIDE_MSG_KEY = crypto.randomUUID()
+
 export default defineConfig({
+  define: {
+    __TIDE_MSG_KEY__: JSON.stringify(TIDE_MSG_KEY),
+  },
   plugins: [
+    {
+      name: 'tide-define-main-world',
+      transform(code, id) {
+        if (!id.includes('network-intercept.ts')) {
+          return
+        }
+        return code.replaceAll('__TIDE_MSG_KEY__', JSON.stringify(TIDE_MSG_KEY))
+      },
+    },
     gleamPlugin(),
+    {
+      name: 'tide-adversary',
+      configureServer(server) {
+        server.middlewares.use('/adversary', async (_req, res) => {
+          const html = await readFile(
+            resolve(__dirname, 'packages/adversary/index.html'),
+            'utf-8',
+          )
+          res.writeHead(200, { 'content-type': 'text/html' }).end(html)
+        })
+      },
+    },
     {
       name: 'tide-write',
       configureServer(server) {

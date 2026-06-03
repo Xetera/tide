@@ -8,13 +8,15 @@ export function useBrowserStorage<T extends keyof BrowserStorageSchema>(
   const [value, setValue] = createSignal<BrowserStorageSchema[T]>(defaultValue)
 
   chrome.storage.local.get({ [eventsKey]: defaultValue }).then((rawValue) => {
-    setValue(() => rawValue[eventsKey as string] as BrowserStorageSchema[T])
+    setValue(rawValue[eventsKey as string] as BrowserStorageSchema[T])
   })
 
   function listener(changes: Record<string, chrome.storage.StorageChange>) {
     const change = changes[eventsKey as string]
-    if (change === undefined) {return}
-    setValue(() => change.newValue as BrowserStorageSchema[T])
+    if (change === undefined) {
+      return
+    }
+    setValue(change.newValue as BrowserStorageSchema[T])
   }
 
   chrome.storage.local.onChanged.addListener(listener)
