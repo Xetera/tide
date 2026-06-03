@@ -5,7 +5,7 @@ const isFirefox = process.env.BROWSER === 'firefox'
 export default defineManifest({
   manifest_version: 3,
   name: 'Tide',
-  version: '1.0.0',
+  version: '1.0.1',
   action: { default_popup: 'index.html' },
   browser_specific_settings: {
     // @ts-expect-error
