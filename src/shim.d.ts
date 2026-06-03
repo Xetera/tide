@@ -1,16 +1,8 @@
 /// <reference types="chrome" />
 
-// compile time constant
-declare const __TIDE_MSG_KEY__: string
-
-declare module '*?script&module' {
-  const src: string
-  export default src
-}
-
-declare module '*?script' {
-  const src: string
-  export default src
+declare global {
+  // compile time constant
+  const __TIDE_MSG_KEY__: string
 }
 
 import type { ProtocolWithReturn } from 'webext-bridge'

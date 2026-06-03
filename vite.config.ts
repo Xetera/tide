@@ -4,7 +4,6 @@ import { crx } from '@crxjs/vite-plugin'
 import manifest from './manifest'
 import tailwindcss from '@tailwindcss/vite'
 import { r } from './src/scripts'
-import devtools from 'solid-devtools/vite'
 import { readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { execSync, spawn } from 'node:child_process'
@@ -49,6 +48,9 @@ const TIDE_MSG_KEY = crypto.randomUUID()
 export default defineConfig({
   define: {
     __TIDE_MSG_KEY__: JSON.stringify(TIDE_MSG_KEY),
+    'import.meta.env.VITE_UPSTREAM_URL': JSON.stringify(
+      process.env.VITE_UPSTREAM_URL ?? 'https://joinshoal.org',
+    ),
   },
   plugins: [
     {
@@ -195,9 +197,7 @@ export default defineConfig({
     outDir: r('extension/dist'),
     target: 'esnext',
     sourcemap: true,
-  },
-  esbuild: {
-    minifyIdentifiers: false,
+    minify: false,
   },
   test: {
     environmentOptions: {

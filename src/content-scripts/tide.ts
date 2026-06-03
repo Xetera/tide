@@ -60,9 +60,6 @@ import './stream-capture'
         source.stop()
         source.start()
       }
-      if (message?.type === 'update-resources') {
-        source.updateRules(message.pageRules)
-      }
     })
 
     console.group('[tide] running')

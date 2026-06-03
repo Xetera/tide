@@ -1,0 +1,3 @@
+export const DEFAULT_UPSTREAM_URL = import.meta.env.VITE_UPSTREAM_URL
+
+export const DEFAULT_UPSTREAM_HOSTNAME = new URL(DEFAULT_UPSTREAM_URL).hostname

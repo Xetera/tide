@@ -309,7 +309,6 @@ export type UnknownPayload = Record<string, unknown>
 
 export interface JobPollParameters {
   autonomy: ServerAutonomy
-  resourceIds: string[]
 }
 
 export interface JobPollResponse {

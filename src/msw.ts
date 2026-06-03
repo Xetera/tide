@@ -7,6 +7,7 @@ export const restHandlers = [
   http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/workers/me/sites`, () => {
     return HttpResponse.json<WorkerSitesResponse>({
       name: 'test',
+      opted_in: [],
       sites: [],
     })
   }),

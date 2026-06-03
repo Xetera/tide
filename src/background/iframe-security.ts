@@ -1,3 +1,5 @@
+import { DEFAULT_UPSTREAM_HOSTNAME } from '~/shared/upstream'
+
 const RULE_ID_RESPONSE_HEADERS = 1
 const RULE_ID_REQUEST_HEADERS = 2
 
@@ -64,7 +66,9 @@ export function disableIframeSecurity(origins: string[]) {
 
 const RULE_ID_ENTITY_PAGE_CORP = 100
 
-export function allowCrossOriginForEntityPage() {
+export function allowCrossOriginForEntityPage(
+  initiatorDomains: string[] = [DEFAULT_UPSTREAM_HOSTNAME],
+) {
   chrome.declarativeNetRequest.updateDynamicRules({
     removeRuleIds: [RULE_ID_ENTITY_PAGE_CORP],
     addRules: [
@@ -72,7 +76,7 @@ export function allowCrossOriginForEntityPage() {
         id: RULE_ID_ENTITY_PAGE_CORP,
         priority: 2,
         condition: {
-          initiatorDomains: ['localhost'],
+          initiatorDomains,
           resourceTypes: ['image', 'media'],
         },
         action: {

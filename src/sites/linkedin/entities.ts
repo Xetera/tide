@@ -1,10 +1,8 @@
 import { Type } from 'typebox'
 import { EntityBuilder, Many, One, RichText } from '~/funnels/site-builder'
-import { Image, Video } from '~/funnels/media-types'
+import { Image } from '~/funnels/media-types'
 
 const LinkedinImage = Image.offload().ephemeral()
-
-const LinkedinVideo = Video.offload().ephemeral()
 
 export const linkedinEntities = [
   new EntityBuilder('@linkedin/user')

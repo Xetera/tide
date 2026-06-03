@@ -67,7 +67,10 @@ export async function syncContentScripts(hostnames: string[]): Promise<void> {
       : Promise.resolve(),
     toUpdate.length > 0
       ? chrome.scripting.updateContentScripts(
-          toUpdate.map((def) => ({ id: def.id, matches })),
+          toUpdate.map((def) => ({
+            id: def.id,
+            matches,
+          })) as chrome.scripting.RegisteredContentScript[],
         )
       : Promise.resolve(),
   ])

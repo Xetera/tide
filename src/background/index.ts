@@ -1,6 +1,6 @@
 import { onMessage } from 'webext-bridge/background'
 import { Client } from '~/server/client'
-import { ServerAutonomy, type ResourceSpec } from '~/funnels/types'
+import { ServerAutonomy } from '~/funnels/types'
 import { instagramSite } from '~/sites/instagram'
 import { allSites } from '~/sites'
 import { generateUID } from '~/shared/uid'
@@ -275,36 +275,8 @@ log({
           workerSecret: workerSecret!,
         },
       ],
-      async enabledResources(_server) {
-        return storage.get('enabledResources', [])
-      },
       onPatches(emission) {
         storage.set('scrape:last', emission)
-      },
-      async onResourcesUpdated(server, resources) {
-        const tabIds = await cst.getAllScriptTabs()
-        storage.set(
-          'enabledResources',
-          resources.map((resource) => resource.entity),
-        )
-        storage.set('resources:all', resources)
-        const hostnames = resources.map((re) => re.hostname)
-        disableIframeSecurity(hostnames)
-        await syncContentScripts(hostnames)
-        for (const tabId of tabIds) {
-          chrome.tabs
-            .sendMessage(tabId, { type: 'update-resources', resources })
-            .catch(() => {})
-        }
-        chrome.webNavigation.onHistoryStateUpdated.removeListener(emitUrlUpdate)
-        if (hostnames.length > 0) {
-          chrome.webNavigation.onHistoryStateUpdated.addListener(
-            emitUrlUpdate,
-            {
-              url: hostnames.map((h) => ({ hostContains: h })),
-            },
-          )
-        }
       },
     })
 
@@ -346,8 +318,6 @@ log({
 
     onMessage('set-schema', ({ data }) => {
       storage.set('schema:local', JSON.stringify(data))
-      storage.set('resources:all', data)
-      client!.setResources(client!.getServer(), data)
     })
     onMessage('open-tab', ({ data }) => {
       chrome.tabs.create({ url: data.url })

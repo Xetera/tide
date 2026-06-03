@@ -673,9 +673,10 @@ class Evaluator<N> {
           return null
         }
         const kwLocale = args.find(
-          (a): a is Extract<PipeArg, object> =>
+          (a): a is Extract<PipeArg, { value: unknown }> =>
             typeof a === 'object' &&
-            (a as Extract<PipeArg, object>).key === 'locale',
+            'value' in a &&
+            (a as { key: string }).key === 'locale',
         )
         return parseLocaleNumber(
           String(value),
@@ -733,14 +734,16 @@ class Evaluator<N> {
           return null
         }
         const kwLocale = args.find(
-          (a): a is Extract<PipeArg, object> =>
+          (a): a is Extract<PipeArg, { value: unknown }> =>
             typeof a === 'object' &&
-            (a as Extract<PipeArg, object>).key === 'locale',
+            'value' in a &&
+            (a as { key: string }).key === 'locale',
         )
         const kwFormat = args.find(
-          (a): a is Extract<PipeArg, object> =>
+          (a): a is Extract<PipeArg, { value: unknown }> =>
             typeof a === 'object' &&
-            (a as Extract<PipeArg, object>).key === 'format',
+            'value' in a &&
+            (a as { key: string }).key === 'format',
         )
         return parseLocaleDate(
           String(value),
