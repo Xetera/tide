@@ -12,7 +12,8 @@ url: "/graphql/query"
     "_createdAt": $timestamp(taken_at),
     "media": {
       "kind": "video",
-      "video": $video(image_versions2.candidates[0].url) ~> $with_dimensions(original_width, original_height)
+      "video": $video(image_versions2.candidates[0].url)
+               ~> $with_dimensions(original_width, original_height)
     },
     "author": $ref($string(user.pk))
   },

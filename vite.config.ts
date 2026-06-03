@@ -132,7 +132,6 @@ export default defineConfig({
       manifest,
       browser: (process.env.BROWSER as 'chrome' | 'firefox') ?? 'chrome',
     }),
-    devtools(),
     solidPlugin(),
     tailwindcss(),
   ],
@@ -161,10 +160,10 @@ export default defineConfig({
       origin: [/chrome-extension:\/\//],
     },
     port: 3000,
-    // strictPort: true,
-    // hmr: {
-    //   port: 3000,
-    // },
+    watch: {
+      followSymlinks: false,
+      ignored: ['**/node_modules/**', '**/extension/dist/**'],
+    },
   },
   build: {
     outDir: r('extension/dist'),
