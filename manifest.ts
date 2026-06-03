@@ -31,12 +31,14 @@ const devContentScripts: chrome.runtime.ManifestV3['content_scripts'] = isDev
 export default defineManifest({
   manifest_version: 3,
   name: 'Tide',
-  version: '1.0.2',
+  version: '1.0.3',
   action: { default_popup: 'index.html' },
   browser_specific_settings: {
-    // @ts-expect-error
     gecko: {
       id: 'contact@xetera.dev',
+      data_collection_permissions: {
+        required: ['websiteContent'],
+      },
     },
   },
   permissions: [
@@ -51,8 +53,8 @@ export default defineManifest({
   optional_host_permissions: ['*://*/*'],
   content_scripts: devContentScripts,
   background: isFirefox
-    ? { scripts: ['src/background/index.ts'], type: 'module' as const }
-    : { service_worker: 'src/background/index.ts' },
+    ? { scripts: ['src/background/index.ts'], type: 'module' }
+    : { service_worker: 'src/background/index.ts', type: 'module' },
   web_accessible_resources: [
     {
       resources: ['scrape-viewer.html', 'playground.html'],

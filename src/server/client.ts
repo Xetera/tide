@@ -673,7 +673,6 @@ export class Client {
       headers: {
         ...Object.fromEntries(request.headers.entries()),
         Authorization: `Worker ${server.workerId}:${hmac}`,
-        'Idempotency-Key': Math.random().toString(36).substring(2),
         'Content-Type': 'application/json; charset=utf-8',
       },
     })
