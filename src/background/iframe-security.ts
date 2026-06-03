@@ -91,11 +91,36 @@ export function allowCrossOriginForEntityPage() {
   chrome.declarativeNetRequest.onRuleMatchedDebug?.addListener(console.log)
 }
 
-export function addIframeSecurityListener() {
-  chrome.permissions.onAdded.addListener((permission) => {
-    if (permission.origins) {
-      console.log('disabling iframe security for new domains')
-      disableIframeSecurity(permission.origins)
+function originsToHostnames(origins: string[]): string[] {
+  return origins.flatMap((o) => {
+    try {
+      const hostname = new URL(o.replace(/\/\*$/, '')).hostname
+      return hostname ? [hostname] : []
+    } catch {
+      return []
     }
+  })
+}
+
+export function addIframeSecurityListener(
+  onGranted?: (hostnames: string[]) => void,
+  onRevoked?: (hostnames: string[]) => void,
+) {
+  chrome.permissions.onAdded.addListener((permission) => {
+    if (!permission.origins) {
+      return
+    }
+    const hostnames = originsToHostnames(permission.origins)
+    console.log('disabling iframe security for new domains')
+    disableIframeSecurity(hostnames)
+    onGranted?.(hostnames)
+  })
+
+  chrome.permissions.onRemoved.addListener((permission) => {
+    if (!permission.origins) {
+      return
+    }
+    const hostnames = originsToHostnames(permission.origins)
+    onRevoked?.(hostnames)
   })
 }

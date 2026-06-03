@@ -12,6 +12,7 @@ import {
   allowCrossOriginForEntityPage,
   disableIframeSecurity,
 } from './iframe-security'
+import { syncContentScripts, getGrantedHostnames } from './content-script-registry'
 import { StorageListener } from './storage-listener'
 import {
   getCaptureById,
@@ -148,7 +149,6 @@ log({
 })
 
 ;(async () => {
-  const origins = ['webhook.site', 'instagram.com', 'www.sahibinden.com']
   let client: Client | undefined
 
   try {
@@ -165,9 +165,14 @@ log({
       console.warn('[tide] failed to widen session storage access', err)
     }
     const cst = new ContentScriptTracker()
-    chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
-      url: origins.map((origin) => ({ hostContains: origin })),
-    })
+
+    const startupHostnames = await getGrantedHostnames()
+    await syncContentScripts(startupHostnames)
+    if (startupHostnames.length > 0) {
+      chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
+        url: startupHostnames.map((h) => ({ hostContains: h })),
+      })
+    }
 
     const serverUrl = await storage.get('server:url', '')
     const serverName = await storage.get('server:name', '')
@@ -215,24 +220,48 @@ log({
         storage.set('resources:all', resources)
         const hostnames = resources.map((re) => re.hostname)
         disableIframeSecurity(hostnames)
+        await syncContentScripts(hostnames)
         for (const tabId of tabIds) {
           chrome.tabs
             .sendMessage(tabId, { type: 'update-resources', resources })
             .catch(() => {})
         }
         chrome.webNavigation.onHistoryStateUpdated.removeListener(emitUrlUpdate)
-        chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
-          url: resources.map((resource) => ({
-            hostContains: resource.hostname,
-          })),
-        })
+        if (hostnames.length > 0) {
+          chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
+            url: hostnames.map((h) => ({ hostContains: h })),
+          })
+        }
       },
     })
 
     resolveClient(client)
 
-    disableIframeSecurity(origins)
-    addIframeSecurityListener()
+    if (startupHostnames.length > 0) {
+      disableIframeSecurity(startupHostnames)
+    }
+    addIframeSecurityListener(
+      async () => {
+        const hostnames = await getGrantedHostnames()
+        await syncContentScripts(hostnames)
+        chrome.webNavigation.onHistoryStateUpdated.removeListener(emitUrlUpdate)
+        if (hostnames.length > 0) {
+          chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
+            url: hostnames.map((h) => ({ hostContains: h })),
+          })
+        }
+      },
+      async () => {
+        const hostnames = await getGrantedHostnames()
+        await syncContentScripts(hostnames)
+        chrome.webNavigation.onHistoryStateUpdated.removeListener(emitUrlUpdate)
+        if (hostnames.length > 0) {
+          chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
+            url: hostnames.map((h) => ({ hostContains: h })),
+          })
+        }
+      },
+    )
     allowCrossOriginForEntityPage()
     // addDisableChipsListener(origins)
 
@@ -424,6 +453,16 @@ log({
 
     onMessage('put-sites', async ({ data }: { data: string[] }) => {
       await client!.putSites(data)
+    })
+
+    onMessage('sync-permissions', async ({ data }) => {
+      await syncContentScripts(data.hostnames)
+      chrome.webNavigation.onHistoryStateUpdated.removeListener(emitUrlUpdate)
+      if (data.hostnames.length > 0) {
+        chrome.webNavigation.onHistoryStateUpdated.addListener(emitUrlUpdate, {
+          url: data.hostnames.map((h) => ({ hostContains: h })),
+        })
+      }
     })
 
     onMessage('get-funnels', () => {

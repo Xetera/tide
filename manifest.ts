@@ -24,29 +24,6 @@ export default defineManifest({
     'tabs',
   ],
   optional_host_permissions: ['*://*/*'],
-  host_permissions: ['<all_urls>'],
-  content_scripts: [
-    {
-      matches: ['<all_urls>'],
-      js: ['src/content-scripts/network-intercept.ts'],
-      run_at: 'document_start',
-      world: 'MAIN',
-      all_frames: true,
-    },
-    {
-      matches: ['<all_urls>'],
-      js: ['src/content-scripts/asset-capture-main.ts'],
-      run_at: 'document_start',
-      world: 'MAIN',
-      all_frames: true,
-    },
-    {
-      matches: ['<all_urls>'],
-      js: ['src/content-scripts/tide.ts'],
-      run_at: 'document_idle' as const,
-      all_frames: true,
-    },
-  ],
   background: isFirefox
     ? { scripts: ['src/background/index.ts'], type: 'module' as const }
     : { service_worker: 'src/background/index.ts' },

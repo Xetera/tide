@@ -2,6 +2,16 @@
 
 /// <reference types="chrome" />
 
+declare module '*?script&module' {
+  const src: string
+  export default src
+}
+
+declare module '*?script' {
+  const src: string
+  export default src
+}
+
 import type { ProtocolWithReturn } from 'webext-bridge'
 import type {
   JobParameters,
@@ -84,6 +94,8 @@ declare module 'webext-bridge' {
       | { ok: true; expression: string; explanation: string }
       | { ok: false; error: string }
     >
+    'put-sites': ProtocolWithReturn<string[], void>
+    'sync-permissions': ProtocolWithReturn<{ hostnames: string[] }, void>
     heartbeat: ProtocolWithReturn<void, HeartbeatStatus>
     'generate-htmlegy': ProtocolWithReturn<
       {

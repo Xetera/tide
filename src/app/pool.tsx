@@ -1,11 +1,4 @@
-import {
-  For,
-  Show,
-  createMemo,
-  createResource,
-  createSignal,
-  onMount,
-} from 'solid-js'
+import { For, Show, createMemo, createSignal, onMount } from 'solid-js'
 import { onMessage, sendMessage } from 'webext-bridge/popup'
 import {
   TextField,
@@ -18,11 +11,7 @@ import type { SiteSpec } from '~/funnels/types'
 import { toOrigin } from '~/funnels/url'
 import { Storage, type BrowserStorageSchema } from '~/shared/storage'
 import type { HeartbeatStatus } from '~/server/client'
-import type {
-  ErrorResponse,
-  JoinRequest,
-  JoinResponse,
-} from '~/server/api'
+import type { ErrorResponse, JoinRequest, JoinResponse } from '~/server/api'
 
 function heartbeatMessage(hb: HeartbeatStatus | null): {
   text: string
@@ -70,38 +59,18 @@ interface StatefulSite {
   site: SiteSpec
 }
 
-async function requestNewPermissions(site: SiteSpec) {
-  await chrome.permissions.request({
+async function requestPermission(site: SiteSpec): Promise<boolean> {
+  return chrome.permissions.request({
     origins: [toOrigin(site)],
-    permissions: ['declarativeNetRequest', 'webNavigation'],
   })
 }
 
-function SiteRow({
-  site,
-  hostAllowed,
-  onClick,
-}: {
-  site: SiteSpec
-  hostAllowed: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type='button'
-      onClick={onClick}
-      class='set-row w-full text-left'
-      style={{ cursor: 'pointer', border: '0', background: 'transparent' }}
-    >
-      <div class='set-meta'>
-        <span class='set-name'>{site.site}</span>
-        <span class='set-desc'>{site.hostname}</span>
-      </div>
-      <span
-        class={`status-dot ${hostAllowed ? 'status-live' : 'status-mute'}`}
-      />
-    </button>
-  )
+async function revokePermission(site: SiteSpec): Promise<void> {
+  await chrome.permissions
+    .remove({ origins: [toOrigin(site)] })
+    .catch((err) => {
+      console.error('Error removing permissions for', toOrigin(site))
+    })
 }
 
 function parseInviteUrl(
@@ -128,25 +97,41 @@ function parseInviteUrl(
 function SiteToggleRow({
   site,
   enabled,
+  hostAllowed,
   onToggle,
 }: {
   site: SiteSpec
   enabled: () => boolean
+  hostAllowed: () => boolean
   onToggle: (enabled: boolean) => void
 }) {
   return (
     <div class='set-row'>
-      <div class='set-meta'>
-        <span class='set-name'>{site.site}</span>
-        <span class='set-desc'>{site.hostname}</span>
+      <div class='flex items-center gap-2'>
+        <img
+          src={`https://icons.duckduckgo.com/ip3/${site.hostname}.ico`}
+          width='16'
+          height='16'
+          style={{ 'border-radius': '3px', 'flex-shrink': '0' }}
+          alt=''
+        />
+        <div class='set-meta'>
+          <span class='set-name'>{site.site}</span>
+          <span class='set-desc'>{site.hostname}</span>
+        </div>
       </div>
-      <button
-        type='button'
-        role='switch'
-        aria-checked={enabled()}
-        onClick={() => onToggle(!enabled())}
-        class='switch'
-      />
+      <div class='flex items-center gap-2'>
+        <Show when={!hostAllowed()}>
+          <span class='t-mono-xs t-muted'>no access</span>
+        </Show>
+        <button
+          type='button'
+          role='switch'
+          aria-checked={enabled()}
+          onClick={() => onToggle(!enabled())}
+          class='switch'
+        />
+      </div>
     </div>
   )
 }
@@ -177,46 +162,90 @@ export function Pool(props: PoolProps = {}) {
   const [heartbeat, setHeartbeat] = createSignal<HeartbeatStatus | null>(null)
   const parsed = createMemo(() => parseInviteUrl(inviteUrl()))
 
-  const [sites, setSites] = createSignal<SiteSpec[]>([])
-  const [optedOut, setOptedOut] = createSignal<string[]>([])
+  const [optedIn, setOptedIn] = createSignal<string[]>([])
+  const [statefulSites, setStatefulSites] = createSignal<StatefulSite[]>([])
 
-  const [statefulSites] = createResource(sites, (specs) =>
-    Promise.all(
+  async function buildStatefulSites(
+    specs: SiteSpec[],
+  ): Promise<StatefulSite[]> {
+    return Promise.all(
       specs.map(async (site) => {
         const hostAllowed = await chrome.permissions.contains({
           origins: [toOrigin(site)],
         })
         return { site, hostAllowed }
       }),
-    ),
-  )
+    )
+  }
 
   onMount(async () => {
-    const [specs, out] = await Promise.all([
+    const [specs, savedOptedIn] = await Promise.all([
       sendMessage('sites', undefined, { context: 'background', tabId: 0 }),
-      storage.get('sites:opted-out', []),
+      storage.get('sites:opted-in', []),
     ])
-    setSites(specs)
-    setOptedOut(out ?? [])
+    const stateful = await buildStatefulSites(specs)
+    const savedIn = savedOptedIn ?? []
+    setStatefulSites(stateful)
+    setOptedIn(savedIn)
+
+    const enabledSites = savedIn
+    const permittedHostnames = stateful
+      .filter((s) => s.hostAllowed)
+      .map((s) => s.site.hostname)
+    await Promise.all([
+      sendMessage('put-sites', enabledSites, {
+        context: 'background',
+        tabId: 0,
+      }),
+      sendMessage(
+        'sync-permissions',
+        { hostnames: permittedHostnames },
+        { context: 'background', tabId: 0 },
+      ),
+    ])
   })
 
-  onMessage('update-sites', ({ data }) => {
-    setSites(data)
+  onMessage('update-sites', async ({ data }) => {
+    setStatefulSites(await buildStatefulSites(data))
   })
 
-  async function toggleSite(site: string, enabled: boolean) {
+  async function toggleSite(siteSpec: SiteSpec, enabled: boolean) {
+    if (enabled) {
+      const granted = await requestPermission(siteSpec)
+      if (!granted) {
+        return
+      }
+    } else {
+      await revokePermission(siteSpec)
+    }
+
     const updated = enabled
-      ? optedOut().filter((s) => s !== site)
-      : [...new Set([...optedOut(), site])]
-    setOptedOut(updated)
-    await storage.set('sites:opted-out', updated)
-    const enabledSites = sites()
-      .filter((s) => !updated.includes(s.site))
-      .map((s) => s.site)
-    await sendMessage('put-sites', enabledSites, {
-      context: 'background',
-      tabId: 0,
-    })
+      ? [...new Set([...optedIn(), siteSpec.site])]
+      : optedIn().filter((s) => s !== siteSpec.site)
+    setOptedIn(updated)
+    await storage.set('sites:opted-in', updated)
+
+    const updatedStateful = statefulSites().map((s) =>
+      s.site.site === siteSpec.site ? { ...s, hostAllowed: enabled } : s,
+    )
+    setStatefulSites(updatedStateful)
+    const enabledSites = updated
+
+    const permittedHostnames = updatedStateful
+      .filter((s) => s.hostAllowed)
+      .map((s) => s.site.hostname)
+
+    await Promise.all([
+      sendMessage('put-sites', enabledSites, {
+        context: 'background',
+        tabId: 0,
+      }),
+      sendMessage(
+        'sync-permissions',
+        { hostnames: permittedHostnames },
+        { context: 'background', tabId: 0 },
+      ),
+    ])
   }
 
   async function join() {
@@ -407,11 +436,53 @@ export function Pool(props: PoolProps = {}) {
         </details>
       </Show>
 
+      <div>
+        <div class='sec-head'>
+          <span class='title'>Sites</span>
+        </div>
+        <Show
+          when={statefulSites().length > 0}
+          fallback={
+            <div
+              class='flex flex-col items-center gap-3'
+              style={{ padding: '24px 12px' }}
+            >
+              <p class='t-muted text-center'>No sites configured</p>
+              <button
+                type='button'
+                onClick={() =>
+                  chrome.tabs.create({
+                    url: chrome.runtime.getURL('playground.html'),
+                  })
+                }
+                class='btn btn-secondary btn-sm'
+              >
+                Open Playground
+              </button>
+            </div>
+          }
+        >
+          <For each={statefulSites()}>
+            {(item) => (
+              <SiteToggleRow
+                site={item.site}
+                hostAllowed={() =>
+                  statefulSites().find((s) => s.site.site === item.site.site)
+                    ?.hostAllowed ?? false
+                }
+                enabled={() => optedIn().includes(item.site.site)}
+                onToggle={(enabled) => toggleSite(item.site, enabled)}
+              />
+            )}
+          </For>
+        </Show>
+      </div>
+
       <div
         class='flex flex-col gap-3'
         style={{
           padding: '12px 16px',
-          'border-bottom': '1px solid var(--hairline)',
+          'border-top': '1px solid var(--hairline)',
         }}
       >
         <TextFieldRoot>
@@ -434,63 +505,7 @@ export function Pool(props: PoolProps = {}) {
             readOnly
             class='input-mono'
           />
-          <TextFieldDescription>
-            Share this with the pool owner when requesting a worker secret.
-          </TextFieldDescription>
         </TextFieldRoot>
-      </div>
-
-      <div>
-        <div class='sec-head'>
-          <span class='title'>Sites</span>
-        </div>
-        <Show
-          when={(statefulSites() ?? []).length > 0}
-          fallback={
-            <div
-              class='flex flex-col items-center gap-3'
-              style={{ padding: '24px 12px' }}
-            >
-              <p class='t-muted text-center'>No sites configured</p>
-              <button
-                type='button'
-                onClick={() =>
-                  chrome.tabs.create({
-                    url: chrome.runtime.getURL('playground.html'),
-                  })
-                }
-                class='btn btn-secondary btn-sm'
-              >
-                Open Playground
-              </button>
-            </div>
-          }
-        >
-          <Show
-            when={hasCredentials()}
-            fallback={
-              <For each={statefulSites() ?? []}>
-                {({ site, hostAllowed }) => (
-                  <SiteRow
-                    site={site}
-                    hostAllowed={hostAllowed}
-                    onClick={() => requestNewPermissions(site)}
-                  />
-                )}
-              </For>
-            }
-          >
-            <For each={statefulSites() ?? []}>
-              {({ site }) => (
-                <SiteToggleRow
-                  site={site}
-                  enabled={() => !optedOut().includes(site.site)}
-                  onToggle={(enabled) => toggleSite(site.site, enabled)}
-                />
-              )}
-            </For>
-          </Show>
-        </Show>
       </div>
     </div>
   )

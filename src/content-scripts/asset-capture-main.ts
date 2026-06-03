@@ -43,8 +43,9 @@
             this.dispatchEvent(new Event('__tide:ended'))
           } else {
             for (const sb of Array.from(this.sourceBuffers)) {
-              if (sb.updating)
-                {sb.addEventListener('updateend', tryEmit, { once: true })}
+              if (sb.updating) {
+                sb.addEventListener('updateend', tryEmit, { once: true })
+              }
             }
           }
         }
@@ -64,8 +65,9 @@
         this.dispatchEvent(new Event('__tide:ended'))
       } else {
         for (const sb of Array.from(this.sourceBuffers)) {
-          if (sb.updating)
-            {sb.addEventListener('updateend', tryEmit, { once: true })}
+          if (sb.updating) {
+            sb.addEventListener('updateend', tryEmit, { once: true })
+          }
         }
       }
     }
@@ -81,7 +83,9 @@
 
     const emit = () => {
       const first = segments[0]
-      if (emitted || !first) {return}
+      if (emitted || !first) {
+        return
+      }
       emitted = true
       const view = new DataView(first)
       const firstBox = String.fromCharCode(
@@ -128,5 +132,3 @@
     return sourceBuffer
   }
 })()
-
-export default {}

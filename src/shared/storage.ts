@@ -104,7 +104,7 @@ export class ServerStorage {
 
 export type BrowserStorageSchema = {
   events: Log[]
-  'sites:opted-out': string[]
+  'sites:opted-in': string[]
   'server:url'?: string
   'server:name'?: string
   'server:pool-id'?: string

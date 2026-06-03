@@ -1,4 +1,5 @@
 ;(function () {
+  console.log('network intercepter runnin!')
   type NetworkCapture = {
     url: string
     method: string
