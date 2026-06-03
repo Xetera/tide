@@ -7,7 +7,6 @@ import { generateUID } from '~/shared/uid'
 import { type BrowserStorageSchema, Storage } from '~/shared/storage'
 import { log } from './backend-logger'
 import { ContentScriptTracker } from './content-script-tracker'
-import { addDisableChipsListener } from './cookie'
 import {
   addIframeSecurityListener,
   allowCrossOriginForEntityPage,
@@ -235,7 +234,7 @@ log({
     disableIframeSecurity(origins)
     addIframeSecurityListener()
     allowCrossOriginForEntityPage()
-    addDisableChipsListener(origins)
+    // addDisableChipsListener(origins)
 
     onMessage('set-schema', ({ data }) => {
       storage.set('schema:local', JSON.stringify(data))

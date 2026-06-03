@@ -1,6 +1,7 @@
 import { defineManifest } from '@crxjs/vite-plugin'
 
 const isFirefox = process.env.BROWSER === 'firefox'
+const isDev = process.env.NODE_ENV === 'development'
 
 export default defineManifest({
   manifest_version: 3,
@@ -15,10 +16,9 @@ export default defineManifest({
   },
   permissions: [
     'alarms',
-    'cookies',
     'scripting',
     'declarativeNetRequest',
-    'declarativeNetRequestFeedback',
+    ...(isDev ? (['declarativeNetRequestFeedback'] as const) : []),
     'webNavigation',
     'storage',
     'tabs',

@@ -170,6 +170,9 @@ export default defineConfig({
     target: 'esnext',
     sourcemap: true,
   },
+  esbuild: {
+    minifyIdentifiers: false,
+  },
   test: {
     environmentOptions: {
       jsdom: {
