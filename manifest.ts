@@ -1,4 +1,5 @@
 import { defineManifest } from '@crxjs/vite-plugin'
+import { version } from './package.json'
 
 const isFirefox = process.env.BROWSER === 'firefox'
 const isDev = process.env.NODE_ENV === 'development'
@@ -31,7 +32,7 @@ const devContentScripts: chrome.runtime.ManifestV3['content_scripts'] = isDev
 export default defineManifest({
   manifest_version: 3,
   name: 'Tide',
-  version: '1.0.3',
+  version,
   action: { default_popup: 'index.html' },
   browser_specific_settings: {
     gecko: {
