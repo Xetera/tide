@@ -1,6 +1,9 @@
-@import "tailwindcss";
 @import '../../packages/design-tokens/tokens.css';
 @import '../../packages/design-tokens/components.css';
+@import "tailwindcss";
+@source "../../src/**/*.{ts,tsx,html}";
+@source "!../../extension/**";
+@source "!../../node_modules/**";
 
 @theme inline {
   --color-border: var(--hairline-strong);
