@@ -581,6 +581,7 @@ interface FileState {
 
 export class LegendOverlay {
   #host: HTMLElement | null = null
+  #mountingPromise: Promise<void> | null = null
   #dispose: (() => void) | null = null
   #hidden = new Set<string>()
   #opacity = 1
@@ -612,15 +613,23 @@ export class LegendOverlay {
     this.#onRedraw = cb
   }
 
-  async mount() {
+  mount(): Promise<void> {
     if (this.#host) {
-      return
+      return Promise.resolve()
     }
+    if (this.#mountingPromise) {
+      return this.#mountingPromise
+    }
+    this.#mountingPromise = this.#doMount()
+    return this.#mountingPromise
+  }
+
+  async #doMount(): Promise<void> {
     const savedPos = await legendStorage.get(
       'legend:position',
       null as { x: number; y: number } | null,
     )
-    if (this.#host) {
+    if (this.#host || !this.#mountingPromise) {
       return
     }
     const left = savedPos ? Math.min(savedPos.x, window.innerWidth - 24) : 12
@@ -720,6 +729,7 @@ export class LegendOverlay {
     this.#dispose?.()
     this.#host?.remove()
     this.#host = null
+    this.#mountingPromise = null
     this.#dispose = null
     this.#setEntries = null
     this.#setErrors = null

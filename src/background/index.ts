@@ -158,7 +158,7 @@ chrome.permissions.onAdded.addListener(async (permissions) => {
     const optedIn = await addOptedInSite(siteSpec)
     const c = await clientReady.catch(() => null)
     if (c) {
-      await c.putSites(optedIn)
+      await c.syncSites(optedIn)
     }
     await applyOptedInSites(optedIn)
   }
@@ -175,7 +175,7 @@ chrome.permissions.onRemoved.addListener(async (permissions) => {
     const optedIn = await removeOptedInSite(siteSpec)
     const c = await clientReady.catch(() => null)
     if (c) {
-      await c.putSites(optedIn)
+      await c.syncSites(optedIn)
     }
     await applyOptedInSites(optedIn)
   }
@@ -531,9 +531,13 @@ log({
     })
 
     onMessage('pool-sites', async () => {
-      const poolSiteIds = await client!.fetchPoolSites()
+      const optedIn = await storage.get('sites:opted-in', [])
+      const result = await client!.syncSites(optedIn)
+      if (!result) {
+        return []
+      }
       return allSites
-        .filter((s) => poolSiteIds.includes(s.id))
+        .filter((s) => result.sites.includes(s.id))
         .map((s) => ({ site: s.id, hostname: s.hostname }))
     })
 

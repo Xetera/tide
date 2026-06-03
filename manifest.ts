@@ -31,7 +31,7 @@ const devContentScripts: chrome.runtime.ManifestV3['content_scripts'] = isDev
 export default defineManifest({
   manifest_version: 3,
   name: 'Tide',
-  version: '1.0.1',
+  version: '1.0.2',
   action: { default_popup: 'index.html' },
   browser_specific_settings: {
     // @ts-expect-error

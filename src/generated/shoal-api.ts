@@ -5,23 +5,6 @@
  */
 
 export interface paths {
-    "/api/auth/api_keys": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create a new API key */
-        post: operations["AuthController.create_api_key"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -90,6 +73,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pool/{pool_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a pool */
+        delete: operations["PoolController.delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pool/{pool_id}/api_keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a pool-scoped API token */
+        post: operations["AuthController.create_api_key"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pool/{pool_id}/assets/{sha256}": {
         parameters: {
             query?: never;
@@ -101,6 +118,23 @@ export interface paths {
         put?: never;
         /** Upload an asset */
         post: operations["AssetController.upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pool/{pool_id}/entities/batch_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Batch-get current entities by key */
+        post: operations["EntityController.batch_get"];
         delete?: never;
         options?: never;
         head?: never;
@@ -281,6 +315,26 @@ export interface components {
             id: string;
             key: string;
         };
+        /** EntityBatchGetRequest */
+        EntityBatchGetRequest: {
+            entities: {
+                _entity: string;
+                _id: string | string[];
+            }[];
+        };
+        /** EntityBatchGetResponse */
+        EntityBatchGetResponse: {
+            entities: Record<string, never>[];
+            missing: {
+                entity?: string;
+                id?: string;
+            }[];
+        };
+        /** EntityKey */
+        EntityKey: {
+            _entity: string;
+            _id: string | string[];
+        };
         /**
          * EntityPatch
          * @description A single scraped entity. Requires either `_entity` + `_id` keys, or JSON-LD style `@type` (containing a `shoal:*` type) + `@id`. All other keys are entity-specific data.
@@ -362,14 +416,45 @@ export interface components {
             };
             index: number;
         };
+        /**
+         * SubmitEvent
+         * @description A single funnel match and the patches it produced
+         */
+        SubmitEvent: {
+            funnel: components["schemas"]["SubmitEventFunnel"];
+            patches: components["schemas"]["EntityPatch"][];
+        };
+        /**
+         * SubmitEventFunnel
+         * @description Funnel that produced the patches in this event
+         */
+        SubmitEventFunnel: {
+            /** @enum {string|null} */
+            format?: "jsonata" | "htmlegy" | null;
+            name?: string | null;
+            site?: string | null;
+            url?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SubmitJobResult
+         * @description Per-event outcome: one scrape_results row, its entities and any patch errors
+         */
+        SubmitJobResult: {
+            entities: {
+                [key: string]: unknown;
+            }[];
+            errors: components["schemas"]["SubmitEntityError"][];
+            funnel?: components["schemas"]["SubmitEventFunnel"];
+            /** Format: uuid */
+            id: string;
+        };
         /** SubmitRequest */
         SubmitRequest: {
-            /** @description Optional source funnel describing where the scrape originated */
-            funnel?: {
-                [key: string]: unknown;
-            };
+            /** @description One entry per funnel that matched the page or network capture */
+            events: components["schemas"]["SubmitEvent"][];
             job?: components["schemas"]["JobSource"];
-            patches: components["schemas"]["EntityPatch"][];
             /** @description Echoed by clients; ignored server-side */
             success?: boolean;
             warnings?: string[];
@@ -377,12 +462,7 @@ export interface components {
         /** SubmitResponse */
         SubmitResponse: {
             assets: components["schemas"]["SubmitAssetsResult"];
-            entities: {
-                [key: string]: unknown;
-            }[];
-            errors: components["schemas"]["SubmitEntityError"][];
-            /** Format: uuid */
-            id: string;
+            jobs: components["schemas"]["SubmitJobResult"][];
         };
         /** WorkerListResponse */
         WorkerListResponse: components["schemas"]["WorkerResponse"][];
@@ -402,6 +482,7 @@ export interface components {
         /** WorkerSitesResponse */
         WorkerSitesResponse: {
             name: string;
+            opted_in: string[];
             sites: string[];
         };
     };
@@ -413,35 +494,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    "AuthController.create_api_key": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description API key created */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiKeyResponse"];
-                };
-            };
-            /** @description Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
     "AuthController.login": {
         parameters: {
             query?: never;
@@ -561,6 +613,123 @@ export interface operations {
             };
         };
     };
+    "PoolController.delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Pool ID */
+                pool_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Pool not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Pool has workers */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    "AuthController.create_api_key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Pool ID */
+                pool_id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Token params */
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** Format: date-time */
+                    expires_at?: string | null;
+                    name?: string;
+                    scopes?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description API token created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKeyResponse"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Pool not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorsResponse"];
+                };
+            };
+        };
+    };
     "AssetController.upload": {
         parameters: {
             query?: {
@@ -622,6 +791,52 @@ export interface operations {
             };
             /** @description Unsupported media type */
             415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    "EntityController.batch_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Pool ID */
+                pool_id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Entity keys to resolve */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntityBatchGetRequest"];
+            };
+        };
+        responses: {
+            /** @description Entities */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityBatchGetResponse"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -991,17 +1206,19 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    sites: string[];
+                    opted_in: string[];
                 };
             };
         };
         responses: {
-            /** @description Updated */
-            204: {
+            /** @description Sites */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["WorkerSitesResponse"];
+                };
             };
             /** @description Bad request */
             400: {

@@ -25,9 +25,6 @@ export type JoinResponse = ResponseBody<
   201
 >
 
-export type SetSitesRequest = RequestBody<
-  Op<'/api/pool/{pool_id}/workers/me/sites', 'put'>
->
 
 export type WorkerSitesResponse = ResponseBody<
   Op<'/api/pool/{pool_id}/workers/me/sites', 'get'>,
@@ -53,6 +50,13 @@ export type HeartbeatResponse = ResponseBody<
   200
 >
 
-export type PoolSitesResponse = components['schemas']['SitesResponse']
+export type SyncSitesRequest = RequestBody<
+  Op<'/api/pool/{pool_id}/workers/me/sites', 'put'>
+>
+
+export type SyncSitesResponse = ResponseBody<
+  Op<'/api/pool/{pool_id}/workers/me/sites', 'put'>,
+  200
+>
 
 export type ErrorResponse = components['schemas']['ErrorResponse']

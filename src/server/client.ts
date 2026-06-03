@@ -22,9 +22,9 @@ import type {
 import { ServerAutonomy } from '~/funnels/types'
 import type { ScrapeResult } from '~/funnels/scrape-result'
 import type {
-  PoolSitesResponse,
   PollResponse,
-  SetSitesRequest,
+  SyncSitesRequest,
+  SyncSitesResponse,
   WorkerSitesResponse,
 } from './api'
 
@@ -285,52 +285,33 @@ export class Client {
     }
   }
 
-  async putSites(siteNames: string[]): Promise<void> {
+  async syncSites(optedIn: string[]): Promise<SyncSitesResponse | null> {
     const server = this.servers[0]
-    if (!server?.url || !server.poolId) {
-      return
+    if (!server?.url || !server.poolId || !server.workerSecret) {
+      return null
     }
     try {
-      const body: SetSitesRequest = { sites: siteNames }
       const request = await this.#requestBase(
         new Request(new URL(`/api/pool/${server.poolId}/workers/me/sites`, server.url), {
           method: 'PUT',
-          body: JSON.stringify(body),
+          body: JSON.stringify({ opted_in: optedIn } satisfies SyncSitesRequest),
           headers: { 'Content-Type': 'application/json; charset=utf-8' },
-        }),
-        server,
-      )
-      await fetch(request)
-    } catch (err) {
-      log({
-        severity: 'error',
-        scope: 'pool',
-        text: 'Failed to update opted-in sites',
-        data: { error: err instanceof Error ? err.message : String(err) },
-      })
-    }
-  }
-
-  async fetchPoolSites(): Promise<string[]> {
-    const server = this.servers[0]
-    if (!server?.url || !server.poolId || !server.workerSecret) {
-      return []
-    }
-    try {
-      const request = await this.#requestBase(
-        new Request(new URL(`/api/pool/${server.poolId}/sites`, server.url), {
-          method: 'GET',
         }),
         server,
       )
       const response = await fetch(request)
       if (!response.ok) {
-        return []
+        return null
       }
-      const body = (await response.json()) as PoolSitesResponse
-      return body.sites
-    } catch {
-      return []
+      return (await response.json()) as SyncSitesResponse
+    } catch (err) {
+      log({
+        severity: 'error',
+        scope: 'pool',
+        text: 'Failed to sync opted-in sites',
+        data: { error: err instanceof Error ? err.message : String(err) },
+      })
+      return null
     }
   }
 
