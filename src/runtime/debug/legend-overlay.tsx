@@ -212,7 +212,7 @@ const LEGEND_CSS = `
 
 export function openInPlayground(loader: Funnel): void {
   const url = chrome.runtime.getURL(
-    `playground.html?funnel=${encodeURIComponent(loader.path)}`,
+    `views/playground.html?funnel=${encodeURIComponent(loader.path)}`,
   )
   sendMessage('open-tab', { url }, { context: 'background', tabId: 0 }).catch(
     (err) => console.error('[tide] open-tab failed', err),
@@ -459,7 +459,7 @@ function LegendComponent(props: {
           on:mousedown={(e: MouseEvent) => e.stopPropagation()}
           on:click={(e: MouseEvent) => {
             e.stopPropagation()
-            const url = chrome.runtime.getURL('playground.html')
+            const url = chrome.runtime.getURL('views/playground.html')
             sendMessage('open-tab', { url }, { context: 'background', tabId: 0 }).catch(
               (err) => console.error('[tide] open-tab failed', err),
             )

@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config'
 import solidPlugin from 'vite-plugin-solid'
 import { crx } from '@crxjs/vite-plugin'
-import manifest from './manifest'
+import manifest from './src/manifest'
 import tailwindcss from '@tailwindcss/vite'
 import { r } from './src/scripts'
 import { readFile, writeFile } from 'node:fs/promises'

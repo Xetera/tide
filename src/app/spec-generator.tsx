@@ -250,7 +250,7 @@ export function SpecGenerator() {
           type='button'
           onClick={() =>
             chrome.tabs.create({
-              url: chrome.runtime.getURL('playground.html'),
+              url: chrome.runtime.getURL('views/playground.html'),
             })
           }
           class='text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors shrink-0'

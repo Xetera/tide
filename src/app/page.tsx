@@ -29,7 +29,7 @@ function ScrapeLogEntry({ log }: { log: ScrapeLog }) {
 
   function openViewer() {
     chrome.tabs.create({
-      url: chrome.runtime.getURL(`scrape-viewer.html?id=${log.id}`),
+      url: chrome.runtime.getURL(`views/scrape-viewer.html?id=${log.id}`),
     })
   }
 
@@ -311,7 +311,7 @@ function Page() {
             class='tab ml-auto'
             onClick={() =>
               chrome.tabs.create({
-                url: chrome.runtime.getURL('playground.html'),
+                url: chrome.runtime.getURL('views/playground.html'),
               })
             }
           >

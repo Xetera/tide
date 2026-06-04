@@ -384,7 +384,7 @@ export function Pool(props: PoolProps = {}) {
                 type='button'
                 onClick={() =>
                   chrome.tabs.create({
-                    url: chrome.runtime.getURL('playground.html'),
+                    url: chrome.runtime.getURL('views/playground.html'),
                   })
                 }
                 class='btn btn-secondary btn-sm'
