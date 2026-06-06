@@ -188,6 +188,12 @@ chrome.permissions.onRemoved.addListener(async (permissions) => {
   }
 })
 
+chrome.runtime.onMessageExternal.addListener((message, _sender, sendResponse) => {
+  if (message?.type === 'tide:version') {
+    sendResponse({ version: chrome.runtime.getManifest().version })
+  }
+})
+
 chrome.runtime.onMessage.addListener((message) => {
   if (message?.type === 'open-popup') {
     const hostname: string | undefined = message.hostname

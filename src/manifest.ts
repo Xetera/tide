@@ -74,6 +74,9 @@ export default defineManifest({
   background: isFirefox
     ? { scripts: ['src/background/index.ts'], type: 'module' }
     : { service_worker: 'src/background/index.ts', type: 'module' },
+  externally_connectable: {
+    matches: ['https://joinshoal.org/*'],
+  },
   web_accessible_resources: [
     {
       resources: [
