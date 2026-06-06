@@ -9,7 +9,7 @@ url: "/ajax/mapSearch/classified/markers/:id"
     "_entity":  "@sahibinden/listing",
     "_id": $string(id),
     "name": title,
-    "price": price,
+    "price": $money(price, 'TRY', 'tr'),
     "latitude": lat,
     "longitude": lon,
     "attributes": attributes

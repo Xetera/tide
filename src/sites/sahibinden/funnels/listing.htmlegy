@@ -7,6 +7,8 @@ url: "/ilan/:id/detay"
     "_entity": "@sahibinden/listing",
     "_id": $(.classifiedId) | data("classifiedid") ?? $(#classifiedId) | text,
     "name": $(.classifiedDetailTitle h1) | text | trim,
+    // the money here COULD be in euros or dollars.
+    // The parser automatically handles that
     "price": $(.classified-price-wrapper) | text | money,
     "description": $(#classifiedDescription) | rich_text,
     "location": $(h2:has([data-click-label^="Adres"])) {
