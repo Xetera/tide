@@ -1,7 +1,7 @@
 ---
 name: "Comments"
 method: GET
-url: "/api/v1/media/*/comments/"
+url: "/api/v1/media/:id/comments/"
 ---
 [
   /* Map the list of Comments */

@@ -1,8 +1,8 @@
 ---
 name: "Category"
 url:
-  - "/kategori/*"
-  - "/alt-kategori/*"
+  - "/kategori/:slug"
+  - "/alt-kategori/:slug"
 ---
 [
   $$(.showCaseListItem a:where([href$='/detay'])) {

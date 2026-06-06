@@ -1,7 +1,7 @@
 ---
 name: "Media Info"
 method: GET
-url: "/api/v1/media/*/info/"
+url: "/api/v1/media/:id/info/"
 ---
 [
   items.{

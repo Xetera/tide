@@ -71,7 +71,15 @@ export interface HTMLegyActionDict<T> extends BaseActionDict<T> {
   ChainStep?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   ScopedExpr?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode) => T;
   Block?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: IterationNode, arg3: TerminalNode) => T;
-  PipeTransform?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: IterationNode, arg3: IterationNode, arg4: IterationNode) => T;
+  PipeTransform_jsonata?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: TerminalNode, arg3: NonterminalNode, arg4: TerminalNode) => T;
+  PipeTransform_generic?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: IterationNode, arg3: IterationNode, arg4: IterationNode) => T;
+  PipeTransform?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  jsonataBody?: (this: NonterminalNode, arg0: IterationNode) => T;
+  jsonataChar_doubleStr?: (this: NonterminalNode, arg0: TerminalNode, arg1: IterationNode, arg2: TerminalNode) => T;
+  jsonataChar_singleStr?: (this: NonterminalNode, arg0: TerminalNode, arg1: IterationNode, arg2: TerminalNode) => T;
+  jsonataChar_nested?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode) => T;
+  jsonataChar_other?: (this: NonterminalNode, arg0: NonterminalNode) => T;
+  jsonataChar?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   PipeArg_kwarg?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
   PipeArg_kwargInt?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;
   PipeArg_kwargExpr?: (this: NonterminalNode, arg0: NonterminalNode, arg1: TerminalNode, arg2: NonterminalNode) => T;

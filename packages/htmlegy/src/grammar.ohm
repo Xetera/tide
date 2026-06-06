@@ -96,7 +96,16 @@ HTMLegy {
 
   Block = "{" ListOf<Field, ","?> ","? "}"
 
-  PipeTransform = "|" ident ("(" ListOf<PipeArg, ","> ")")?
+  PipeTransform
+    = "|" "jsonata" "(" jsonataBody ")"          -- jsonata
+    | "|" ident ("(" ListOf<PipeArg, ","> ")")?  -- generic
+
+  jsonataBody = jsonataChar*
+  jsonataChar =
+    "\"" (~"\"" any)* "\""     -- doubleStr
+    | "'" (~"'" any)* "'"        -- singleStr
+    | "(" jsonataBody ")"        -- nested
+    | ~")" any                   -- other
 
   PipeArg
     = ident ":" stringLit  -- kwarg

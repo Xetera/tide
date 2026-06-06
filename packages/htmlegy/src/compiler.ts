@@ -619,6 +619,16 @@ class Evaluator<N> {
     env: Env<N>,
     ctx: EvalContext,
   ): unknown {
+    if ('source' in op) {
+      if (value == null) {
+        return null
+      }
+      if (!this.#provider.evaluateJsonata) {
+        throw new Error('provider does not support pipe function: jsonata')
+      }
+      return this.#provider.evaluateJsonata(op.source, value)
+    }
+
     const { name } = op
     const args = this.resolvePipeArgs(op.args, el, env, ctx)
 

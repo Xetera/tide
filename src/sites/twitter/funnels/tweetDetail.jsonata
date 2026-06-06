@@ -1,7 +1,7 @@
 ---
 name: "Tweet Detail"
 method: GET
-url: "/i/api/graphql/*/TweetDetail"
+url: "/i/api/graphql/:id/TweetDetail"
 ---
 (
   /* Extract all tweet objects from the nested response structure */

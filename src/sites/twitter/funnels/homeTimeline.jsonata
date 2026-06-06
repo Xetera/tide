@@ -1,7 +1,7 @@
 ---
 name: "Home Timeline"
 method: POST
-url: "/i/api/graphql/*/HomeTimeline"
+url: "/i/api/graphql/:id/HomeTimeline"
 ---
 [
   /* Extract tweets from the timeline */

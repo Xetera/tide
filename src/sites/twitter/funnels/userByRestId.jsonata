@@ -1,7 +1,7 @@
 ---
 name: "UserByRestIds"
 method: GET
-url: "/i/api/graphql/*/UsersByRestIds"
+url: "/i/api/graphql/:id/UsersByRestIds"
 ---
 
 $.data.users.result.{

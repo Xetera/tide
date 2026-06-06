@@ -1,6 +1,6 @@
 ---
 method: POST
-url: "/i/api/graphql/*/HomeLatestTimeline"
+url: "/i/api/graphql/:id/HomeLatestTimeline"
 ---
 $.data.home.home_timeline_urt.instructions.entries.content.itemContent.tweet_results.result@$tweet.(
   /* Extract User */

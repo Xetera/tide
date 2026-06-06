@@ -93,7 +93,9 @@ export type PipeArg =
   | { key: string; value: string | number }
   | { key: string; expr: Chain }
 
-export type PipeOp = { name: string; args: PipeArg[] }
+export type PipeOp =
+  | { name: string; args: PipeArg[] }
+  | { name: 'jsonata'; source: string }
 
 type FuncArg = { kind: 'pipe'; value: PipeArg } | { kind: 'expr'; value: Expr }
 
@@ -416,7 +418,13 @@ const exprActions: HTMLegyActionDict<AstResult> = {
     return t.toAst()
   },
 
-  PipeTransform(_pipe, name, _lp, argList, _rp) {
+  PipeTransform_jsonata(_pipe, _name, _lp, body, _rp) {
+    return {
+      kind: 'pipe_transform',
+      op: { name: 'jsonata', source: body.sourceString },
+    } satisfies Bare<ChainStep>
+  },
+  PipeTransform_generic(_pipe, name, _lp, argList, _rp) {
     const args: PipeArg[] =
       _lp.children.length > 0
         ? argList.children[0]!.asIteration().children.map(

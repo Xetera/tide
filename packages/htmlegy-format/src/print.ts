@@ -92,6 +92,9 @@ function printArgs(args: PipeArg[]): Doc {
 }
 
 function printPipeOp(op: PipeOp): Doc {
+  if ('source' in op) {
+    return concat([text('| jsonata('), text(op.source), text(')')])
+  }
   return concat([text('| '), text(op.name), printArgs(op.args)])
 }
 

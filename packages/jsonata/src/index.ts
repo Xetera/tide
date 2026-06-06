@@ -178,3 +178,33 @@ export class JsonataExpression {
     return this.#expr.evaluate(input as Record<string, unknown>)
   }
 }
+
+export class CompiledJsonata {
+  #expr: ReturnType<typeof jsonata>
+
+  constructor(expression: string) {
+    this.#expr = JsonataExpression.evaluator(expression)
+  }
+
+  evaluateSync(input: unknown): unknown {
+    let out: unknown
+    let err: unknown
+    let settled = false
+    this.#expr.evaluate(
+      input as Record<string, unknown>,
+      {},
+      (e: unknown, resp: unknown) => {
+        settled = true
+        err = e
+        out = resp
+      },
+    )
+    if (!settled) {
+      throw new Error('jsonata expression evaluated asynchronously')
+    }
+    if (err) {
+      throw err
+    }
+    return out
+  }
+}
