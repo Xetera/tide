@@ -14,6 +14,17 @@ interface PoolProps {
   heartbeat?: HeartbeatStatus | null
 }
 
+function poolLabel(serverUrl: string, poolId: string): string {
+  let host = serverUrl
+  try {
+    host = new URL(serverUrl).host
+  } catch {
+    host = serverUrl
+  }
+  const shortId = poolId.length > 8 ? `${poolId.slice(0, 8)}…` : poolId
+  return host ? `${host} · ${shortId}` : shortId
+}
+
 export function Pool(props: PoolProps = {}) {
   const { value: serverUrl } = useBrowserStorage('server:url', '')
   const { value: poolId } = useBrowserStorage('server:pool-id', '')
@@ -24,56 +35,63 @@ export function Pool(props: PoolProps = {}) {
     () => !!(serverUrl() && poolId() && workerSecret()),
   )
 
+  const unauthorized = createMemo(
+    () => props.heartbeat?.status === 'unauthorized',
+  )
+
   return (
     <div class='flex flex-col'>
       <Show
         when={hasCredentials()}
         fallback={
-          <div
-            class='flex flex-col gap-3'
-            style={{
-              padding: '12px 16px',
-              'border-bottom': '1px solid var(--hairline)',
-            }}
-          >
-            <div
-              class='sec-head'
-              style={{ padding: '0', 'border-bottom': 'none' }}
-            >
-              <span class='title'>Invites</span>
+          <div class='flex flex-col gap-3 px-4 py-3 border-b border-border'>
+            <div class='flex flex-col gap-1'>
+              <span class='title'>You're not in a pool yet</span>
+              <span class='t-muted'>
+                Paste an invite link from a pool owner to start collecting.
+              </span>
             </div>
             <JoinPoolForm />
           </div>
         }
       >
-        <details
-          style={{ 'border-bottom': '1px solid var(--hairline)' }}
-          open={props.heartbeat?.status === 'unauthorized'}
-        >
-          <summary
-            style={{
-              padding: '10px 16px',
-              cursor: 'pointer',
-              'list-style': 'none',
-              display: 'flex',
-              'align-items': 'center',
-              'justify-content': 'space-between',
-            }}
-          >
-            <span class='t-muted' style={{ 'font-size': '13px' }}>
-              Invites
-            </span>
-          </summary>
-          <div class='flex flex-col gap-3' style={{ padding: '0 16px 12px' }}>
-            <Show when={props.heartbeat?.status === 'unauthorized'}>
-              <div class='t-mono-xs px-2.5 py-2 rounded-shoal-sm border border-destructive bg-danger-soft text-destructive'>
-                You are not authorized in this pool. The pool owner may have
-                removed you from it. Paste a fresh invite below to rejoin.
-              </div>
-            </Show>
-            <JoinPoolForm />
+        <div class='flex flex-col gap-3 px-4 py-3 border-b border-border'>
+          <div class='flex items-start justify-between gap-3'>
+            <div class='flex flex-col gap-1 min-w-0'>
+              <span class='title'>
+                {unauthorized() ? 'Removed from your pool' : 'In a pool'}
+              </span>
+              <span
+                class='t-mono-xs truncate text-foreground-muted'
+                title={`${serverUrl()} / ${poolId()}`}
+              >
+                {poolLabel(serverUrl() ?? '', poolId() ?? '')}
+              </span>
+            </div>
           </div>
-        </details>
+
+          <Show when={unauthorized()}>
+            <div class='t-mono-xs px-2.5 py-2 rounded-shoal-sm border border-destructive bg-danger-soft text-destructive'>
+              The pool owner may have removed you. Paste a fresh invite below to
+              rejoin, or join a different pool.
+            </div>
+          </Show>
+
+          <details>
+            <summary class='t-muted cursor-pointer select-none'>
+              {unauthorized()
+                ? 'Rejoin or switch pools'
+                : 'Switch to a different pool'}
+            </summary>
+            <div class='flex flex-col gap-2 mt-2'>
+              <span class='t-muted'>
+                Joining another pool replaces your current one. Paste its invite
+                link below.
+              </span>
+              <JoinPoolForm showDescription={false} />
+            </div>
+          </details>
+        </div>
       </Show>
 
       <div>
@@ -83,10 +101,7 @@ export function Pool(props: PoolProps = {}) {
         <SiteGrid
           source={hasCredentials() ? 'pool' : 'all'}
           emptyFallback={() => (
-            <div
-              class='flex flex-col items-center gap-3'
-              style={{ padding: '24px 12px' }}
-            >
+            <div class='flex flex-col items-center gap-3 px-3 py-6'>
               <p class='t-muted text-center'>No sites configured</p>
               <button
                 type='button'
@@ -104,13 +119,7 @@ export function Pool(props: PoolProps = {}) {
         />
       </div>
 
-      <div
-        class='flex flex-col gap-3'
-        style={{
-          padding: '12px 16px',
-          'border-top': '1px solid var(--hairline)',
-        }}
-      >
+      <div class='flex flex-col gap-3 px-4 py-3 border-t border-border'>
         <TextFieldRoot>
           <TextFieldLabel>Worker secret</TextFieldLabel>
           <TextField

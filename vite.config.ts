@@ -198,6 +198,13 @@ export default defineConfig({
     target: 'esnext',
     sourcemap: true,
     minify: false,
+    rollupOptions: {
+      input: {
+        onboarding: resolve(__dirname, 'views/onboarding.html'),
+        playground: resolve(__dirname, 'views/playground.html'),
+        'scrape-viewer': resolve(__dirname, 'views/scrape-viewer.html'),
+      },
+    },
   },
   test: {
     environmentOptions: {

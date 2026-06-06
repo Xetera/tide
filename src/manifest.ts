@@ -4,6 +4,8 @@ import { version } from '../package.json'
 const isFirefox = process.env.BROWSER === 'firefox'
 const isDev = process.env.NODE_ENV === 'development'
 
+// the actual content scripts are registered dynamically
+// as the user opts-into giving permissions for specific websites
 const devContentScripts: chrome.runtime.ManifestV3['content_scripts'] = isDev
   ? [
       {
@@ -32,6 +34,8 @@ const devContentScripts: chrome.runtime.ManifestV3['content_scripts'] = isDev
 export default defineManifest({
   manifest_version: 3,
   name: 'Tide',
+  description:
+    "Turn your natural website browsing into raw data. Always in full control of what data you're sharing and with whom.",
   version,
   icons: {
     16: 'src/assets/icon-16.png',
