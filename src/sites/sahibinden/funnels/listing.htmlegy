@@ -9,6 +9,11 @@ url: "/ilan/*/detay"
     "name": $(.classifiedDetailTitle h1) | text | trim,
     "price": $(.classified-price-wrapper) | text | money,
     "description": $(#classifiedDescription) | rich_text,
+    "location": $(h2:has([data-click-label^="Adres"])) {
+      "city": $$(a) | at(0) | text | trim,
+      "district": $$(a) | at(1) | text | trim,
+      "neighborhood": $$(a) | at(2) | text | trim
+    },
     "attributes": $$(.classifiedInfoList li, .classified-info-list li) {
       [$(strong) | text | trim]: $(span) | text | trim
     }
