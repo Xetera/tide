@@ -1,4 +1,20 @@
 {
+  "file_scan_exclusions": [
+    "**/.git",
+    "**/.svn",
+    "**/.hg",
+    "**/CVS",
+    "**/.DS_Store",
+    "**/Thumbs.db",
+    "**/.classpath",
+    "**/node_modules",
+    "**/dist",
+    "**/fixtures/*.html",
+    "src/sites/*.html",
+    "pnpm-lock.yaml",
+    "package-lock.json",
+    "yarn.lock"
+  ],
   "language_servers": [
     "!tsgo",
     "oxlint",

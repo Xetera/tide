@@ -33,7 +33,21 @@ export default defineManifest({
   manifest_version: 3,
   name: 'Tide',
   version,
-  action: { default_popup: 'views/index.html' },
+  icons: {
+    16: 'src/assets/icon-16.png',
+    32: 'src/assets/icon-32.png',
+    48: 'src/assets/icon-48.png',
+    128: 'src/assets/icon-128.png',
+  },
+  action: {
+    default_popup: 'views/index.html',
+    default_icon: {
+      16: 'src/assets/icon-16.png',
+      32: 'src/assets/icon-32.png',
+      48: 'src/assets/icon-48.png',
+      128: 'src/assets/icon-128.png',
+    },
+  },
   browser_specific_settings: {
     gecko: {
       id: 'contact@xetera.dev',
@@ -58,7 +72,11 @@ export default defineManifest({
     : { service_worker: 'src/background/index.ts', type: 'module' },
   web_accessible_resources: [
     {
-      resources: ['views/scrape-viewer.html', 'views/playground.html'],
+      resources: [
+        'views/scrape-viewer.html',
+        'views/playground.html',
+        'views/onboarding.html',
+      ],
       matches: ['<all_urls>'],
       use_dynamic_url: true,
     },

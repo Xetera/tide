@@ -796,9 +796,9 @@ body {
   color: var(--foreground);
 }
 .t-eyebrow {
-  font: 500 var(--font-size-xs) / 1.2 var(--font-sans);
+  font: 600 var(--font-size-xs) / 1.2 var(--font-sans);
   text-transform: uppercase;
-  letter-spacing: var(--letter-caps);
+  letter-spacing: var(--letter-caps-tight);
   color: var(--foreground-muted);
 }
 .t-mono {

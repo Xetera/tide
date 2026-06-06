@@ -1,11 +1,19 @@
 import { createDateFormatter } from '@kobalte/core/i18n'
-import { For, Show, createEffect, createMemo, createSignal, onMount } from 'solid-js'
+import {
+  For,
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+  onMount,
+} from 'solid-js'
 import { sendMessage } from 'webext-bridge/popup'
 /* @refresh reload */
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { Badge } from '~/components/ui/badge'
 import { useBrowserStorage } from '~/shared/hooks'
 import type { Log, PlainLog, ScrapeLog } from '~/shared/log'
+import WavesHorizontal from 'lucide-solid/icons/waves-horizontal'
 import { AddServer } from './add-server'
 import { useLogs } from './hooks'
 import { Pool } from './pool'
@@ -192,6 +200,10 @@ function Page() {
   const { value: serverUrl } = useBrowserStorage('server:url', '')
   const { value: poolId } = useBrowserStorage('server:pool-id', '')
   const { value: workerSecret } = useBrowserStorage('server:worker-secret', '')
+  const { value: onboardingCompleted } = useBrowserStorage(
+    'onboarding:completed',
+    false,
+  )
 
   const hasCredentials = createMemo(
     () => !!(serverUrl() && poolId() && workerSecret()),
@@ -278,14 +290,28 @@ function Page() {
           'border-bottom': '1px solid var(--hairline)',
         }}
       >
-        <span
-          style={{
-            font: '600 13px/1 var(--font-sans)',
-            'letter-spacing': 'var(--letter-base)',
-            color: 'var(--foreground)',
-          }}
-        >
-          Tide
+        <span class='flex items-center gap-2'>
+          <span
+            class='flex items-center justify-center shrink-0'
+            style={{
+              width: '18px',
+              height: '18px',
+              'border-radius': '6px',
+              background: 'var(--brand)',
+              color: 'var(--brand-foreground)',
+            }}
+          >
+            <WavesHorizontal class='w-3 h-3' stroke-width={2.5} />
+          </span>
+          <span
+            style={{
+              font: '600 13px/1 var(--font-sans)',
+              'letter-spacing': 'var(--letter-base)',
+              color: 'var(--foreground)',
+            }}
+          >
+            Tide
+          </span>
         </span>
         <span class={`pill ${statusTone()}`}>
           <span class='dot' />
@@ -321,6 +347,31 @@ function Page() {
 
         <TabsContent value='dashboard'>
           <div class='flex flex-col'>
+            <Show when={!onboardingCompleted()}>
+              <div
+                class='flex flex-col gap-2'
+                style={{
+                  padding: '12px 16px',
+                  'border-bottom': '1px solid var(--hairline)',
+                }}
+              >
+                <span class='set-name'>Finish setting up Tide</span>
+                <span class='set-desc'>
+                  Choose how you want to use Tide and enable your first sites.
+                </span>
+                <button
+                  type='button'
+                  class='btn btn-primary btn-sm self-start'
+                  onClick={() =>
+                    chrome.tabs.create({
+                      url: chrome.runtime.getURL('views/onboarding.html'),
+                    })
+                  }
+                >
+                  Get started
+                </button>
+              </div>
+            </Show>
             <Show when={lastScrape()}>
               {(scrape) => (
                 <div style={{ 'border-bottom': '1px solid var(--hairline)' }}>
@@ -352,9 +403,17 @@ function Page() {
 
             <div>
               {scrapeLogs().length === 0 && poolLogs().length === 0 && (
-                <p class='t-muted text-center' style={{ padding: '24px 12px' }}>
-                  No activity yet
-                </p>
+                <div
+                  class='flex flex-col items-center text-center gap-2'
+                  style={{ padding: '40px 24px' }}
+                >
+                  <WavesHorizontal class='w-8 h-8 text-muted-foreground' />
+                  <span class='set-name'>No activity here</span>
+                  <span class='set-desc'>
+                    Visit a supported site to start collecting data. Anything
+                    Tide reads will show up here.
+                  </span>
+                </div>
               )}
               <For each={scrapeLogs()}>
                 {(log) => <ScrapeLogEntry log={log} />}

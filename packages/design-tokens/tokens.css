@@ -178,6 +178,7 @@
   --letter-base:    -0.01em;
   --letter-mono:    0;
   --letter-caps:    0.10em;
+  --letter-caps-tight: 0.07em;
 
   --color-page-bg: var(--background);
   --color-page-surface: var(--surface-2);

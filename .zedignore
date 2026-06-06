@@ -1,0 +1,7 @@
+node_modules/
+dist/
+**/node_modules/
+**/dist/
+**/fixtures/*.html
+src/sites/*.html
+.devenv/

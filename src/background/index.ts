@@ -38,6 +38,13 @@ import { getRecording, isRecordingFor, setRecording } from '~/shared/recording'
 
 const storage = new Storage<BrowserStorageSchema>()
 
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason !== 'install') {
+    return
+  }
+  chrome.tabs.create({ url: chrome.runtime.getURL('views/onboarding.html') })
+})
+
 console.log(
   '[tide] funnelEntries:',
   funnelProvider.getEntries().map((e) => `${e.site}/${e.funnel}/${e.file}`),

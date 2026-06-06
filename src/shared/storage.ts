@@ -126,4 +126,5 @@ export type BrowserStorageSchema = {
   'generation:attempts'?: GenerationAttempt[]
   'generation:last-result'?: { result: GenerationResult; timestamp: number }
   'heartbeat:last'?: { status: HeartbeatStatus; at: number }
+  'onboarding:completed'?: boolean
 }
