@@ -15,6 +15,8 @@ export interface HtmlegyProvider<N> {
 
   resolveUrl(url: string): string
 
+  evaluateJsonata?(source: string, value: unknown): Promise<unknown>
+
   watch(node: N, selector: string | null, cb: () => void): () => void
   await(node: N, condition: string | null, cb: (node: N) => void): () => void
 

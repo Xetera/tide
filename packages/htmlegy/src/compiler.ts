@@ -160,14 +160,19 @@ class Evaluator<N> {
     this.#onElement = onElement
   }
 
-  evalExpr(expr: Expr, el: N, env: Env<N>, ctx: EvalContext): unknown {
+  async evalExpr(
+    expr: Expr,
+    el: N,
+    env: Env<N>,
+    ctx: EvalContext,
+  ): Promise<unknown> {
     switch (expr.kind) {
       case 'literal':
         return expr.value
       case 'array': {
         const result: unknown[] = []
         for (const item of expr.items) {
-          const value = this.evalExpr(item, el, env, ctx)
+          const value = await this.evalExpr(item, el, env, ctx)
           if (Array.isArray(value)) {
             result.push(...value)
           } else {
@@ -189,13 +194,13 @@ class Evaluator<N> {
         return this.evalMatch(expr.arms, el, env, ctx)
       }
       case 'match_expr': {
-        const scrutinee = this.evalExpr(expr.scrutinee, el, env, ctx)
+        const scrutinee = await this.evalExpr(expr.scrutinee, el, env, ctx)
         return this.evalMatchExpr(expr.arms, scrutinee, env, ctx)
       }
       case 'fallback_expr': {
         let primary: unknown
         try {
-          primary = this.evalChain(expr.primary, el, env, ctx)
+          primary = await this.evalChain(expr.primary, el, env, ctx)
         } catch (e) {
           if (e instanceof SelectorError && expr.fallback) {
             return this.evalChain(expr.fallback, el, env, ctx)
@@ -210,7 +215,12 @@ class Evaluator<N> {
     }
   }
 
-  evalChain(expr: Chain, root: N, env: Env<N>, ctx: EvalContext): unknown {
+  async evalChain(
+    expr: Chain,
+    root: N,
+    env: Env<N>,
+    ctx: EvalContext,
+  ): Promise<unknown> {
     const unwrapped = unwrapSource(expr.source)
     return this.evalChainSteps(
       { source: unwrapped, tail: expr.tail },
@@ -220,27 +230,27 @@ class Evaluator<N> {
     )
   }
 
-  private evalFields(
+  private async evalFields(
     fields: Field[],
     el: N,
     env: Env<N>,
     ctx: EvalContext,
-  ): Record<string, unknown> {
+  ): Promise<Record<string, unknown>> {
     const result: Record<string, unknown> = {}
     for (const field of fields) {
       if ('expr' in field) {
-        const value = this.evalExpr(field.value, el, env, ctx)
+        const value = await this.evalExpr(field.value, el, env, ctx)
         if (value !== null && value !== OMIT && typeof value === 'object') {
           Object.assign(result, value)
         }
       } else if (field.dynamic) {
-        const key = this.evalExpr(field.keyExpr, el, env, ctx)
-        const value = this.evalExpr(field.value, el, env, ctx)
+        const key = await this.evalExpr(field.keyExpr, el, env, ctx)
+        const value = await this.evalExpr(field.value, el, env, ctx)
         if (typeof key === 'string') {
           result[key] = value
         }
       } else {
-        const value = this.evalExpr(field.value, el, env, {
+        const value = await this.evalExpr(field.value, el, env, {
           label: [...ctx.label, field.key],
         })
         if (value !== OMIT) {
@@ -251,12 +261,12 @@ class Evaluator<N> {
     return result
   }
 
-  private evalMatchExpr(
+  private async evalMatchExpr(
     arms: ExprMatchArm[],
     scrutinee: unknown,
     env: Env<N>,
     ctx: EvalContext,
-  ): unknown {
+  ): Promise<unknown> {
     for (const arm of arms) {
       if (arm.kind === 'fallback') {
         return this.evalExpr(arm.body, scrutinee as N, env, ctx)
@@ -269,7 +279,7 @@ class Evaluator<N> {
       }
       let piped = scrutinee
       for (const op of arm.ops) {
-        piped = this.applyPipeOp(op, piped, scrutinee as N, env, ctx)
+        piped = await this.applyPipeOp(op, piped, scrutinee as N, env, ctx)
       }
       const truthy = piped != null && piped !== false && piped !== ''
       if (truthy) {
@@ -279,22 +289,22 @@ class Evaluator<N> {
     return undefined
   }
 
-  private evalMatch(
+  private async evalMatch(
     arms: MatchArm[],
     el: N,
     env: Env<N>,
     ctx: EvalContext,
     scopedEl?: N,
-  ): unknown {
+  ): Promise<unknown> {
     const subject = scopedEl ?? el
     for (const arm of arms) {
       if (arm.kind === 'fallback') {
         return this.evalExpr(arm.body, subject, env, ctx)
       }
       if (arm.kind === 'call') {
-        const condValue = this.applyPipeOp(
+        const condValue = await this.applyPipeOp(
           { name: arm.name, args: arm.args },
-          this.evalExpr(arm.expr, subject, env, ctx),
+          await this.evalExpr(arm.expr, subject, env, ctx),
           subject,
           env,
           ctx,
@@ -311,7 +321,9 @@ class Evaluator<N> {
         if (els.length === 0) {
           continue
         }
-        return els.map((child) => this.evalExpr(arm.body, child, env, ctx))
+        return Promise.all(
+          els.map((child) => this.evalExpr(arm.body, child, env, ctx)),
+        )
       }
       const child = this.#provider.querySelector(subject, arm.selector)
       if (child) {
@@ -321,12 +333,12 @@ class Evaluator<N> {
     return undefined
   }
 
-  private evalChainSteps(
+  private async evalChainSteps(
     expr: { source: Source; tail: ChainStep[] },
     el: N,
     env: Env<N>,
     ctx: EvalContext,
-  ): unknown {
+  ): Promise<unknown> {
     let current: unknown
     let omitOnNull = false
     let requiredSelector: string | null = null
@@ -445,10 +457,12 @@ class Evaluator<N> {
       case 'func_call': {
         if (expr.source.name === 'zip') {
           const laneExprs = [expr.source.expr, ...expr.source.exprArgs]
-          const lanes = laneExprs.map((laneExpr) => {
-            const v = this.evalExpr(laneExpr, el, currentEnv, ctx)
-            return Array.isArray(v) ? (v as unknown[]) : v == null ? [] : [v]
-          })
+          const lanes = await Promise.all(
+            laneExprs.map(async (laneExpr) => {
+              const v = await this.evalExpr(laneExpr, el, currentEnv, ctx)
+              return Array.isArray(v) ? (v as unknown[]) : v == null ? [] : [v]
+            }),
+          )
           const length = lanes.reduce(
             (min, l) => (l.length < min ? l.length : min),
             lanes[0]?.length ?? 0,
@@ -460,8 +474,8 @@ class Evaluator<N> {
           current = tuples
           break
         }
-        const inner = this.evalExpr(expr.source.expr, el, currentEnv, ctx)
-        current = this.applyPipeOp(
+        const inner = await this.evalExpr(expr.source.expr, el, currentEnv, ctx)
+        current = await this.applyPipeOp(
           { name: expr.source.name, args: expr.source.args },
           inner,
           el,
@@ -481,7 +495,7 @@ class Evaluator<N> {
           if (current == null && omitOnNull) {
             return OMIT
           }
-          current = this.applyPipeOp(step.op, current, el, currentEnv, ctx)
+          current = await this.applyPipeOp(step.op, current, el, currentEnv, ctx)
           break
 
         case 'block': {
@@ -490,33 +504,37 @@ class Evaluator<N> {
             expr.source.kind === 'alias_each' ||
             expr.source.kind === 'root_each'
           if (expr.source.kind === 'func_call' && Array.isArray(current)) {
-            current = (current as unknown[]).map((item) => {
-              const iterEnv = new Map(currentEnv)
-              if (Array.isArray(item)) {
-                for (let i = 0; i < item.length; i++) {
-                  iterEnv.set(POSITIONAL_PREFIX + (i + 1), item[i])
+            current = await Promise.all(
+              (current as unknown[]).map((item) => {
+                const iterEnv = new Map(currentEnv)
+                if (Array.isArray(item)) {
+                  for (let i = 0; i < item.length; i++) {
+                    iterEnv.set(POSITIONAL_PREFIX + (i + 1), item[i])
+                  }
                 }
-              }
-              return this.evalFields(step.fields, item as N, iterEnv, {
-                label: ctx.label,
-              })
-            })
+                return this.evalFields(step.fields, item as N, iterEnv, {
+                  label: ctx.label,
+                })
+              }),
+            )
           } else if (isEach) {
             const aliasName =
               expr.source.kind === 'alias_each' ? expr.source.name : null
-            current = (current as N[]).map((child) => {
-              const iterEnv = aliasName
-                ? new Map([...currentEnv, [aliasName, child]])
-                : currentEnv
-              return this.evalFields(step.fields, child, iterEnv, {
-                label: ctx.label,
-              })
-            })
+            current = await Promise.all(
+              (current as N[]).map((child) => {
+                const iterEnv = aliasName
+                  ? new Map([...currentEnv, [aliasName, child]])
+                  : currentEnv
+                return this.evalFields(step.fields, child, iterEnv, {
+                  label: ctx.label,
+                })
+              }),
+            )
           } else {
             if (current == null) {
               return omitOnNull ? OMIT : null
             }
-            current = this.evalFields(
+            current = await this.evalFields(
               step.fields,
               current as N,
               currentEnv,
@@ -541,7 +559,7 @@ class Evaluator<N> {
           if (current == null) {
             return omitOnNull ? OMIT : null
           }
-          return this.evalExpr(step.expr, current as N, currentEnv, ctx)
+          return await this.evalExpr(step.expr, current as N, currentEnv, ctx)
       }
     }
 
@@ -562,12 +580,12 @@ class Evaluator<N> {
     return current
   }
 
-  private resolvePipeArgs(
+  private async resolvePipeArgs(
     args: PipeArg[],
     el: N,
     env: Env<N>,
     ctx: EvalContext,
-  ): PipeArg[] {
+  ): Promise<PipeArg[]> {
     let resolved: PipeArg[] | null = null
     for (let i = 0; i < args.length; i++) {
       const a = args[i]!
@@ -576,7 +594,7 @@ class Evaluator<N> {
         'expr' in a &&
         (a as { expr?: Chain }).expr !== undefined
       ) {
-        const value = this.evalChain(a.expr, el, env, ctx)
+        const value = await this.evalChain(a.expr, el, env, ctx)
         if (resolved === null) {
           resolved = args.slice(0, i)
         }
@@ -612,15 +630,25 @@ class Evaluator<N> {
     return this.#locale
   }
 
-  private applyPipeOp(
+  private async applyPipeOp(
     op: PipeOp,
     value: unknown,
     el: N,
     env: Env<N>,
     ctx: EvalContext,
-  ): unknown {
+  ): Promise<unknown> {
+    if ('source' in op) {
+      if (value == null) {
+        return null
+      }
+      if (!this.#provider.evaluateJsonata) {
+        throw new Error('provider does not support pipe function: jsonata')
+      }
+      return this.#provider.evaluateJsonata(op.source, value)
+    }
+
     const { name } = op
-    const args = this.resolvePipeArgs(op.args, el, env, ctx)
+    const args = await this.resolvePipeArgs(op.args, el, env, ctx)
 
     switch (name) {
       case 'text':
@@ -841,7 +869,7 @@ export class HtmlegyExpr<N> {
     this.#reactive = isReactive(this.#ast)
   }
 
-  run(root: N): unknown {
+  run(root: N): Promise<unknown> {
     return this.#evaluator.evalExpr(this.#ast, root, new Map([['', root]]), {
       label: [],
     })
@@ -877,8 +905,14 @@ function buildReactive<N>(expr: Expr, root: N, ev: Evaluator<N>): ReactiveExpr {
     }
   }
 
+  let evalSeq = 0
   function reeval() {
-    emit(ev.evalExpr(expr, root, env, ctx))
+    const seq = ++evalSeq
+    void ev.evalExpr(expr, root, env, ctx).then((v) => {
+      if (seq === evalSeq) {
+        emit(v)
+      }
+    })
   }
 
   function start() {

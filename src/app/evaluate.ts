@@ -75,14 +75,14 @@ export function htmlegyToPatches(
   return []
 }
 
-export function evaluateHtmlegy(
+export async function evaluateHtmlegy(
   expression: string,
   entity: string,
   root: Element,
-): EvalResult {
+): Promise<EvalResult> {
   try {
     const { body } = parseFrontmatter(expression)
-    const result = createExpr(body).run(root)
+    const result = await createExpr(body).run(root)
     const patches = htmlegyToPatches(entity, result)
     return { patches, validationErrors: [], identityWarnings: [], raw: result }
   } catch (err) {

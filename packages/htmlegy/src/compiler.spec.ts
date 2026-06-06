@@ -101,37 +101,37 @@ const root: TestNode = {
 }
 
 describe('literals', () => {
-  it('returns a string literal', () => {
-    expect(run('"hello"', root)).toBe('hello')
+  it('returns a string literal', async () => {
+    expect(await run('"hello"', root)).toBe('hello')
   })
 
-  it('returns a numeric literal', () => {
-    expect(run('42', root)).toBe(42)
+  it('returns a numeric literal', async () => {
+    expect(await run('42', root)).toBe(42)
   })
 
-  it('returns null literal', () => {
-    expect(run('null', root)).toBeNull()
+  it('returns null literal', async () => {
+    expect(await run('null', root)).toBeNull()
   })
 
-  it('returns true', () => {
-    expect(run('true', root)).toBe(true)
+  it('returns true', async () => {
+    expect(await run('true', root)).toBe(true)
   })
 
-  it('returns false', () => {
-    expect(run('false', root)).toBe(false)
+  it('returns false', async () => {
+    expect(await run('false', root)).toBe(false)
   })
 
-  it('can pipe a string literal into a transform', () => {
-    expect(run('"hello" | lowercase', root)).toBe('hello')
+  it('can pipe a string literal into a transform', async () => {
+    expect(await run('"hello" | lowercase', root)).toBe('hello')
   })
 
-  it('can pipe a number literal into a transform', () => {
-    expect(run('42 | exists', root)).toBe(true)
+  it('can pipe a number literal into a transform', async () => {
+    expect(await run('42 | exists', root)).toBe(true)
   })
 })
 
 describe('selectors with // in strings', () => {
-  it('selects an element using an attribute value containing //', () => {
+  it('selects an element using an attribute value containing //', async () => {
     const node: TestNode = {
       tag: 'div',
       children: [
@@ -142,53 +142,53 @@ describe('selectors with // in strings', () => {
         },
       ],
     }
-    expect(run('$(a[href^="https://google.com"]) | text', node)).toBe('Google')
+    expect(await run('$(a[href^="https://google.com"]) | text', node)).toBe('Google')
   })
 })
 
 describe('| text', () => {
-  it('extracts text from a matched element', () => {
-    expect(run('$(h1) | text', root)).toBe('Hello')
+  it('extracts text from a matched element', async () => {
+    expect(await run('$(h1) | text', root)).toBe('Hello')
   })
 })
 
 describe('| attr', () => {
-  it('extracts an attribute', () => {
-    expect(run('$(a) | attr(href)', root)).toBe('/path')
+  it('extracts an attribute', async () => {
+    expect(await run('$(a) | attr(href)', root)).toBe('/path')
   })
 
-  it('returns null for a missing attribute on an optionally matched element', () => {
-    expect(run('{ "x": $(h1)? | attr(href) }', root)).toEqual({})
+  it('returns null for a missing attribute on an optionally matched element', async () => {
+    expect(await run('{ "x": $(h1)? | attr(href) }', root)).toEqual({})
   })
 })
 
 describe('| data', () => {
-  it('extracts a data attribute', () => {
-    expect(run('$(span) | data(id)', root)).toBe('42')
+  it('extracts a data attribute', async () => {
+    expect(await run('$(span) | data(id)', root)).toBe('42')
   })
 })
 
 describe('| exists', () => {
-  it('returns true when element is found', () => {
-    expect(run('$(h1) | exists', root)).toBe(true)
+  it('returns true when element is found', async () => {
+    expect(await run('$(h1) | exists', root)).toBe(true)
   })
 })
 
 describe('trailing commas', () => {
-  it('allows a trailing comma in an object literal', () => {
-    expect(run('{ "title": $(h1) | text, }', root)).toEqual({ title: 'Hello' })
+  it('allows a trailing comma in an object literal', async () => {
+    expect(await run('{ "title": $(h1) | text, }', root)).toEqual({ title: 'Hello' })
   })
 
-  it('allows a trailing comma in an array literal', () => {
-    expect(run('[ $(h1) | text, $(a) | text, ]', root)).toEqual([
+  it('allows a trailing comma in an array literal', async () => {
+    expect(await run('[ $(h1) | text, $(a) | text, ]', root)).toEqual([
       'Hello',
       'click',
     ])
   })
 
-  it('allows a trailing comma in a block', () => {
+  it('allows a trailing comma in a block', async () => {
     expect(
-      run('$(a) { "href": $ | attr(href), "label": $ | text, }', root),
+      await run('$(a) { "href": $ | attr(href), "label": $ | text, }', root),
     ).toEqual({
       href: '/path',
       label: 'click',
@@ -197,37 +197,37 @@ describe('trailing commas', () => {
 })
 
 describe('object fields', () => {
-  it('evaluates static fields', () => {
-    expect(run('{ "title": $(h1) | text }', root)).toEqual({ title: 'Hello' })
+  it('evaluates static fields', async () => {
+    expect(await run('{ "title": $(h1) | text }', root)).toEqual({ title: 'Hello' })
   })
 
-  it('omits fields when optional selector matches nothing', () => {
-    expect(run('{ "x": $(h1) | text, "y": $(missing)? | text }', root)).toEqual(
+  it('omits fields when optional selector matches nothing', async () => {
+    expect(await run('{ "x": $(h1) | text, "y": $(missing)? | text }', root)).toEqual(
       {
         x: 'Hello',
       },
     )
   })
 
-  it('evaluates dynamic field keys', () => {
-    expect(run('{ [$(h1) | text]: "value" }', root)).toEqual({ Hello: 'value' })
+  it('evaluates dynamic field keys', async () => {
+    expect(await run('{ [$(h1) | text]: "value" }', root)).toEqual({ Hello: 'value' })
   })
 
-  it('spreads a chain result object into the parent object', () => {
-    const result = run('{ ($(a) { "href":  $ | attr(href) }) }', root)
+  it('spreads a chain result object into the parent object', async () => {
+    const result = await run('{ ($(a) { "href":  $ | attr(href) }) }', root)
     expect(result).toEqual({ href: '/path' })
   })
 })
 
 describe('array expressions', () => {
-  it('collects multiple literal items', () => {
-    expect(run('[ $(h1) | text, $(a) | text ]', root)).toEqual([
+  it('collects multiple literal items', async () => {
+    expect(await run('[ $(h1) | text, $(a) | text ]', root)).toEqual([
       'Hello',
       'click',
     ])
   })
 
-  it('flattens array-valued items into the result', () => {
+  it('flattens array-valued items into the result', async () => {
     const ul: TestNode = {
       tag: 'ul',
       children: [
@@ -235,13 +235,13 @@ describe('array expressions', () => {
         { tag: 'li', text: 'two' },
       ],
     }
-    const result = run('[ $$(li) { "v":  $ | text } ]', ul)
+    const result = await run('[ $$(li) { "v":  $ | text } ]', ul)
     expect(result).toEqual([{ v: 'one' }, { v: 'two' }])
   })
 })
 
 describe('$$ each selector', () => {
-  it('maps a block over all matching elements', () => {
+  it('maps a block over all matching elements', async () => {
     const ul: TestNode = {
       tag: 'ul',
       children: [
@@ -250,55 +250,55 @@ describe('$$ each selector', () => {
         { tag: 'li', text: 'three' },
       ],
     }
-    expect(run('$$(li) { "v":  $ | text }', ul)).toEqual([
+    expect(await run('$$(li) { "v":  $ | text }', ul)).toEqual([
       { v: 'one' },
       { v: 'two' },
       { v: 'three' },
     ])
   })
 
-  it('returns an empty array when no elements match', () => {
-    expect(run('$$(missing) { "v":  $ | text }', root)).toEqual([])
+  it('returns an empty array when no elements match', async () => {
+    expect(await run('$$(missing) { "v":  $ | text }', root)).toEqual([])
   })
 
-  it('throws when requireOne (+) and no elements match', () => {
-    expect(() => run('$$(missing)+ { "v":  $ | text }', root)).toThrow(
+  it('throws when requireOne (+) and no elements match', async () => {
+    await expect(run('$$(missing)+ { "v":  $ | text }', root)).rejects.toThrow(
       /matched nothing/,
     )
   })
 })
 
 describe('$ single selector required', () => {
-  it('throws SelectorError when required element is missing', () => {
-    expect(() => run('$(missing) | text', root)).toThrow(/matched nothing/)
+  it('throws SelectorError when required element is missing', async () => {
+    await expect(run('$(missing) | text', root)).rejects.toThrow(/matched nothing/)
   })
 
-  it('uses fallback when required selector throws', () => {
-    expect(run('$(missing) | text ?? $(h1) | text', root)).toBe('Hello')
+  it('uses fallback when required selector throws', async () => {
+    expect(await run('$(missing) | text ?? $(h1) | text', root)).toBe('Hello')
   })
 })
 
 describe('$ single selector optional', () => {
-  it('omits the field when optional selector matches nothing', () => {
-    expect(run('{ "x": $(missing)? | text }', root)).toEqual({})
+  it('omits the field when optional selector matches nothing', async () => {
+    expect(await run('{ "x": $(missing)? | text }', root)).toEqual({})
   })
 
-  it('uses fallback when optional result is null', () => {
-    expect(run('$(missing)? | text ?? $(h1) | text', root)).toBe('Hello')
+  it('uses fallback when optional result is null', async () => {
+    expect(await run('$(missing)? | text ?? $(h1) | text', root)).toBe('Hello')
   })
 })
 
 describe('block { }', () => {
-  it('evaluates fields in the context of the matched element', () => {
+  it('evaluates fields in the context of the matched element', async () => {
     expect(
-      run('$(a) { "href":  $ | attr(href), "label":  $ | text }', root),
+      await run('$(a) { "href":  $ | attr(href), "label":  $ | text }', root),
     ).toEqual({
       href: '/path',
       label: 'click',
     })
   })
 
-  it('maps fields over each matched element', () => {
+  it('maps fields over each matched element', async () => {
     const ul: TestNode = {
       tag: 'ul',
       children: [
@@ -306,7 +306,7 @@ describe('block { }', () => {
         { tag: 'li', text: 'two' },
       ],
     }
-    expect(run('$$(li) { "v":  $ | text }', ul)).toEqual([
+    expect(await run('$$(li) { "v":  $ | text }', ul)).toEqual([
       { v: 'one' },
       { v: 'two' },
     ])
@@ -314,33 +314,33 @@ describe('block { }', () => {
 })
 
 describe('conditional ?', () => {
-  it('returns then branch when truthy', () => {
-    expect(run('$(h1) | text ? "yes" : "no"', root)).toBe('yes')
+  it('returns then branch when truthy', async () => {
+    expect(await run('$(h1) | text ? "yes" : "no"', root)).toBe('yes')
   })
 
-  it('returns else branch when value is null', () => {
-    expect(run('$(h1) | attr(href) ? "yes" : "no"', root)).toBe('no')
+  it('returns else branch when value is null', async () => {
+    expect(await run('$(h1) | attr(href) ? "yes" : "no"', root)).toBe('no')
   })
 
-  it('omits field when no else branch and value is falsy', () => {
-    expect(run('{ "x": $(h1) | attr(href) ? "yes" }', root)).toEqual({})
+  it('omits field when no else branch and value is falsy', async () => {
+    expect(await run('{ "x": $(h1) | attr(href) ? "yes" }', root)).toEqual({})
   })
 })
 
 describe('match expression', () => {
-  it('matches the first applicable single-selector arm', () => {
-    expect(run('match { $(h1) =>  $ | text _ => "fallback" }', root)).toBe(
+  it('matches the first applicable single-selector arm', async () => {
+    expect(await run('match { $(h1) =>  $ | text _ => "fallback" }', root)).toBe(
       'Hello',
     )
   })
 
-  it('falls through to fallback when no selector arm matches', () => {
-    expect(run('match { $(missing) =>  $ | text _ => "fallback" }', root)).toBe(
+  it('falls through to fallback when no selector arm matches', async () => {
+    expect(await run('match { $(missing) =>  $ | text _ => "fallback" }', root)).toBe(
       'fallback',
     )
   })
 
-  it('maps each arm over all matches', () => {
+  it('maps each arm over all matches', async () => {
     const ul: TestNode = {
       tag: 'ul',
       children: [
@@ -348,215 +348,215 @@ describe('match expression', () => {
         { tag: 'li', text: 'two' },
       ],
     }
-    expect(run('match { $$(li) =>  $ | text _ => null }', ul)).toEqual([
+    expect(await run('match { $$(li) =>  $ | text _ => null }', ul)).toEqual([
       'one',
       'two',
     ])
   })
 
-  it('returns undefined when no arm matches and there is no fallback', () => {
-    expect(run('match { $(missing) =>  $ | text }', root)).toBeUndefined()
+  it('returns undefined when no arm matches and there is no fallback', async () => {
+    expect(await run('match { $(missing) =>  $ | text }', root)).toBeUndefined()
   })
 })
 
 describe('scoped match expression', () => {
-  it('resolves scoped element and passes it to fallback arm as context', () => {
-    expect(run('match $(h1) { _ => $ | text }', root)).toBe('Hello')
+  it('resolves scoped element and passes it to fallback arm as context', async () => {
+    expect(await run('match $(h1) { _ => $ | text }', root)).toBe('Hello')
   })
 
-  it('returns undefined when the scoped selector matches nothing', () => {
-    expect(run('match $(missing) { _ => "never" }', root)).toBeUndefined()
+  it('returns undefined when the scoped selector matches nothing', async () => {
+    expect(await run('match $(missing) { _ => "never" }', root)).toBeUndefined()
   })
 
-  it('fires a call arm when the condition is truthy', () => {
+  it('fires a call arm when the condition is truthy', async () => {
     expect(
-      run('match $(a) { attr($, "href") => $ | text _ => "no" }', root),
+      await run('match $(a) { attr($, "href") => $ | text _ => "no" }', root),
     ).toBe('click')
   })
 
-  it('skips a call arm when the condition is null and falls through to fallback', () => {
+  it('skips a call arm when the condition is null and falls through to fallback', async () => {
     expect(
-      run('match $(h1) { attr($, "href") => "linked" _ => "no href" }', root),
+      await run('match $(h1) { attr($, "href") => "linked" _ => "no href" }', root),
     ).toBe('no href')
   })
 
-  it('falls through all call arms when all conditions are falsy', () => {
+  it('falls through all call arms when all conditions are falsy', async () => {
     expect(
-      run(
+      await run(
         'match $(h1) { attr($, "href") => "a" attr($, "id") => "b" _ => "none" }',
         root,
       ),
     ).toBe('none')
   })
 
-  it('returns undefined when all call arms are falsy and there is no fallback', () => {
-    expect(run('match $(h1) { attr($, "href") => "a" }', root)).toBeUndefined()
+  it('returns undefined when all call arms are falsy and there is no fallback', async () => {
+    expect(await run('match $(h1) { attr($, "href") => "a" }', root)).toBeUndefined()
   })
 })
 
 describe('match expression with scrutinee', () => {
-  it('matches a literal arm by equality', () => {
+  it('matches a literal arm by equality', async () => {
     expect(
-      run('match $(h1) | text { "Hello" => "yes", _ => "no" }', root),
+      await run('match $(h1) | text { "Hello" => "yes", _ => "no" }', root),
     ).toBe('yes')
   })
 
-  it('falls through to fallback when no literal arm matches', () => {
-    expect(run('match $(h1) | text { "nope" => "yes", _ => "no" }', root)).toBe(
+  it('falls through to fallback when no literal arm matches', async () => {
+    expect(await run('match $(h1) | text { "nope" => "yes", _ => "no" }', root)).toBe(
       'no',
     )
   })
 
-  it('runs a pipe arm and binds $ to the piped result', () => {
+  it('runs a pipe arm and binds $ to the piped result', async () => {
     expect(
-      run(
+      await run(
         'match $(p) | text | trim { regex("(lots)", 1) => $, _ => "nope" }',
         root,
       ),
     ).toBe('lots')
   })
 
-  it('skips a non-matching pipe arm and tries the next one', () => {
+  it('skips a non-matching pipe arm and tries the next one', async () => {
     expect(
-      run(
+      await run(
         'match $(p) | text | trim { regex("(zzz)", 1) => $, regex("(space)", 1) => $, _ => "nope" }',
         root,
       ),
     ).toBe('space')
   })
 
-  it('supports a bare pipe step in arm LHS', () => {
-    expect(run('match $(p) { text | trim => $, _ => "nope" }', root)).toBe(
+  it('supports a bare pipe step in arm LHS', async () => {
+    expect(await run('match $(p) { text | trim => $, _ => "nope" }', root)).toBe(
       'lots of space',
     )
   })
 
-  it('returns undefined when no arm matches and there is no fallback', () => {
-    expect(run('match $(h1) | text { "nope" => "yes" }', root)).toBeUndefined()
+  it('returns undefined when no arm matches and there is no fallback', async () => {
+    expect(await run('match $(h1) | text { "nope" => "yes" }', root)).toBeUndefined()
   })
 
-  it('uses the scrutinee as $ inside a literal arm body', () => {
-    expect(run('match $(h1) | text { "Hello" => $ | lowercase }', root)).toBe(
+  it('uses the scrutinee as $ inside a literal arm body', async () => {
+    expect(await run('match $(h1) | text { "Hello" => $ | lowercase }', root)).toBe(
       'hello',
     )
   })
 
-  it('uses the scrutinee as $ inside the fallback body', () => {
+  it('uses the scrutinee as $ inside the fallback body', async () => {
     expect(
-      run('match $(h1) | text { "nope" => "x", _ => $ | lowercase }', root),
+      await run('match $(h1) | text { "nope" => "x", _ => $ | lowercase }', root),
     ).toBe('hello')
   })
 
-  it('allows trailing comma after last arm', () => {
+  it('allows trailing comma after last arm', async () => {
     expect(
-      run('match $(h1) | text { "Hello" => "yes", _ => "no", }', root),
+      await run('match $(h1) | text { "Hello" => "yes", _ => "no", }', root),
     ).toBe('yes')
   })
 })
 
 describe('pipe |number', () => {
-  it('parses an integer from a data attribute', () => {
-    expect(run('$(span) | data(id) | number', root)).toBe(42)
+  it('parses an integer from a data attribute', async () => {
+    expect(await run('$(span) | data(id) | number', root)).toBe(42)
   })
 
-  it('respects a locale kwarg for decimal parsing', () => {
+  it('respects a locale kwarg for decimal parsing', async () => {
     const node: TestNode = {
       tag: 'div',
       children: [{ tag: 'span', text: '1.234,56' }],
     }
-    expect(run('$(span) | text | number(locale: "de")', node)).toBeCloseTo(
+    expect(await run('$(span) | text | number(locale: "de")', node)).toBeCloseTo(
       1234.56,
     )
   })
 })
 
 describe('pipe |url', () => {
-  it('resolves a relative URL via the provider', () => {
-    expect(run('$(a) | attr(href) | url', root)).toBe(
+  it('resolves a relative URL via the provider', async () => {
+    expect(await run('$(a) | attr(href) | url', root)).toBe(
       'https://example.com/path',
     )
   })
 
-  it('omits the field when the attribute value is empty and the selector is optional', () => {
+  it('omits the field when the attribute value is empty and the selector is optional', async () => {
     const node: TestNode = {
       tag: 'div',
       children: [{ tag: 'a', attrs: { href: '' } }],
     }
-    expect(run('{ "u": $(a)? | attr(href) | url }', node)).toEqual({})
+    expect(await run('{ "u": $(a)? | attr(href) | url }', node)).toEqual({})
   })
 })
 
 describe('pipe |expandSuffix', () => {
-  it('expands a k suffix and returns a string representation', () => {
-    expect(run('$(span) | text | expandSuffix', root)).toBe('1500')
+  it('expands a k suffix and returns a string representation', async () => {
+    expect(await run('$(span) | text | expandSuffix', root)).toBe('1500')
   })
 })
 
 describe('pipe |regex', () => {
-  it('extracts the full first match', () => {
-    expect(run('$(h1) | text | regex("H\\\\w+")', root)).toBe('Hello')
+  it('extracts the full first match', async () => {
+    expect(await run('$(h1) | text | regex("H\\\\w+")', root)).toBe('Hello')
   })
 
-  it('extracts a specific capture group by index', () => {
-    expect(run('$(h1) | text | regex("(H)(\\\\w+)", 2)', root)).toBe('ello')
+  it('extracts a specific capture group by index', async () => {
+    expect(await run('$(h1) | text | regex("(H)(\\\\w+)", 2)', root)).toBe('ello')
   })
 
-  it('omits the field when the pattern does not match and the selector is optional', () => {
+  it('omits the field when the pattern does not match and the selector is optional', async () => {
     const node: TestNode = {
       tag: 'div',
       children: [{ tag: 'h1', text: 'Hello' }],
     }
-    expect(run('{ "x": $(h1)? | text | regex("xyz") }', node)).toEqual({})
+    expect(await run('{ "x": $(h1)? | text | regex("xyz") }', node)).toEqual({})
   })
 })
 
 describe('pipe |trim', () => {
-  it('trims leading and trailing whitespace with outside', () => {
-    expect(run('$(.desc) | text | trim(outside)', root)).toBe(
+  it('trims leading and trailing whitespace with outside', async () => {
+    expect(await run('$(.desc) | text | trim(outside)', root)).toBe(
       'lots   of   space',
     )
   })
 
-  it('collapses inner whitespace runs with inside', () => {
-    expect(run('$(.desc) | text | trim(inside)', root)).toBe(' lots of space ')
+  it('collapses inner whitespace runs with inside', async () => {
+    expect(await run('$(.desc) | text | trim(inside)', root)).toBe(' lots of space ')
   })
 
-  it('trims both inner and outer whitespace by default', () => {
-    expect(run('$(.desc) | text | trim', root)).toBe('lots of space')
+  it('trims both inner and outer whitespace by default', async () => {
+    expect(await run('$(.desc) | text | trim', root)).toBe('lots of space')
   })
 })
 
 describe('pipe |lowercase', () => {
-  it('lowercases the string', () => {
-    expect(run('$(h1) | text | lowercase', root)).toBe('hello')
+  it('lowercases the string', async () => {
+    expect(await run('$(h1) | text | lowercase', root)).toBe('hello')
   })
 })
 
 describe('pipe |date', () => {
-  it('parses a valid ISO date string into a Date', () => {
+  it('parses a valid ISO date string into a Date', async () => {
     const node: TestNode = {
       tag: 'div',
       children: [{ tag: 'time', text: '2024-01-15' }],
     }
-    const result = run('$(time) | text | date', node)
+    const result = await run('$(time) | text | date', node)
     expect(result).toBeTypeOf('string')
     expect(new Date(result as string).getFullYear()).toBe(2024)
   })
 
-  it('returns null for an invalid date string', () => {
+  it('returns null for an invalid date string', async () => {
     const node: TestNode = {
       tag: 'div',
       children: [{ tag: 'time', text: 'not-a-date' }],
     }
-    expect(run('{ "d": $(time)? | text | date }', node)).toEqual({})
+    expect(await run('{ "d": $(time)? | text | date }', node)).toEqual({})
   })
 
-  it('parses a Turkish-formatted date with locale and format kwargs', () => {
+  it('parses a Turkish-formatted date with locale and format kwargs', async () => {
     const node: TestNode = {
       tag: 'div',
       children: [{ tag: 'time', text: '30 Mayıs 2026' }],
     }
-    const result = run(
+    const result = await run(
       '$(time) | text | date(locale: "tr", format: "d MMMM yyyy")',
       node,
     )
@@ -566,13 +566,13 @@ describe('pipe |date', () => {
     expect(new Date(result as string).getDate()).toBe(30)
   })
 
-  it('returns null when the format does not match the input', () => {
+  it('returns null when the format does not match the input', async () => {
     const node: TestNode = {
       tag: 'div',
       children: [{ tag: 'time', text: 'nope' }],
     }
     expect(
-      run(
+      await run(
         '{ "d": $(time)? | text | date(locale: "tr", format: "d MMMM yyyy") }',
         node,
       ),
@@ -581,32 +581,32 @@ describe('pipe |date', () => {
 })
 
 describe('pipe |at', () => {
-  it('indexes into an array with a positive index', () => {
+  it('indexes into an array with a positive index', async () => {
     const node: TestNode = {
       tag: 'td',
       text: 'Afyonkarahisar\nMerkez\nKocatepe Mah.',
     }
-    expect(run('$(td) | lines | at(0)', node)).toBe('Afyonkarahisar')
-    expect(run('$(td) | lines | at(1)', node)).toBe('Merkez')
-    expect(run('$(td) | lines | at(2)', node)).toBe('Kocatepe Mah.')
+    expect(await run('$(td) | lines | at(0)', node)).toBe('Afyonkarahisar')
+    expect(await run('$(td) | lines | at(1)', node)).toBe('Merkez')
+    expect(await run('$(td) | lines | at(2)', node)).toBe('Kocatepe Mah.')
   })
 
-  it('returns null for an out-of-range index', () => {
+  it('returns null for an out-of-range index', async () => {
     const node: TestNode = {
       tag: 'td',
       text: 'only',
     }
-    expect(run('{ "v": $(td)? | lines | at(5) }', node)).toEqual({})
+    expect(await run('{ "v": $(td)? | lines | at(5) }', node)).toEqual({})
   })
 
-  it('throws when applied to a non-array input', () => {
+  it('throws when applied to a non-array input', async () => {
     const node: TestNode = { tag: 'td', text: 'hello' }
-    expect(() => run('$(td) | text | at(0)', node)).toThrow(/must be an array/)
+    await expect(run('$(td) | text | at(0)', node)).rejects.toThrow(/must be an array/)
   })
 })
 
 describe('pipe |merge', () => {
-  it('merges an array of objects into a single object', () => {
+  it('merges an array of objects into a single object', async () => {
     const ul: TestNode = {
       tag: 'ul',
       children: [
@@ -614,7 +614,7 @@ describe('pipe |merge', () => {
         { tag: 'li', attrs: { class: 'b' }, text: 'second' },
       ],
     }
-    const result = run(
+    const result = await run(
       '$$(li) { [$(li) | attr(class)]:  $ | text } | merge',
       ul,
     )
@@ -623,36 +623,36 @@ describe('pipe |merge', () => {
 })
 
 describe('provider pipeOps', () => {
-  it('delegates to a provider-defined pipe op', () => {
-    expect(run('$(h1) | double', root)).toBe('HelloHello')
+  it('delegates to a provider-defined pipe op', async () => {
+    expect(await run('$(h1) | double', root)).toBe('HelloHello')
   })
 
-  it('throws for an unknown pipe op not present in built-ins or provider', () => {
-    expect(() => run('$(h1) | unknownOp', root)).toThrow(
+  it('throws for an unknown pipe op not present in built-ins or provider', async () => {
+    await expect(run('$(h1) | unknownOp', root)).rejects.toThrow(
       'unknown pipe function: unknownOp',
     )
   })
 })
 
 describe('built-ins take precedence over provider pipeOps', () => {
-  it('uses built-in trim even when provider defines a trim op', () => {
+  it('uses built-in trim even when provider defines a trim op', async () => {
     const overridingProvider: HtmlegyProvider<TestNode> = {
       ...provider,
       pipeOps: { trim: () => 'OVERRIDDEN' },
     }
     const expr = new HtmlegyExpr('$(.desc) | text | trim', overridingProvider)
-    expect(expr.run(root)).toBe('lots of space')
+    expect(await expr.run(root)).toBe('lots of space')
   })
 })
 
 describe('scoped expr .()', () => {
-  it('evaluates expression with matched element as context', () => {
-    expect(run('$(ul).($(li) | text)', root)).toBe('one')
+  it('evaluates expression with matched element as context', async () => {
+    expect(await run('$(ul).($(li) | text)', root)).toBe('one')
   })
 })
 
 describe('alias @name on $$', () => {
-  it('exposes the alias in the block scope', () => {
+  it('exposes the alias in the block scope', async () => {
     const ul: TestNode = {
       tag: 'ul',
       attrs: { id: 'list' },
@@ -661,7 +661,7 @@ describe('alias @name on $$', () => {
         { tag: 'li', text: 'two' },
       ],
     }
-    expect(run('@root$$(li) { "v":  $ | text }', ul)).toEqual([
+    expect(await run('@root$$(li) { "v":  $ | text }', ul)).toEqual([
       { v: 'one' },
       { v: 'two' },
     ])
@@ -669,63 +669,63 @@ describe('alias @name on $$', () => {
 })
 
 describe('root ref @', () => {
-  it('references the root node passed to run()', () => {
+  it('references the root node passed to run()', async () => {
     const node: TestNode = { tag: 'div', attrs: { class: 'container' } }
-    expect(run('{ "c": @ | attr(class) }', node)).toEqual({ c: 'container' })
+    expect(await run('{ "c": @ | attr(class) }', node)).toEqual({ c: 'container' })
   })
 })
 
 describe('context ref $', () => {
-  it('evaluates to the current element', () => {
-    expect(run(' $ | text', { tag: 'span', text: 'hi' })).toBe('hi')
+  it('evaluates to the current element', async () => {
+    expect(await run(' $ | text', { tag: 'span', text: 'hi' })).toBe('hi')
   })
 })
 
 describe('onElement callback', () => {
-  it('is called once per matched single selector', () => {
+  it('is called once per matched single selector', async () => {
     const onElement = vi.fn()
     const expr = new HtmlegyExpr(
       '{ "title": $(h1) | text, "link": $(a) | attr(href) }',
       provider,
       { onElement },
     )
-    expr.run(root)
+    await expr.run(root)
     expect(onElement).toHaveBeenCalledTimes(2)
   })
 
-  it('receives the field label path from the enclosing object', () => {
+  it('receives the field label path from the enclosing object', async () => {
     const calls: string[][] = []
     const expr = new HtmlegyExpr('{ "title": $(h1) | text }', provider, {
       onElement: (_node, label) => calls.push(label.field),
     })
-    expr.run(root)
+    await expr.run(root)
     expect(calls).toEqual([['title']])
   })
 })
 
 describe('function call syntax', () => {
-  it('text(x) is equivalent to x | text', () => {
-    expect(run('text($(h1))', root)).toBe('Hello')
+  it('text(x) is equivalent to x | text', async () => {
+    expect(await run('text($(h1))', root)).toBe('Hello')
   })
 
-  it('attr(x, name) is equivalent to x | attr(name)', () => {
-    expect(run('attr($(a), href)', root)).toBe('/path')
+  it('attr(x, name) is equivalent to x | attr(name)', async () => {
+    expect(await run('attr($(a), href)', root)).toBe('/path')
   })
 
-  it('can chain further pipe ops after a function call', () => {
-    expect(run('text($(h1)) | lowercase', root)).toBe('hello')
+  it('can chain further pipe ops after a function call', async () => {
+    expect(await run('text($(h1)) | lowercase', root)).toBe('hello')
   })
 
-  it('can nest function calls', () => {
-    expect(run('lowercase(text($(h1)))', root)).toBe('hello')
+  it('can nest function calls', async () => {
+    expect(await run('lowercase(text($(h1)))', root)).toBe('hello')
   })
 
-  it('number(x) works with kwargs', () => {
+  it('number(x) works with kwargs', async () => {
     const node: TestNode = {
       tag: 'div',
       children: [{ tag: 'span', text: '1.234,56' }],
     }
-    expect(run('number(text($(span)), locale: "de")', node)).toBeCloseTo(
+    expect(await run('number(text($(span)), locale: "de")', node)).toBeCloseTo(
       1234.56,
     )
   })
@@ -775,15 +775,15 @@ describe('zip(a, b, ...)', () => {
     ],
   }
 
-  it('zips two lane lists by index, binding $1 and $2 in the block', () => {
+  it('zips two lane lists by index, binding $1 and $2 in the block', async () => {
     expect(
-      run('zip($$(.h), $$(.c)) { [$1 | text]:  $2 | text }', table),
+      await run('zip($$(.h), $$(.c)) { [$1 | text]:  $2 | text }', table),
     ).toEqual([{ Make: 'Audi' }, { Model: 'A5' }, { Year: '2024' }])
   })
 
-  it('produces attribute maps per row when nested under each-row iteration', () => {
+  it('produces attribute maps per row when nested under each-row iteration', async () => {
     expect(
-      run(
+      await run(
         '$$(.row) { "attrs": zip(@.($$(.h)), $$(.c)) { [$1 | text]: $2 | text } | merge }',
         table,
       ),
@@ -793,7 +793,7 @@ describe('zip(a, b, ...)', () => {
     ])
   })
 
-  it('truncates to the shortest lane', () => {
+  it('truncates to the shortest lane', async () => {
     const short: TestNode = {
       tag: 'div',
       children: [
@@ -805,11 +805,11 @@ describe('zip(a, b, ...)', () => {
       ],
     }
     expect(
-      run('zip($$(.k), $$(.v)) { [$1 | text]:  $2 | text }', short),
+      await run('zip($$(.k), $$(.v)) { [$1 | text]:  $2 | text }', short),
     ).toEqual([{ a: '1' }, { b: '2' }])
   })
 
-  it('supports three or more lanes', () => {
+  it('supports three or more lanes', async () => {
     const triple: TestNode = {
       tag: 'div',
       children: [
@@ -822,7 +822,7 @@ describe('zip(a, b, ...)', () => {
       ],
     }
     expect(
-      run(
+      await run(
         'zip($$(.k), $$(.v), $$(.u)) { "k":  $1 | text, "v":  $2 | text, "u":  $3 | text }',
         triple,
       ),
@@ -832,9 +832,9 @@ describe('zip(a, b, ...)', () => {
     ])
   })
 
-  it('returns an empty array when any lane is empty', () => {
+  it('returns an empty array when any lane is empty', async () => {
     expect(
-      run('zip($$(.k), $$(.missing)) { [$1 | text]:  $2 | text }', {
+      await run('zip($$(.k), $$(.missing)) { [$1 | text]:  $2 | text }', {
         tag: 'div',
         children: [{ tag: 'span', text: 'a', attrs: { class: 'k' } }],
       }),
@@ -843,11 +843,11 @@ describe('zip(a, b, ...)', () => {
 })
 
 describe('isReactive', () => {
-  it('returns false for a static expression', () => {
+  it('returns false for a static expression', async () => {
     expect(new HtmlegyExpr('$(h1) | text', provider).isReactive).toBe(false)
   })
 
-  it('throws when calling reactive() on a non-reactive expression', () => {
+  it('throws when calling reactive() on a non-reactive expression', async () => {
     expect(() =>
       new HtmlegyExpr('$(h1) | text', provider).reactive(root),
     ).toThrow()
@@ -862,9 +862,9 @@ const node: TestNode = {
   children: [{ tag: 'span', text: '1.234,56' }],
 }
 
-test('must be able to extract url from attributes', () => {
+test('must be able to extract url from attributes', async () => {
   expect(
-    run('$(div) | attr(text) | regex("https://test.com/in/(.+)", 1)', node),
+    await run('$(div) | attr(text) | regex("https://test.com/in/(.+)", 1)', node),
   ).toBe('hi')
 })
 
@@ -894,9 +894,9 @@ describe('root selectors @$(…) and @$$(…)', () => {
     ],
   }
 
-  it('@$$(sel) selects from root inside a nested scope', () => {
+  it('@$$(sel) selects from root inside a nested scope', async () => {
     expect(
-      run(
+      await run(
         '$$(.row) { "attrs": zip(@$$(.h), $$(.c)) { [$1 | text]: $2 | text } | merge }',
         table,
       ),
@@ -906,15 +906,15 @@ describe('root selectors @$(…) and @$$(…)', () => {
     ])
   })
 
-  it('@$(sel) selects a single match from root inside a nested scope', () => {
-    expect(run('$$(.row) { "first": @$(.h) | text }', table)).toEqual([
+  it('@$(sel) selects a single match from root inside a nested scope', async () => {
+    expect(await run('$$(.row) { "first": @$(.h) | text }', table)).toEqual([
       { first: 'Make' },
       { first: 'Make' },
     ])
   })
 
-  it('@$$(sel) at top level behaves like $$(sel)', () => {
-    expect(run('@$$(.h) { "v": $ | text }', table)).toEqual([
+  it('@$$(sel) at top level behaves like $$(sel)', async () => {
+    expect(await run('@$$(.h) { "v": $ | text }', table)).toEqual([
       { v: 'Make' },
       { v: 'Model' },
       { v: 'Year' },
@@ -937,9 +937,9 @@ describe('alias bind-or-use', () => {
     ],
   }
 
-  it('binds the alias the first time and reuses it on subsequent occurrences', () => {
+  it('binds the alias the first time and reuses it on subsequent occurrences', async () => {
     expect(
-      run(
+      await run(
         '@outer$(ul) { "list": $$(li) { "v": $ | text, "outerId": @outer | attr(id) } }',
         tree,
       ),
@@ -951,9 +951,9 @@ describe('alias bind-or-use', () => {
     })
   })
 
-  it('@name$(sel) re-uses an already-bound alias as scope', () => {
+  it('@name$(sel) re-uses an already-bound alias as scope', async () => {
     expect(
-      run(
+      await run(
         '@outer$(ul) { "again": @outer$(ul) | attr(class) ?? "noclass", "items": @outer$$(li) { "v": $ | text } }',
         tree,
       ),
@@ -983,33 +983,33 @@ describe('| money', () => {
     children: [{ tag: 'span', attrs: { class: 'price' }, text: '¥4980' }],
   }
 
-  it('infers currency from a leading symbol', () => {
-    expect(run('$(.price) | text | money', usd)).toEqual({
+  it('infers currency from a leading symbol', async () => {
+    expect(await run('$(.price) | text | money', usd)).toEqual({
       _type: 'money',
       amount: 1234.56,
       currency: 'USD',
     })
   })
 
-  it('infers currency from a JPY symbol with zero decimals', () => {
-    expect(run('$(.price) | text | money', jpy)).toEqual({
+  it('infers currency from a JPY symbol with zero decimals', async () => {
+    expect(await run('$(.price) | text | money', jpy)).toEqual({
       _type: 'money',
       amount: 4980,
       currency: 'JPY',
     })
   })
 
-  it('accepts an explicit currency literal kwarg', () => {
-    expect(run("$(.price) | text | money(currency: 'TRY')", tl, 'tr')).toEqual({
+  it('accepts an explicit currency literal kwarg', async () => {
+    expect(await run("$(.price) | text | money(currency: 'TRY')", tl, 'tr')).toEqual({
       _type: 'money',
       amount: 1234.56,
       currency: 'TRY',
     })
   })
 
-  it('resolves an expression-valued currency kwarg', () => {
+  it('resolves an expression-valued currency kwarg', async () => {
     expect(
-      run('$(.price) | text | money(currency: $(.code) | text)', tl, 'tr'),
+      await run('$(.price) | text | money(currency: $(.code) | text)', tl, 'tr'),
     ).toEqual({
       _type: 'money',
       amount: 1234.56,
@@ -1017,25 +1017,25 @@ describe('| money', () => {
     })
   })
 
-  it('returns null when text is empty', () => {
-    expect(run("'' | money(currency: 'USD')", usd)).toBeNull()
+  it('returns null when text is empty', async () => {
+    expect(await run("'' | money(currency: 'USD')", usd)).toBeNull()
   })
 
-  it('throws when no currency can be inferred and none is given', () => {
+  it('throws when no currency can be inferred and none is given', async () => {
     const node: TestNode = {
       tag: 'div',
       children: [{ tag: 'span', attrs: { class: 'price' }, text: '49.99' }],
     }
-    expect(() => run('$(.price) | text | money', node)).toThrow(/currency/)
+    await expect(run('$(.price) | text | money', node)).rejects.toThrow(/currency/)
   })
 
-  it('defaults locale to html[lang] when no kwarg is given', () => {
+  it('defaults locale to html[lang] when no kwarg is given', async () => {
     const node: TestNode = {
       tag: 'html',
       attrs: { lang: 'tr' },
       children: [{ tag: 'span', attrs: { class: 'price' }, text: '$ 51.000 ' }],
     }
-    expect(run('$(.price) | text | money', node)).toEqual({
+    expect(await run('$(.price) | text | money', node)).toEqual({
       _type: 'money',
       amount: 51000,
       currency: 'USD',

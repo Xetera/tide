@@ -12,17 +12,17 @@ function run(expr: string, html: string) {
 }
 
 describe('text', () => {
-  it('extracts text content', () => {
-    expect(run('{ "v": $(h1) | text }', '<h1>hello</h1>')).toEqual({
+  it('extracts text content', async () => {
+    expect(await run('{ "v": $(h1) | text }', '<h1>hello</h1>')).toEqual({
       v: 'hello',
     })
   })
 })
 
 describe('textContent', () => {
-  it('returns raw textContent including no separator for br', () => {
+  it('returns raw textContent including no separator for br', async () => {
     expect(
-      run(
+      await run(
         '{ "v": $(td) | textContent }',
         '<table><tr><td>İstanbul<br>Pendik</td></tr></table>',
       ),
@@ -31,9 +31,9 @@ describe('textContent', () => {
 })
 
 describe('innerText', () => {
-  it('falls back to textContent when innerText is unavailable', () => {
+  it('falls back to textContent when innerText is unavailable', async () => {
     expect(
-      run(
+      await run(
         '{ "v": $(td) | innerText }',
         '<table><tr><td>İstanbul<br>Pendik</td></tr></table>',
       ),
@@ -42,18 +42,18 @@ describe('innerText', () => {
 })
 
 describe('lines', () => {
-  it('splits on br into an array of segments', () => {
+  it('splits on br into an array of segments', async () => {
     expect(
-      run(
+      await run(
         '{ "v": $(td) | lines }',
         '<table><tr><td>İstanbul<br>Pendik</td></tr></table>',
       ),
     ).toEqual({ v: ['İstanbul', 'Pendik'] })
   })
 
-  it('splits on block-level children', () => {
+  it('splits on block-level children', async () => {
     expect(
-      run(
+      await run(
         '{ "v": $(div) | lines }',
         '<div><p>one</p><p>two</p></div>',
       ),
@@ -62,41 +62,41 @@ describe('lines', () => {
 })
 
 describe('attr', () => {
-  it('extracts an attribute', () => {
-    expect(run('{ "v": $(a) | attr(href) }', '<a href="/foo">x</a>')).toEqual({
+  it('extracts an attribute', async () => {
+    expect(await run('{ "v": $(a) | attr(href) }', '<a href="/foo">x</a>')).toEqual({
       v: '/foo',
     })
   })
 })
 
 describe('data', () => {
-  it('extracts a data attribute', () => {
+  it('extracts a data attribute', async () => {
     expect(
-      run('{ "v": $(div) | data(age) | number }', '<div data-age="42"></div>'),
+      await run('{ "v": $(div) | data(age) | number }', '<div data-age="42"></div>'),
     ).toEqual({ v: 42 })
   })
 })
 
 describe('exists', () => {
-  it('returns true when element is present', () => {
+  it('returns true when element is present', async () => {
     expect(
-      run(
+      await run(
         '{ "v": $([aria-label=Verified]) | exists }',
         '<span aria-label="Verified"></span>',
       ),
     ).toEqual({ v: true })
   })
 
-  it('returns false when element is absent', () => {
+  it('returns false when element is absent', async () => {
     expect(
-      run('{ "v": $([aria-label=Verified]) | exists }', '<div></div>'),
+      await run('{ "v": $([aria-label=Verified]) | exists }', '<div></div>'),
     ).toEqual({ v: false })
   })
 })
 
 describe('url', () => {
-  it('resolves a relative url', () => {
-    const result = run(
+  it('resolves a relative url', async () => {
+    const result = await run(
       '{ "v": $(a) | attr(href) | url }',
       '<a href="/foo">x</a>',
     )
@@ -105,24 +105,24 @@ describe('url', () => {
 })
 
 describe('number', () => {
-  it('casts a string to a number', () => {
-    expect(run('{ "v": $(span) | text | number }', '<span>123</span>')).toEqual(
+  it('casts a string to a number', async () => {
+    expect(await run('{ "v": $(span) | text | number }', '<span>123</span>')).toEqual(
       {
         v: 123,
       },
     )
   })
 
-  it('parses turkish formatted numbers using compile-time locale', () => {
-    const result = createExpr('{ "v": $(span) | text | number }', {
+  it('parses turkish formatted numbers using compile-time locale', async () => {
+    const result = await createExpr('{ "v": $(span) | text | number }', {
       locale: 'tr',
     }).run(dom('<span>1.234,56</span>').body)
     expect(result).toEqual({ v: 1234.56 })
   })
 
-  it('parses turkish formatted numbers using inline locale kwarg', () => {
+  it('parses turkish formatted numbers using inline locale kwarg', async () => {
     expect(
-      run(
+      await run(
         '{ "v": $(span) | text | number(locale: \'tr\') }',
         '<span>1.234,56</span>',
       ),
@@ -131,18 +131,18 @@ describe('number', () => {
 })
 
 describe('expandSuffix', () => {
-  it('expands K suffix', () => {
+  it('expands K suffix', async () => {
     expect(
-      run(
+      await run(
         '{ "v": $(span) | text | expandSuffix | number }',
         '<span>1.5K</span>',
       ),
     ).toEqual({ v: 1500 })
   })
 
-  it('expands M suffix', () => {
+  it('expands M suffix', async () => {
     expect(
-      run('{ "v": $(span) | text | expandSuffix | number }', '<span>2M</span>'),
+      await run('{ "v": $(span) | text | expandSuffix | number }', '<span>2M</span>'),
     ).toEqual({ v: 2000000 })
   })
 })
@@ -152,89 +152,89 @@ describe('number locale suffix expansion', () => {
     createExpr(expr, { locale: 'tr' }).run(dom(html).body)
 
   describe('en', () => {
-    it('expands k', () => {
+    it('expands k', async () => {
       expect(
-        run('{ "v": $(span) | text | number }', '<span>1.5k</span>'),
+        await run('{ "v": $(span) | text | number }', '<span>1.5k</span>'),
       ).toEqual({ v: 1500 })
     })
 
-    it('expands K', () => {
+    it('expands K', async () => {
       expect(
-        run('{ "v": $(span) | text | number }', '<span>42K</span>'),
+        await run('{ "v": $(span) | text | number }', '<span>42K</span>'),
       ).toEqual({ v: 42000 })
     })
 
-    it('expands m', () => {
+    it('expands m', async () => {
       expect(
-        run('{ "v": $(span) | text | number }', '<span>2m</span>'),
+        await run('{ "v": $(span) | text | number }', '<span>2m</span>'),
       ).toEqual({
         v: 2000000,
       })
     })
 
-    it('expands b', () => {
+    it('expands b', async () => {
       expect(
-        run('{ "v": $(span) | text | number }', '<span>1b</span>'),
+        await run('{ "v": $(span) | text | number }', '<span>1b</span>'),
       ).toEqual({
         v: 1000000000,
       })
     })
 
-    it('does not expand tr suffixes', () => {
+    it('does not expand tr suffixes', async () => {
       expect(
-        run('{ "v": $(span) | text | number }', '<span>100 bin</span>'),
+        await run('{ "v": $(span) | text | number }', '<span>100 bin</span>'),
       ).toEqual({ v: 100 })
     })
   })
 
   describe('tr', () => {
-    it('expands bin', () => {
+    it('expands bin', async () => {
       expect(
-        tr('{ "v": $(span) | text | number }', '<span>100 bin</span>'),
+        await tr('{ "v": $(span) | text | number }', '<span>100 bin</span>'),
       ).toEqual({ v: 100000 })
     })
 
-    it('expands B as bin', () => {
+    it('expands B as bin', async () => {
       expect(
-        tr('{ "v": $(span) | text | number }', '<span>2,5 B</span>'),
+        await tr('{ "v": $(span) | text | number }', '<span>2,5 B</span>'),
       ).toEqual({ v: 2500 })
     })
 
-    it('expands milyon', () => {
+    it('expands milyon', async () => {
       expect(
-        tr('{ "v": $(span) | text | number }', '<span>1,5 milyon</span>'),
+        await tr('{ "v": $(span) | text | number }', '<span>1,5 milyon</span>'),
       ).toEqual({ v: 1500000 })
     })
 
-    it('expands mn', () => {
+    it('expands mn', async () => {
       expect(
-        tr('{ "v": $(span) | text | number }', '<span>3 mn</span>'),
+        await tr('{ "v": $(span) | text | number }', '<span>3 mn</span>'),
       ).toEqual({ v: 3000000 })
     })
 
-    it('expands milyar', () => {
+    it('expands milyar', async () => {
       expect(
-        tr('{ "v": $(span) | text | number }', '<span>2 milyar</span>'),
+        await tr('{ "v": $(span) | text | number }', '<span>2 milyar</span>'),
       ).toEqual({ v: 2000000000 })
     })
 
-    it('expands mr', () => {
+    it('expands mr', async () => {
       expect(
-        tr('{ "v": $(span) | text | number }', '<span>1 mr</span>'),
+        await tr('{ "v": $(span) | text | number }', '<span>1 mr</span>'),
       ).toEqual({ v: 1000000000 })
     })
 
-    it('does not expand en suffixes', () => {
-      expect(tr('{ "v": $(span) | text | number }', '<span>1b</span>')).toEqual(
+    it('does not expand en suffixes', async () => {
+      expect(await tr('{ "v": $(span) | text | number }', '<span>1b</span>')).toEqual(
         {
           v: 1000,
         },
       )
     })
 
-    it('handles decimal with Turkish formatting', () => {
+    it('handles decimal with Turkish formatting', async () => {
       expect(
-        tr(
+        await tr(
           '{ "v": $(span) | text | number(locale: \'tr\') }',
           '<span>1.234 bin</span>',
         ),
@@ -244,18 +244,18 @@ describe('number locale suffix expansion', () => {
 })
 
 describe('regex', () => {
-  it('extracts full match', () => {
+  it('extracts full match', async () => {
     expect(
-      run(
+      await run(
         '{ "v": $(span) | text | regex("[0-9]+") }',
         '<span>abc 42 def</span>',
       ),
     ).toEqual({ v: '42' })
   })
 
-  it('extracts a capture group', () => {
+  it('extracts a capture group', async () => {
     expect(
-      run(
+      await run(
         '{ "v": $(span) | text | regex("(.+) TL", 1) | number }',
         '<span>1,250 TL</span>',
       ),
@@ -264,15 +264,15 @@ describe('regex', () => {
 })
 
 describe('trim', () => {
-  it('trims outside whitespace', () => {
+  it('trims outside whitespace', async () => {
     expect(
-      run('{ "v": $(span) | text | trim(outside) }', '<span>  hello  </span>'),
+      await run('{ "v": $(span) | text | trim(outside) }', '<span>  hello  </span>'),
     ).toEqual({ v: 'hello' })
   })
 
-  it('collapses inside whitespace', () => {
+  it('collapses inside whitespace', async () => {
     expect(
-      run(
+      await run(
         '{ "v": $(span) | text | trim(inside) }',
         '<span>hello   world</span>',
       ),
@@ -281,8 +281,8 @@ describe('trim', () => {
 })
 
 describe('date', () => {
-  it('parses a datetime attribute', () => {
-    const result = run(
+  it('parses a datetime attribute', async () => {
+    const result = await run(
       '{ "v": $(time) | attr(datetime) | date }',
       '<time datetime="2024-06-15T12:00:00Z"></time>',
     )
@@ -291,8 +291,8 @@ describe('date', () => {
 })
 
 describe('media', () => {
-  it('extracts url from an img element', () => {
-    const result = run(
+  it('extracts url from an img element', async () => {
+    const result = await run(
       '{ "v": $(img) | media }',
       '<img src="https://example.com/photo.jpg" />',
     )
@@ -301,8 +301,8 @@ describe('media', () => {
     })
   })
 
-  it('includes dimensions when present as attributes', () => {
-    const result = run(
+  it('includes dimensions when present as attributes', async () => {
+    const result = await run(
       '{ "v": $(img) | media }',
       '<img src="https://example.com/photo.jpg" width="640" height="480" />',
     )
@@ -311,8 +311,8 @@ describe('media', () => {
     })
   })
 
-  it('extracts url from a video element', () => {
-    const result = run(
+  it('extracts url from a video element', async () => {
+    const result = await run(
       '{ "v": $(video) | media }',
       '<video src="https://example.com/clip.mp4"></video>',
     )
@@ -323,10 +323,10 @@ describe('media', () => {
 })
 
 describe('nested fields', () => {
-  it('descends into a child context', () => {
+  it('descends into a child context', async () => {
     const html =
       '<div class="loc"><span>Istanbul</span><a href="/map">map</a></div>'
-    const result = run(
+    const result = await run(
       '{ "location": $(.loc) { "name": $(span) | text } }',
       html,
     )
@@ -335,54 +335,56 @@ describe('nested fields', () => {
 })
 
 describe('$$', () => {
-  it('produces an array', () => {
+  it('produces an array', async () => {
     const html = '<ul><li><p>Homer</p></li><li><p>Bart</p></li></ul>'
-    const result = run('{ "names": $$(ul > li) { "name": $(p) | text } }', html)
+    const result = await run('{ "names": $$(ul > li) { "name": $(p) | text } }', html)
     expect(result).toEqual({ names: [{ name: 'Homer' }, { name: 'Bart' }] })
   })
 
-  it('returns empty array when no elements match', () => {
+  it('returns empty array when no elements match', async () => {
     expect(
-      run('{ "names": $$(li) { "name": $ | text } }', '<div></div>'),
+      await run('{ "names": $$(li) { "name": $ | text } }', '<div></div>'),
     ).toEqual({ names: [] })
   })
 
-  it('throws when + selector matches nothing', () => {
-    expect(() =>
+  it('throws when + selector matches nothing', async () => {
+    await expect(
       run('{ "names": $$(li)+ { "name": $ | text } }', '<div></div>'),
-    ).toThrow()
+    ).rejects.toThrow()
   })
 
-  it('does not throw when + selector matches at least one element', () => {
-    expect(() =>
+  it('does not throw when + selector matches at least one element', async () => {
+    await expect(
       run('{ "names": $$(li)+ { "name": $ | text } }', '<ul><li>a</li></ul>'),
-    ).not.toThrow()
+    ).resolves.toBeDefined()
   })
 })
 
 describe('required single selector', () => {
-  it('throws when a required selector matches nothing', () => {
-    expect(() => run('{ "v": $(h1) | text }', '<div></div>')).toThrow(
+  it('throws when a required selector matches nothing', async () => {
+    await expect(run('{ "v": $(h1) | text }', '<div></div>')).rejects.toThrow(
       '$(h1) matched nothing',
     )
   })
 
-  it('does not throw when required selector matches', () => {
-    expect(() => run('{ "v": $(h1) | text }', '<h1>hello</h1>')).not.toThrow()
+  it('does not throw when required selector matches', async () => {
+    await expect(
+      run('{ "v": $(h1) | text }', '<h1>hello</h1>'),
+    ).resolves.toBeDefined()
   })
 
-  it('uses fallback when required primary selector misses', () => {
+  it('uses fallback when required primary selector misses', async () => {
     expect(
-      run('{ "v": $(h1) | text ?? $(h2) | text }', '<h2>fallback</h2>'),
+      await run('{ "v": $(h1) | text ?? $(h2) | text }', '<h2>fallback</h2>'),
     ).toEqual({ v: 'fallback' })
   })
 })
 
 describe('merge', () => {
-  it('merges array of objects into one', () => {
+  it('merges array of objects into one', async () => {
     const html =
       '<ul><li><p>Homer</p><span>42</span></li><li><p>Bart</p><span>10</span></li></ul>'
-    const result = run(
+    const result = await run(
       '{ "users": $$(ul > li) { [$(p) | text]: $(span) | text | number } | merge }',
       html,
     )
@@ -391,13 +393,13 @@ describe('merge', () => {
 })
 
 describe('omit with ?', () => {
-  it('omits the key when element is missing', () => {
-    const result = run('{ "v": $(.missing)? | text }', '<div></div>')
+  it('omits the key when element is missing', async () => {
+    const result = await run('{ "v": $(.missing)? | text }', '<div></div>')
     expect(result).not.toHaveProperty('v')
   })
 
-  it('includes the key when element is present', () => {
-    const result = run(
+  it('includes the key when element is present', async () => {
+    const result = await run(
       '{ "v": $(.present)? | text }',
       '<div class="present">hi</div>',
     )
@@ -406,72 +408,72 @@ describe('omit with ?', () => {
 })
 
 describe('?? selector fallback', () => {
-  it('uses first matching selector', () => {
+  it('uses first matching selector', async () => {
     const html = '<span class="a">42K</span>'
-    const result = run(
+    const result = await run(
       '{ "v": $(.a) | text | expandSuffix | number ?? $(.b) | text | expandSuffix | number }',
       html,
     )
     expect(result).toEqual({ v: 42000 })
   })
 
-  it('falls back to second selector when first is absent', () => {
+  it('falls back to second selector when first is absent', async () => {
     const html = '<span class="b">42K</span>'
-    const result = run(
+    const result = await run(
       '{ "v": $(.a) | text | expandSuffix | number ?? $(.b) | text | expandSuffix | number }',
       html,
     )
     expect(result).toEqual({ v: 42000 })
   })
 
-  it('applies the pipeline once to whichever matched', () => {
+  it('applies the pipeline once to whichever matched', async () => {
     const html = '<span class="b">1.2M</span>'
-    const result = run(
+    const result = await run(
       '{ "v": $(.a) | text | expandSuffix | number ?? $(.b) | text | expandSuffix | number }',
       html,
     )
     expect(result).toEqual({ v: 1200000 })
   })
 
-  it('does not apply post-fallback transforms when primary already produced a value', () => {
+  it('does not apply post-fallback transforms when primary already produced a value', async () => {
     const html =
       '<span class="a" data-id="123"></span><span class="b">456</span>'
-    const result = run('{ "v": $(.a) | data(id) ?? $(.b) | text }', html)
+    const result = await run('{ "v": $(.a) | data(id) ?? $(.b) | text }', html)
     expect(result).toEqual({ v: '123' })
   })
 })
 
 describe('match', () => {
-  it('uses the first matching branch', () => {
+  it('uses the first matching branch', async () => {
     const html = '<video src="blob:x"></video>'
-    const result = run(
+    const result = await run(
       '{ "media": match { $(video[src^=blob]) => { "type": "video" } $([role=presentation]) => { "type": "carousel" } } }',
       html,
     )
     expect(result).toEqual({ media: { type: 'video' } })
   })
 
-  it('skips non-matching branches', () => {
+  it('skips non-matching branches', async () => {
     const html = '<ul role="presentation"><li></li></ul>'
-    const result = run(
+    const result = await run(
       '{ "media": match { $(video[src^=blob]) => { "type": "video" } $([role=presentation]) => { "type": "carousel" } } }',
       html,
     )
     expect(result).toEqual({ media: { type: 'carousel' } })
   })
 
-  it('falls back to last arm when nothing matches', () => {
+  it('falls back to last arm when nothing matches', async () => {
     const html = '<div></div>'
-    const result = run(
+    const result = await run(
       '{ "count": match { $(span.enabled) => { "tag": "count_enabled" } _ => { "tag": "count_disabled" } } }',
       html,
     )
     expect(result).toEqual({ count: { tag: 'count_disabled' } })
   })
 
-  it('match with scalar branch result', () => {
+  it('match with scalar branch result', async () => {
     const html = '<span aria-label="Carousel"></span>'
-    const result = run(
+    const result = await run(
       '{ "kind": match { $([aria-label=Carousel]) => "carousel" $([aria-label=Clip]) => "clip" _ => null } }',
       html,
     )
@@ -480,10 +482,10 @@ describe('match', () => {
 })
 
 describe('alias @', () => {
-  it('allows referencing an ancestor element from a nested $$ block', () => {
+  it('allows referencing an ancestor element from a nested $$ block', async () => {
     const html =
       '<ul><li data-list-id="42"><a href="/posts/1">First</a><a href="/posts/2">Second</a></li></ul>'
-    const result = run(
+    const result = await run(
       '{ "links": @row $$(ul > li) { "items": $$(a) { "href": $ | attr(href), "listId": @row | data(list-id) } } }',
       html,
     )
@@ -501,20 +503,20 @@ describe('alias @', () => {
 })
 
 describe('conditional ?', () => {
-  it('returns true branch when condition is truthy', () => {
-    expect(run('{ "v": $(p) | text ? "yes" : "no" }', '<p>hello</p>')).toEqual({
+  it('returns true branch when condition is truthy', async () => {
+    expect(await run('{ "v": $(p) | text ? "yes" : "no" }', '<p>hello</p>')).toEqual({
       v: 'yes',
     })
   })
 
-  it('returns false branch when condition is falsy', () => {
-    expect(run('{ "v": $(p) | text ? "yes" : "no" }', '<div></div>')).toEqual({
+  it('returns false branch when condition is falsy', async () => {
+    expect(await run('{ "v": $(p) | text ? "yes" : "no" }', '<div></div>')).toEqual({
       v: 'no',
     })
   })
 
-  it('omits key when single-arm conditional has no match', () => {
-    const result = run('{ "v": $(p) | text ? "yes" }', '<div></div>')
+  it('omits key when single-arm conditional has no match', async () => {
+    const result = await run('{ "v": $(p) | text ? "yes" }', '<div></div>')
     expect(result).not.toHaveProperty('v')
   })
 })
@@ -523,19 +525,21 @@ describe('watch', () => {
   beforeEach(() => { vi.useFakeTimers() })
   afterEach(() => { vi.useRealTimers() })
 
-  it('exposes reactive interface', () => {
+  it('exposes reactive interface', async () => {
     const expr = createExpr('watch $$(li) { "v": $ | text }')
     expect(expr.isReactive).toBe(true)
   })
 
-  it('emits initial value on subscribe', () => {
+  it('emits initial value on subscribe', async () => {
     const doc = dom('<ul><li>a</li><li>b</li></ul>')
     const reactive = createExpr('watch $$(li) { "v": $ | text }').reactive(
       doc.body,
     )
     const cb = vi.fn()
     reactive.subscribe(cb)
-    expect(cb).toHaveBeenCalledWith([{ v: 'a' }, { v: 'b' }])
+    await vi.waitFor(() =>
+      expect(cb).toHaveBeenCalledWith([{ v: 'a' }, { v: 'b' }]),
+    )
   })
 
   it('re-emits when DOM mutates', async () => {
@@ -561,8 +565,9 @@ describe('watch', () => {
     ).reactive(doc.body)
     const cb = vi.fn()
     reactive.subscribe(cb)
-
-    expect(cb).toHaveBeenCalledWith([{ id: '1', link: '/a' }])
+    await vi.waitFor(() =>
+      expect(cb).toHaveBeenCalledWith([{ id: '1', link: '/a' }]),
+    )
 
     const li = doc.createElement('li')
     li.setAttribute('data-id', '2')
@@ -609,6 +614,7 @@ describe('watch', () => {
     )
     const cb = vi.fn()
     const unsub = reactive.subscribe(cb)
+    await vi.waitFor(() => expect(cb).toHaveBeenCalledTimes(1))
     unsub()
 
     const li = doc.createElement('li')
@@ -653,7 +659,7 @@ describe('watch', () => {
       doc.body,
     )
     reactive.subscribe(() => {})
-    expect(reactive.get()).toEqual([{ v: 'a' }])
+    await vi.waitFor(() => expect(reactive.get()).toEqual([{ v: 'a' }]))
 
     const li = doc.createElement('li')
     li.textContent = 'b'
@@ -689,11 +695,12 @@ describe('watch', () => {
     )
     const cb = vi.fn()
     const unsub = reactive.subscribe(cb)
+    await vi.waitFor(() => expect(cb).toHaveBeenCalledTimes(1))
     unsub()
 
     const cb2 = vi.fn()
     reactive.subscribe(cb2)
-    expect(cb2).toHaveBeenCalledWith([{ v: 'a' }])
+    await vi.waitFor(() => expect(cb2).toHaveBeenCalledWith([{ v: 'a' }]))
 
     const li = doc.createElement('li')
     li.textContent = 'b'
@@ -773,8 +780,7 @@ describe('watch', () => {
     ).reactive(doc.body)
     const cb = vi.fn()
     reactive.subscribe(cb)
-
-    expect(cb).toHaveBeenCalledWith({ v: 'hello' })
+    await vi.waitFor(() => expect(cb).toHaveBeenCalledWith({ v: 'hello' }))
 
     doc.body.querySelector('span')!.textContent = 'world'
 
@@ -789,8 +795,9 @@ describe('watch', () => {
     ).reactive(doc.body)
     const cb = vi.fn()
     reactive.subscribe(cb)
-
-    expect(cb).toHaveBeenCalledWith({ test: [{ v: 'a' }, { v: 'b' }] })
+    await vi.waitFor(() =>
+      expect(cb).toHaveBeenCalledWith({ test: [{ v: 'a' }, { v: 'b' }] }),
+    )
 
     const div = doc.body.querySelector('div')!
     doc.body.removeChild(div)
@@ -826,8 +833,7 @@ describe('watch', () => {
       lastSerialized = serialized
       cb(value)
     })
-
-    expect(cb).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => expect(cb).toHaveBeenCalledTimes(1))
 
     const ul = doc.body.querySelector('ul')!
     const existing = ul.querySelector('li')!
@@ -842,19 +848,19 @@ describe('watch', () => {
 })
 
 describe('await', () => {
-  it('exposes reactive interface', () => {
+  it('exposes reactive interface', async () => {
     const expr = createExpr('await $$(li) { "v": $ | text }')
     expect(expr.isReactive).toBe(true)
   })
 
-  it('evaluates immediately when condition already exists (self-await)', () => {
+  it('evaluates immediately when condition already exists (self-await)', async () => {
     const doc = dom('<ul><li>a</li></ul>')
     const reactive = createExpr('await $$(li) { "v": $ | text }').reactive(
       doc.body,
     )
     const cb = vi.fn()
     reactive.subscribe(cb)
-    expect(cb).toHaveBeenCalledWith([{ v: 'a' }])
+    await vi.waitFor(() => expect(cb).toHaveBeenCalledWith([{ v: 'a' }]))
   })
 
   it('waits for sentinel condition before evaluating', async () => {
@@ -875,8 +881,7 @@ describe('await', () => {
     li.textContent = 'x'
     doc.body.appendChild(li)
 
-    await new Promise((r) => setTimeout(r, 0))
-    expect(cb).toHaveBeenCalledWith([{ v: 'x' }])
+    await vi.waitFor(() => expect(cb).toHaveBeenCalledWith([{ v: 'x' }]))
   })
 
   it('await watch: waits for first li > .item to appear, then tracks subsequent additions', async () => {
@@ -926,8 +931,7 @@ describe('await', () => {
     ready.id = 'ready'
     doc.body.appendChild(ready)
 
-    await new Promise((r) => setTimeout(r, 0))
-    expect(cb).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => expect(cb).toHaveBeenCalledTimes(1))
 
     doc.body.appendChild(doc.createElement('li'))
     await new Promise((r) => setTimeout(r, 0))
@@ -936,36 +940,36 @@ describe('await', () => {
 })
 
 describe('expression field', () => {
-  it('merges fields into parent object', () => {
+  it('merges fields into parent object', async () => {
     expect(
-      run(
+      await run(
         '{ "a": $(h1) | text, ($(div) { "b": $(span) | text }) }',
         '<h1>hello</h1><div><span>world</span></div>',
       ),
     ).toEqual({ a: 'hello', b: 'world' })
   })
 
-  it('contributes zero keys when selector is missing', () => {
+  it('contributes zero keys when selector is missing', async () => {
     expect(
-      run(
+      await run(
         '{ "a": $(h1) | text, ($(#missing) { "b": $ | text }) }',
         '<h1>hello</h1>',
       ),
     ).toEqual({ a: 'hello' })
   })
 
-  it('contributes zero keys with omit selector', () => {
+  it('contributes zero keys with omit selector', async () => {
     expect(
-      run(
+      await run(
         '{ "a": $(h1) | text, ($(#missing)? { "b": $ | text }) }',
         '<h1>hello</h1>',
       ),
     ).toEqual({ a: 'hello' })
   })
 
-  it('coexists with dynamic and static fields', () => {
+  it('coexists with dynamic and static fields', async () => {
     expect(
-      run(
+      await run(
         '{ "x": $(h1) | text, ($(div) { "y": $(span) | text }), [$(h2) | text]: $(p) | text }',
         '<h1>a</h1><div><span>b</span></div><h2>key</h2><p>val</p>',
       ),
@@ -974,15 +978,15 @@ describe('expression field', () => {
 })
 
 describe('root ref @', () => {
-  it('refers to the top-level root element', () => {
-    expect(run('{ "v": @.($(h1) | text) }', '<h1>hello</h1>')).toEqual({
+  it('refers to the top-level root element', async () => {
+    expect(await run('{ "v": @.($(h1) | text) }', '<h1>hello</h1>')).toEqual({
       v: 'hello',
     })
   })
 
-  it('escapes iteration context inside $$ block', () => {
+  it('escapes iteration context inside $$ block', async () => {
     expect(
-      run(
+      await run(
         '{ "items": $$(li) { "li": $ | text, "h1": @.($(h1) | text) } }',
         '<h1>title</h1><ul><li>a</li><li>b</li></ul>',
       ),
@@ -996,40 +1000,40 @@ describe('root ref @', () => {
 })
 
 describe('scoped expression .( )', () => {
-  it('evaluates inner expr with current element as context', () => {
+  it('evaluates inner expr with current element as context', async () => {
     expect(
-      run(
+      await run(
         '{ "v": $(div).($(.inner) | text) }',
         '<div><span class="inner">hello</span></div>',
       ),
     ).toEqual({ v: 'hello' })
   })
 
-  it('re-scopes into a nested element', () => {
+  it('re-scopes into a nested element', async () => {
     expect(
-      run(
+      await run(
         '{ "v": $(div).( $(span) | text ) }',
         '<div><span>hello</span></div>',
       ),
     ).toEqual({ v: 'hello' })
   })
 
-  it('returns null when source is null', () => {
-    expect(run('{ "v": $(#missing).($ | text) }', '<div>x</div>')).toEqual({
+  it('returns null when source is null', async () => {
+    expect(await run('{ "v": $(#missing).($ | text) }', '<div>x</div>')).toEqual({
       v: null,
     })
   })
 })
 
 describe('onElement highlight callback', () => {
-  function runWithHighlights(expr: string, html: string) {
+  async function runWithHighlights(expr: string, html: string) {
     const doc = dom(html)
     const highlights: {
       element: Element
       label: { field: string[] }
       isArrayItem: boolean
     }[] = []
-    createExpr(expr, {
+    await createExpr(expr, {
       onElement: (element, label, isArrayItem) => {
         highlights.push({ element, label, isArrayItem })
       },
@@ -1037,8 +1041,8 @@ describe('onElement highlight callback', () => {
     return { doc, highlights }
   }
 
-  it('fires for a single selector with the field label', () => {
-    const { doc, highlights } = runWithHighlights(
+  it('fires for a single selector with the field label', async () => {
+    const { doc, highlights } = await runWithHighlights(
       '{ "title": $(h1) | text }',
       '<h1>hello</h1>',
     )
@@ -1048,8 +1052,8 @@ describe('onElement highlight callback', () => {
     expect(highlights[0]!.isArrayItem).toBe(false)
   })
 
-  it('fires for fields inside an each block with isArrayItem true', () => {
-    const { doc, highlights } = runWithHighlights(
+  it('fires for fields inside an each block with isArrayItem true', async () => {
+    const { doc, highlights } = await runWithHighlights(
       '{ "items": $$(li) { "name": $(span) | text } }',
       '<ul><li><span>a</span></li><li><span>b</span></li></ul>',
     )
@@ -1060,8 +1064,8 @@ describe('onElement highlight callback', () => {
     expect(highlights.every((h) => h.label.field.at(-1) === 'name')).toBe(true)
   })
 
-  it('uses dotted path label for nested fields', () => {
-    const { doc, highlights } = runWithHighlights(
+  it('uses dotted path label for nested fields', async () => {
+    const { doc, highlights } = await runWithHighlights(
       '{ "author": $(div) { "name": $(span) | text } }',
       '<div><span>Alice</span></div>',
     )
@@ -1073,14 +1077,14 @@ describe('onElement highlight callback', () => {
     expect(highlights[1]!.label).toEqual({ field: ['author', 'name'] })
   })
 
-  it('throws when a required selector matches nothing', () => {
-    expect(() =>
+  it('throws when a required selector matches nothing', async () => {
+    await expect(
       runWithHighlights('{ "v": $(#missing) | text }', '<div>x</div>'),
-    ).toThrow('$(#missing) matched nothing')
+    ).rejects.toThrow('$(#missing) matched nothing')
   })
 
-  it('fires for the fallback selector when primary misses', () => {
-    const { doc, highlights } = runWithHighlights(
+  it('fires for the fallback selector when primary misses', async () => {
+    const { doc, highlights } = await runWithHighlights(
       '{ "v": $(#missing) ?? $(h1) }',
       '<h1>hello</h1>',
     )
@@ -1089,22 +1093,22 @@ describe('onElement highlight callback', () => {
     expect(highlights[0]!.isArrayItem).toBe(false)
   })
 
-  it('does not fire when onElement is not provided', () => {
-    expect(() =>
+  it('does not fire when onElement is not provided', async () => {
+    await expect(
       createExpr('{ "v": $(h1) | text }').run(dom('<h1>x</h1>').body),
-    ).not.toThrow()
+    ).resolves.toBeDefined()
   })
 })
 
 describe('ref', () => {
-  it('wraps a value in a ref object', () => {
+  it('wraps a value in a ref object', async () => {
     expect(
-      run('$(span) | data(id) | ref', '<span data-id="42"></span>'),
+      await run('$(span) | data(id) | ref', '<span data-id="42"></span>'),
     ).toEqual({ _type: 'ref', _id: '42' })
   })
 
-  it('returns null when value is null', () => {
-    expect(run('"x" | ref', '<div></div>')).toEqual({ _type: 'ref', _id: 'x' })
+  it('returns null when value is null', async () => {
+    expect(await run('"x" | ref', '<div></div>')).toEqual({ _type: 'ref', _id: 'x' })
   })
 })
 
@@ -1133,9 +1137,9 @@ describe('zip $$(a, b)', () => {
     </table>
   `
 
-  it('zips per-row cells against global headers into an attributes map', () => {
+  it('zips per-row cells against global headers into an attributes map', async () => {
     expect(
-      run(
+      await run(
         '$$(.row) { "attrs": zip(@$$(#t thead td), $$(td:not(.ignored))) { [$1 | text | trim]: $2 | text | trim } | merge }',
         tableHtml,
       ),
@@ -1143,5 +1147,42 @@ describe('zip $$(a, b)', () => {
       { attrs: { Marka: 'Audi', Seri: 'A5', 'Yıl': '2024' } },
       { attrs: { Marka: 'Tesla', Seri: 'Model Y', 'Yıl': '2023' } },
     ])
+  })
+})
+
+describe('jsonata pipe', () => {
+  it('reshapes an extracted array of breadcrumb anchors', async () => {
+    const html = `
+      <h2>
+        <a href="/x/antalya">Antalya</a>
+        <span>/</span>
+        <a href="/x/antalya-manavgat">Manavgat</a>
+        <span>/</span>
+        <a href="/x/antalya-manavgat-ilica">Ilıca Mh.</a>
+      </h2>`
+    expect(
+      await run(
+        '{ "location": $$(h2 a) { "t": $ | text } | jsonata({ "city": $[0].t, "district": $[1].t, "neighborhood": $[2].t }) }',
+        html,
+      ),
+    ).toEqual({
+      location: { city: 'Antalya', district: 'Manavgat', neighborhood: 'Ilıca Mh.' },
+    })
+  })
+
+  it('skips the jsonata transform when the upstream value is null', async () => {
+    expect(
+      await run('{ "v": $(nope)? | text | jsonata($string($)) }', '<h1>x</h1>'),
+    ).toEqual({})
+  })
+
+  it('parses jsonata source containing nested parens and quotes', async () => {
+    const html = '<ul><li>1</li><li>2</li><li>3</li></ul>'
+    expect(
+      await run(
+        '{ "sum": $$(li) { "n": $ | text } | jsonata($sum($map($, function($v) { $number($v.n) }))) }',
+        html,
+      ),
+    ).toEqual({ sum: 6 })
   })
 })

@@ -84,7 +84,7 @@ describe('page evaluator', () => {
 
   it('does not partially match patterns', () => {
     setUrl('https://abc.com/abcd123/extra')
-    const rule = makeFunnel({ hostname: 'abc.com', url: '/*' })
+    const rule = makeFunnel({ hostname: 'abc.com', url: '/:seg' })
     const pe = new PageEvaluator(document, [rule])
     expect(pe.checkCurrentPage()).toMatchObject({
       kind: 'fail',

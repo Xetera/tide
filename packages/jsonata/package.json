@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@tide/parsers": "workspace:*",
-    "jsonata": "^2.1.0"
+    "jsonata": "^2.2.1"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

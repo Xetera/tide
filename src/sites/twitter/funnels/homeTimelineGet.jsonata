@@ -1,7 +1,7 @@
 ---
 name: "Home Timeline"
 method: GET
-url: "/i/api/graphql/*/HomeTimeline"
+url: "/i/api/graphql/:id/HomeTimeline"
 ---
 [
 data.home.home_timeline_urt.instructions.entries.content.itemContent.tweet_results.result[$.rest_id!=null].{

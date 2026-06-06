@@ -1,6 +1,6 @@
 ---
 name: "Search Results"
-url: "/*"
+url: "/**"
 ---
 [
   $$(.searchResultsItem:not(.nativeAd)) {

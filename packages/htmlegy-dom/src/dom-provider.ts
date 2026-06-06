@@ -2,6 +2,7 @@ import { DOMParser as ProseDOMParser } from 'prosemirror-model'
 import { schema as basicSchema } from 'prosemirror-schema-basic'
 import type { Node as ProseMirrorNode } from 'prosemirror-model'
 import type { HtmlegyProvider, PipeArg } from '@tide/htmlegy'
+import { CompiledJsonata } from '@tide/jsonata'
 
 const BLOCK_TAGS = new Set([
   'address',
@@ -108,6 +109,17 @@ function mediaOp(
   }
 }
 
+const jsonataCache = new Map<string, CompiledJsonata>()
+
+function compiledJsonata(source: string): CompiledJsonata {
+  let compiled = jsonataCache.get(source)
+  if (!compiled) {
+    compiled = new CompiledJsonata(source)
+    jsonataCache.set(source, compiled)
+  }
+  return compiled
+}
+
 export const domProvider: HtmlegyProvider<Element> = {
   querySelector: (node, selector) => node.querySelector(selector),
   querySelectorAll: (node, selector) =>
@@ -135,6 +147,10 @@ export const domProvider: HtmlegyProvider<Element> = {
     } catch {
       return url
     }
+  },
+
+  evaluateJsonata(source, value) {
+    return compiledJsonata(source).evaluate(value)
   },
 
   watch(node, selector, cb) {

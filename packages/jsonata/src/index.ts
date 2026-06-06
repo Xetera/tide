@@ -178,3 +178,15 @@ export class JsonataExpression {
     return this.#expr.evaluate(input as Record<string, unknown>)
   }
 }
+
+export class CompiledJsonata {
+  #expr: ReturnType<typeof jsonata>
+
+  constructor(expression: string) {
+    this.#expr = JsonataExpression.evaluator(expression)
+  }
+
+  async evaluate(input: unknown): Promise<unknown> {
+    return this.#expr.evaluate(input as Record<string, unknown>)
+  }
+}

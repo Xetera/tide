@@ -16,8 +16,10 @@ describe('sahibinden listing', () => {
   let listing: Entity
   let images: Entity[]
 
-  beforeAll(() => {
-    entities = createExpr(htmlegySrc, { locale: 'tr' }).run(doc(htmlSrc)) as Entity[]
+  beforeAll(async () => {
+    entities = (await createExpr(htmlegySrc, { locale: 'tr' }).run(
+      doc(htmlSrc),
+    )) as Entity[]
     listing = entities.find((e) => e['_entity'] === '@sahibinden/listing')!
     images = entities.filter((e) => e['_entity'] === '@sahibinden/image')
   })

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@tide/htmlegy": "workspace:*",
+    "@tide/jsonata": "workspace:*",
     "@types/mdast": "^4.0.4",
     "prosemirror-model": "^1.25.7",
     "prosemirror-schema-basic": "^1.2.4",

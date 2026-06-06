@@ -35,13 +35,13 @@ class PageRuleRunner {
     })
   }
 
-  run(
+  async run(
     doc: Document,
     jobSource: JobSource,
     generation: number,
     currentGeneration: () => number,
     onResult: (result: ScrapeResult) => void,
-  ): void {
+  ): Promise<void> {
     this.#highlights = []
     this.#pendingReset = false
 
@@ -96,7 +96,7 @@ class PageRuleRunner {
         emit(value)
       })
     } else {
-      emit(this.#fn.run(doc.documentElement))
+      emit(await this.#fn.run(doc.documentElement))
     }
   }
 
@@ -172,17 +172,19 @@ export class HtmlPageSource {
       const jobSource: JobSource = this.isInIframe
         ? { kind: 'active', id: await this.#getJobId() }
         : { kind: 'passive' }
-      for (const funnel of matching.funnels) {
-        const runner = this.#runners.get(funnel)!
-        this.#activeRunners.add(runner)
-        runner.run(
-          document,
-          jobSource,
-          generation,
-          currentGeneration,
-          (result) => this.#handleResult(result, jobSource),
-        )
-      }
+      await Promise.all(
+        matching.funnels.map((funnel) => {
+          const runner = this.#runners.get(funnel)!
+          this.#activeRunners.add(runner)
+          return runner.run(
+            document,
+            jobSource,
+            generation,
+            currentGeneration,
+            (result) => this.#handleResult(result, jobSource),
+          )
+        }),
+      )
       window.parent?.postMessage(JOB_FINISHED_MARKER, '*')
     } else if (matching.kind === 'fail' && this.isInIframe) {
       sendLog({

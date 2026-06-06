@@ -1,7 +1,7 @@
 ---
 name: "Map Hover"
 method: GET
-url: "/ajax/mapSearch/classified/markers/*"
+url: "/ajax/mapSearch/classified/markers/:id"
 ---
 [
   /* Map the main listing entity */

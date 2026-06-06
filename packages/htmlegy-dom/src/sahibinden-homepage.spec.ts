@@ -32,8 +32,8 @@ type Result = {
 describe('sahibinden homepage', () => {
   let result: Result
 
-  beforeAll(() => {
-    result = createExpr(htmlegySrc).run(doc(htmlSrc)) as Result
+  beforeAll(async () => {
+    result = (await createExpr(htmlegySrc).run(doc(htmlSrc))) as Result
   })
 
   describe('showcase listings', () => {

@@ -1466,13 +1466,13 @@ function Playground() {
         setEvalResult(null)
         return
       }
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
         const body = iframeRef?.contentDocument?.body ?? root
         if (!body) {
           setEvalResult(null)
           return
         }
-        setEvalResult(evaluateHtmlegy(expr, entity, body))
+        setEvalResult(await evaluateHtmlegy(expr, entity, body))
       }, 100)
       return () => clearTimeout(timer)
     }

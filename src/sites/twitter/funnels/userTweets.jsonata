@@ -1,7 +1,7 @@
 ---
 name: "User Tweets"
 method: GET
-url: "/i/api/graphql/*/UserTweets"
+url: "/i/api/graphql/:id/UserTweets"
 ---
 /* Extract all timeline entries, flattening both standard tweets and nested modules */
 $$.data.user.result.timeline.timeline.instructions.entries.content.(

@@ -125,4 +125,16 @@ describe('format', () => {
       ),
     )
   })
+
+  test('jsonata pipe preserves raw source and parens', () => {
+    preservesStructure(
+      '{ "loc": $$(h2 a) { "t": $ | text } | jsonata({ "city": $[0].t, "district": $[1].t }) }',
+    )
+  })
+
+  test('jsonata pipe with nested parens in source', () => {
+    preservesStructure(
+      '{ "sum": $$(li) { "n": $ | text } | jsonata($sum($map($, function($v) { $number($v.n) }))) }',
+    )
+  })
 })

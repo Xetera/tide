@@ -1,6 +1,6 @@
 ---
 name: "Listing Page"
-url: "/ilan/*/detay"
+url: "/ilan/:id/detay"
 ---
 [
   {
