@@ -5,7 +5,6 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "prepare": "cd gleam && gleam build --target javascript",
     "start": "vite",
     "dev": "vite",
     "build": "vite build",

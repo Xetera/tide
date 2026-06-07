@@ -1,10 +1,10 @@
 import { Type } from 'typebox'
-import { shbdn_image_identity } from '~gleam/media/identity.mjs'
-import { FieldInput, Image, Money } from '@tide/spec'
+import { Image, Money } from '@tide/spec'
+import { shbdnImageIdentity } from './identity'
 import { EntityBuilder, One, RichText } from '@tide/spec'
 
 const SahibindenImage = Image.offload().identity({
-  fn: shbdn_image_identity,
+  fn: shbdnImageIdentity,
 })
 
 const Breadcrumb = Type.Object({

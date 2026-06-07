@@ -6,42 +6,6 @@ import tailwindcss from '@tailwindcss/vite'
 import { r } from './src/scripts'
 import { readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { execSync, spawn } from 'node:child_process'
-import type { Plugin } from 'vite'
-
-const GLEAM_DIR = resolve(__dirname, 'gleam')
-
-function gleamPlugin(): Plugin {
-  return {
-    name: 'gleam',
-    buildStart() {
-      if (!this.meta.watchMode) {
-        return
-      }
-      execSync('gleam build --target javascript --no-print-progress', {
-        cwd: GLEAM_DIR,
-        stdio: 'inherit',
-      })
-    },
-    configureServer(server) {
-      server.watcher.add(resolve(GLEAM_DIR, 'src/**/*.gleam'))
-      server.watcher.on('change', (file) => {
-        if (!file.endsWith('.gleam')) {
-          return
-        }
-        const proc = spawn('gleam', ['build', '--target', 'javascript'], {
-          cwd: GLEAM_DIR,
-          stdio: 'inherit',
-        })
-        proc.on('close', (code) => {
-          if (code === 0) {
-            server.hot.send({ type: 'full-reload' })
-          }
-        })
-      })
-    },
-  }
-}
 
 const TIDE_MSG_KEY = crypto.randomUUID()
 
@@ -62,7 +26,6 @@ export default defineConfig({
         return code.replaceAll('__TIDE_MSG_KEY__', JSON.stringify(TIDE_MSG_KEY))
       },
     },
-    gleamPlugin(),
     {
       name: 'tide-adversary',
       configureServer(server) {
@@ -166,10 +129,6 @@ export default defineConfig({
   // root: r("src"),
   resolve: {
     alias: [
-      {
-        find: '~gleam/',
-        replacement: `${GLEAM_DIR}/build/dev/javascript/tide_shared/`,
-      },
       { find: '~/', replacement: `${r('src')}/` },
       // alias: [
       {

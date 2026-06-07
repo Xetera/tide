@@ -1,18 +1,15 @@
 import { Type } from 'typebox'
 import { EntityBuilder, Many, One } from '@tide/spec'
 import { Image, Video } from '@tide/spec'
-import {
-  instagram_image_identity,
-  instagram_video_identity,
-} from '~gleam/media/identity.mjs'
+import { instagramImageIdentity, instagramVideoIdentity } from './identity'
 
 const InstagramImage = Image.offload()
   .ephemeral()
-  .identity({ fn: instagram_image_identity })
+  .identity({ fn: instagramImageIdentity })
 
 const InstagramVideo = Video.offload()
   .ephemeral()
-  .identity({ fn: instagram_video_identity })
+  .identity({ fn: instagramVideoIdentity })
 
 export const instagramEntities = [
   new EntityBuilder('@instagram/user')

@@ -1,13 +1,12 @@
 import { Type, type TObject } from 'typebox'
-import type { MediaRecord, IdentityError } from '~gleam/media/identity.mjs'
-import type { Result } from '~gleam/gleam.mjs'
+import type { MediaRecord } from './identity'
 
 export type HashSource =
   | { from: 'header'; header: string; expr: string }
   | { from: 'sibling'; expr: string }
   | { from: 'none' }
 
-export type IdentityFn = (media: MediaRecord) => Result<string, IdentityError>
+export type IdentityFn = (media: MediaRecord) => string
 export type IdentitySource = { fn: IdentityFn }
 
 export const identityRegistry = new Map<string, IdentityFn>()

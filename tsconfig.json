@@ -10,7 +10,6 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "paths": {
-      "~gleam/*": ["gleam/build/dev/javascript/tide_shared/*"],
       "~/*": ["src/*"]
     },
     "noUncheckedIndexedAccess": true,

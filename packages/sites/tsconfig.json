@@ -5,9 +5,6 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "baseUrl": ".",
-    "paths": {
-      "~gleam/*": ["../../gleam/build/dev/javascript/tide_shared/*"]
-    },
     "noImplicitAny": true,
     "noUncheckedIndexedAccess": true,
     "resolveJsonModule": true,

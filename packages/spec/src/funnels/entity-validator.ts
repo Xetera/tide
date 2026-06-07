@@ -6,8 +6,6 @@ import type {
   SiteDeclaration,
 } from './types'
 import { identityRegistry, type IdentityFn } from './media-types'
-import { MediaRecord$MediaRecord } from '~gleam/media/fingerprint/types.mjs'
-import { Result$isOk, Result$Ok$0, Result$Error$0 } from '~gleam/gleam.mjs'
 
 function isIdentityTarget(
   value: unknown,
@@ -40,13 +38,15 @@ function applyIdentity(
     })
     return value
   }
-  const result = resolved(MediaRecord$MediaRecord(value.url))
-  if (!Result$isOk(result)) {
-    const err = Result$Error$0(result) as { message?: string }
-    warnings.push({ message: err?.message ?? 'unknown error', patchIndex })
+  try {
+    return { ...value, _id: resolved({ url: value.url }) }
+  } catch (error) {
+    warnings.push({
+      message: error instanceof Error ? error.message : 'unknown error',
+      patchIndex,
+    })
     return value
   }
-  return { ...value, _id: Result$Ok$0(result) }
 }
 
 type WalkableSchema = {
