@@ -7,8 +7,12 @@ import {
   TextFieldRoot,
 } from '~/components/ui/textfield'
 import { useBrowserStorage } from '~/shared/hooks'
-import type { HeartbeatStatus } from '~/server/client'
-import type { ErrorResponse, JoinRequest, JoinResponse } from '~/server/api'
+import type {
+  HeartbeatStatus,
+  ErrorResponse,
+  JoinRequest,
+  JoinResponse,
+} from '@tide/client'
 
 export function parseInviteUrl(
   raw: string,

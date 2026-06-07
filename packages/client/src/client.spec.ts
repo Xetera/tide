@@ -1,8 +1,8 @@
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { sahibindenSmallJobs } from '@tide/sites'
-import { server } from '~/msw'
-import { TEST_URL_ENDPOINT } from '~/setup-tools'
+import { server } from './testing-msw'
+import { TEST_URL_ENDPOINT } from './testing-setup'
 import { Client, type ServerDefinition } from './client'
 import { type JobPollResponse, ServerAutonomy } from '@tide/spec'
 
@@ -16,15 +16,10 @@ const serverDefinition: ServerDefinition = {
   url: TEST_URL_ENDPOINT,
 }
 
-const mockCst = {
-  getScriptTab: vi.fn().mockResolvedValue(1),
-  getAllScriptTabs: vi.fn().mockResolvedValue([1]),
-  isValid: vi.fn().mockReturnValue(true),
-}
-
 function makeClient(onSitesUpdated = vi.fn()) {
   return new Client({
-    cst: mockCst as any,
+    getJobTab: vi.fn().mockResolvedValue(1),
+    runJob: vi.fn().mockResolvedValue(undefined),
     pollIntervalSeconds: 1,
     queueIntervalSeconds: 1,
     defaultServers: [serverDefinition],

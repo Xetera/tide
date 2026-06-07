@@ -1,6 +1,10 @@
 import { JsonataExpression } from '@tide/jsonata'
-import { EntityValidator } from '@tide/spec'
-import type { NetworkFunnelGroup, ScrapeResult, SiteDefinition } from '@tide/spec'
+import type {
+  EntityValidator,
+  NetworkFunnelGroup,
+  ScrapeResult,
+  SiteDefinition,
+} from '@tide/spec'
 import type { NetworkTransport, RawCapture } from './host'
 
 export class NetworkCapture {
@@ -10,21 +14,44 @@ export class NetworkCapture {
   #onResult: (result: ScrapeResult) => void
   #transport: NetworkTransport
   #origin: string
+  #unsubscribe?: () => void
 
   constructor(
     sites: SiteDefinition[],
     funnels: NetworkFunnelGroup[],
+    validator: EntityValidator,
     transport: NetworkTransport,
     origin: string,
     onResult: (result: ScrapeResult) => void,
   ) {
     this.#funnels = funnels
     this.#siteIdByHostname = new Map(sites.map((s) => [s.hostname, s.id]))
-    this.#validator = new EntityValidator(sites.map((s) => s.declaration))
+    this.#validator = validator
     this.#transport = transport
     this.#origin = origin
     this.#onResult = onResult
-    this.#transport.subscribe((capture) => void this.#process(capture))
+  }
+
+  start(): void {
+    if (this.#unsubscribe) {
+      return
+    }
+    this.#unsubscribe = this.#transport.subscribe(
+      (capture) => void this.#process(capture),
+    )
+  }
+
+  stop(): void {
+    this.#unsubscribe?.()
+    this.#unsubscribe = undefined
+  }
+
+  updateRules(
+    sites: SiteDefinition[],
+    funnels: NetworkFunnelGroup[],
+  ): void {
+    this.#funnels = funnels
+    this.#siteIdByHostname = new Map(sites.map((s) => [s.hostname, s.id]))
   }
 
   async #process(capture: RawCapture): Promise<void> {

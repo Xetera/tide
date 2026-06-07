@@ -31,6 +31,12 @@ export interface RawCaptureEcho {
 }
 
 export interface NetworkTransport {
-  subscribe(handler: (capture: RawCapture) => void): void
+  /**
+   * Registers a handler for captured requests. Returns a function that removes
+   * the handler; callers MUST call it to tear the subscription down, otherwise
+   * the handler leaks for the lifetime of the transport (e.g. a re-subscribe on
+   * every SPA navigation would accumulate listeners).
+   */
+  subscribe(handler: (capture: RawCapture) => void): () => void
   rebroadcast(echo: RawCaptureEcho): void
 }

@@ -2,13 +2,15 @@ import { sendMessage } from 'webext-bridge/content-script'
 import type { NetworkTransport, RawCapture, RawCaptureEcho } from '@tide/scrape-core'
 
 export const chromeNetworkTransport: NetworkTransport = {
-  subscribe(handler: (capture: RawCapture) => void): void {
-    window.addEventListener('message', (evt) => {
+  subscribe(handler: (capture: RawCapture) => void): () => void {
+    const listener = (evt: MessageEvent) => {
       if (!evt.data?.[__TIDE_MSG_KEY__] || evt.data.kind !== 'network-capture') {
         return
       }
       handler(evt.data.capture as RawCapture)
-    })
+    }
+    window.addEventListener('message', listener)
+    return () => window.removeEventListener('message', listener)
   },
   rebroadcast(echo: RawCaptureEcho): void {
     sendMessage('raw-capture', {

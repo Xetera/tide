@@ -1,13 +1,4 @@
 import dayjs from 'dayjs'
-import { onMessage, sendMessage } from 'webext-bridge/background'
-import {
-  log,
-  pushScrapeLog,
-  updateScrapeLogStatus,
-} from '~/background/backend-logger'
-import { scrapeSourceFunnelKey } from '~/shared/log'
-import { flashError, flashSuccess } from '~/background/badge'
-import type { ContentScriptTracker } from '~/background/content-script-tracker'
 import { Job } from './job'
 import { JobQueue } from './job-queue'
 import type {
@@ -27,6 +18,33 @@ import type {
   SyncSitesResponse,
   WorkerSitesResponse,
 } from './api'
+
+export interface SubmissionMeta {
+  httpStatus?: number
+  serverResponse?: string
+}
+
+export type SubmissionEvent =
+  | { phase: 'start'; submissionId: string; events: SubmitEvent[]; warnings: string[]; tabId?: number }
+  | { phase: 'submitted'; submissionId: string; tabId?: number; meta?: SubmissionMeta }
+  | { phase: 'failed'; submissionId: string; tabId?: number; meta?: SubmissionMeta }
+  | { phase: 'skipped-duplicate'; submissionId: string; tabId?: number }
+
+export type DiagnosticEvent =
+  | { kind: 'heartbeat-skipped'; reason: 'unconfigured' | 'invalid-url'; error?: string }
+  | { kind: 'heartbeat-unreachable'; error: string }
+  | { kind: 'server-undefined-on-update' }
+  | { kind: 'sites-sync-failed'; error: string }
+  | { kind: 'job-run-start'; siteId: string; url: string; tabId: number }
+  | { kind: 'job-run-failed'; tabId: number; error: string }
+  | { kind: 'sites-refetch-requested' }
+  | { kind: 'poll-failed'; server: ServerDefinition; error: string }
+  | { kind: 'submit-unreachable'; error: string }
+  | { kind: 'precondition-giving-up'; retries: number }
+  | { kind: 'precondition-retrying' }
+  | { kind: 'precondition-reschedule-failed'; error: string }
+  | { kind: 'submit-rejected'; response: string }
+  | { kind: 'site-not-found'; siteId: string }
 
 const PRECONDITION_FAILED = 412
 
@@ -74,11 +92,20 @@ function stableStringify(value: unknown): string {
 
 export class Client {
   readonly servers: ServerDefinition[]
-  readonly #cst: ContentScriptTracker
+  readonly #getJobTab: () => Promise<number>
+  readonly #runJob: (
+    params: JobParameters,
+    opts: { tabId: number },
+  ) => Promise<void>
+  readonly #onSubmission?: (event: SubmissionEvent) => void
+  readonly #onDiagnostic?: (event: DiagnosticEvent) => void
+  readonly #notifySubmitError?: (tabId?: number) => void
+  readonly #notifySubmitSuccess?: (tabId?: number) => void
   readonly #onSitesUpdated?: (
     server: ServerDefinition,
     sites: SiteSpec[],
   ) => void
+  readonly #onPatches?: (result: ScrapeResult) => void
 
   // TODO: turn this mess into an array of stateful classes
   #timers = new WeakMap<ServerDefinition, NodeJS.Timeout>()
@@ -98,7 +125,12 @@ export class Client {
   constructor({
     pollIntervalSeconds,
     queueIntervalSeconds,
-    cst,
+    getJobTab,
+    runJob,
+    onSubmission,
+    onDiagnostic,
+    onSubmitError,
+    onSubmitSuccess,
     defaultServers = [],
     onSitesUpdated,
     onPatches,
@@ -106,19 +138,25 @@ export class Client {
     this.#pollIntervalSeconds = pollIntervalSeconds
     // We're assuming that there is only one server and that this isn't empty
     this.servers = defaultServers
-    this.#cst = cst
+    this.#getJobTab = getJobTab
+    this.#runJob = runJob
+    this.#onSubmission = onSubmission
+    this.#onDiagnostic = onDiagnostic
+    this.#notifySubmitError = onSubmitError
+    this.#notifySubmitSuccess = onSubmitSuccess
     this.#onSitesUpdated = onSitesUpdated
+    this.#onPatches = onPatches
     this.#queue = new JobQueue<JobParameters>({
       minimumWaitSeconds: queueIntervalSeconds,
       // TODO: make this work with multiple servers
       // biome-ignore lint/style/noNonNullAssertion: TODO
       run: (job) => this.#tryRequestActiveJob(job, this.servers[0]!),
     })
+  }
 
-    onMessage('entity-patches', ({ data, sender }) => {
-      onPatches?.(data)
-      this.#queueEvent(data, sender.tabId)
-    })
+  ingestPatch(result: ScrapeResult, tabId?: number): void {
+    this.#onPatches?.(result)
+    this.#queueEvent(result, tabId)
   }
 
   get allSites(): SiteSpec[] {
@@ -133,15 +171,9 @@ export class Client {
   async sendHeartbeat(): Promise<HeartbeatStatus> {
     const server = this.servers[0]
     if (!server?.url || !server.poolId || !server.workerSecret) {
-      log({
-        severity: 'debug',
-        scope: 'pool',
-        text: 'Heartbeat skipped: server not configured',
-        data: {
-          hasUrl: !!server?.url,
-          hasPoolId: !!server?.poolId,
-          hasWorkerSecret: !!server?.workerSecret,
-        },
+      this.#onDiagnostic?.({
+        kind: 'heartbeat-skipped',
+        reason: 'unconfigured',
       })
       return { status: 'unconfigured' }
     }
@@ -152,29 +184,15 @@ export class Client {
         server.url,
       )
     } catch (err) {
-      log({
-        severity: 'error',
-        scope: 'pool',
-        text: 'Heartbeat failed: invalid server URL',
-        data: {
-          serverUrl: server.url,
-          poolId: server.poolId,
-          error: err instanceof Error ? err.message : String(err),
-        },
+      const error = err instanceof Error ? err.message : String(err)
+      this.#onDiagnostic?.({
+        kind: 'heartbeat-skipped',
+        reason: 'invalid-url',
+        error,
       })
-      return {
-        status: 'unreachable',
-        error: err instanceof Error ? err.message : String(err),
-      }
+      return { status: 'unreachable', error }
     }
-    log({
-      severity: 'debug',
-      scope: 'pool',
-      text: 'Heartbeat: sending request',
-      data: { url: url.toString(), workerId: server.workerId },
-    })
     let res: Response
-    const startedAt = Date.now()
     try {
       const request = await this.#requestBase(
         new Request(url, { method: 'GET' }),
@@ -183,30 +201,9 @@ export class Client {
       res = await fetch(request, { signal: AbortSignal.timeout(5000) })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      const name = err instanceof Error ? err.name : undefined
-      log({
-        severity: 'warning',
-        scope: 'pool',
-        text: 'Heartbeat: fetch threw before receiving a response',
-        data: {
-          url: url.toString(),
-          error: message,
-          errorName: name,
-          elapsedMs: Date.now() - startedAt,
-        },
-      })
+      this.#onDiagnostic?.({ kind: 'heartbeat-unreachable', error: message })
       return { status: 'unreachable', error: message }
     }
-    log({
-      severity: 'debug',
-      scope: 'pool',
-      text: 'Heartbeat: response received',
-      data: {
-        url: url.toString(),
-        httpStatus: res.status,
-        elapsedMs: Date.now() - startedAt,
-      },
-    })
     if (res.ok) {
       return { status: 'ok' }
     }
@@ -267,12 +264,7 @@ export class Client {
     // TODO: support multiple servers
     const [server] = this.servers
     if (!server) {
-      log({
-        severity: 'error',
-        scope: 'pool',
-        text: 'Tried to update server URL but no server is defined',
-        data: 'url' in newServer ? { url: newServer.url } : {},
-      })
+      this.#onDiagnostic?.({ kind: 'server-undefined-on-update' })
       return
     }
     Object.assign(server, newServer)
@@ -305,11 +297,9 @@ export class Client {
       }
       return (await response.json()) as SyncSitesResponse
     } catch (err) {
-      log({
-        severity: 'error',
-        scope: 'pool',
-        text: 'Failed to sync opted-in sites',
-        data: { error: err instanceof Error ? err.message : String(err) },
+      this.#onDiagnostic?.({
+        kind: 'sites-sync-failed',
+        error: err instanceof Error ? err.message : String(err),
       })
       return null
     }
@@ -325,25 +315,21 @@ export class Client {
         return
       }
       const job = new Job(params, site, server.autonomy)
-      const tabId = await this.#cst.getScriptTab()
-      log({
-        text: `Running job: ${site.site}`,
-        severity: 'debug',
-        scope: 'pool',
-        data: { url: job.url.toString(), siteId: site.site, tabId },
+      const tabId = await this.#getJobTab()
+      this.#onDiagnostic?.({
+        kind: 'job-run-start',
+        siteId: site.site,
+        url: job.url.toString(),
+        tabId,
       })
       try {
-        await sendMessage('run-job', job.params, {
-          context: 'content-script',
-          tabId,
-        })
+        await this.#runJob(job.params, { tabId })
       } catch (err) {
         if (err instanceof Error) {
-          log({
-            severity: 'error',
-            scope: 'pool',
-            text: 'Something went wrong while trying to run job',
-            data: { message: err.message, tabId },
+          this.#onDiagnostic?.({
+            kind: 'job-run-failed',
+            tabId,
+            error: err.message,
           })
         }
       }
@@ -408,12 +394,7 @@ export class Client {
     if (!server) {
       return
     }
-    console.log(
-      `[tide] scraped ${events
-        .map((e) => scrapeSourceFunnelKey(e.funnel) ?? e.funnel.kind)
-        .join(', ')}`,
-      events,
-    )
+    const submissionId = crypto.randomUUID()
     const body: JobResult = {
       success: true,
       job,
@@ -425,25 +406,17 @@ export class Client {
     const dedupKey = payloadHash
     const prior = this.#recentSubmissions.get(dedupKey)
     if (prior && Date.now() - prior.sentAt < 60_000) {
-      log({
-        severity: 'info',
-        scope: 'pool',
-        text: 'Skipping duplicate submission',
-      })
+      this.#onSubmission?.({ phase: 'skipped-duplicate', submissionId, tabId })
       return
     }
 
-    const scrapeLogIds = await Promise.all(
-      events.map((event) =>
-        pushScrapeLog({
-          type: 'scrape',
-          severity: 'info',
-          patches: event.patches,
-          warnings,
-          source: event.funnel,
-        }),
-      ),
-    )
+    this.#onSubmission?.({
+      phase: 'start',
+      submissionId,
+      events,
+      warnings,
+      tabId,
+    })
 
     try {
       const meta = await this.#performSubmit({
@@ -457,21 +430,18 @@ export class Client {
         sentAt: Date.now(),
         serialized,
       })
-      await Promise.all(
-        scrapeLogIds.map((id) =>
-          updateScrapeLogStatus(id, 'submitted', meta ?? undefined),
-        ),
-      )
+      this.#onSubmission?.({
+        phase: 'submitted',
+        submissionId,
+        tabId,
+        meta: meta ?? undefined,
+      })
     } catch (err) {
-      const failureMeta =
+      const meta =
         err !== null && typeof err === 'object' && 'httpStatus' in err
-          ? (err as { httpStatus?: number; serverResponse?: string })
+          ? (err as SubmissionMeta)
           : undefined
-      await Promise.all(
-        scrapeLogIds.map((id) =>
-          updateScrapeLogStatus(id, 'failed', failureMeta),
-        ),
-      )
+      this.#onSubmission?.({ phase: 'failed', submissionId, tabId, meta })
     }
   }
 
@@ -488,31 +458,23 @@ export class Client {
       const request = await this.#requestBase(jobPostReq, server)
       response = await fetch(request)
     } catch (err) {
-      log({
-        severity: 'error',
-        scope: 'pool',
-        text: 'Failed to reach server',
-        data: { error: err instanceof Error ? err.message : String(err) },
+      this.#onDiagnostic?.({
+        kind: 'submit-unreachable',
+        error: err instanceof Error ? err.message : String(err),
       })
-      flashError(tabId)
+      this.#notifySubmitError?.(tabId)
       throw err
     }
     if (response.status === PRECONDITION_FAILED) {
       if (retryCount >= 3) {
-        log({
-          severity: 'error',
-          scope: 'pool',
-          text: 'Failed job precondition more than 3 times while submitting! Giving up and pausing temporarily',
-          data: { retries: retryCount },
+        this.#onDiagnostic?.({
+          kind: 'precondition-giving-up',
+          retries: retryCount,
         })
         this.#stopPollingAndReschedule(server)
         throw new Error('precondition failed too many times')
       }
-      log({
-        severity: 'warning',
-        scope: 'pool',
-        text: 'Failed job precondition while submitting. Trying to refresh and re-submit...',
-      })
+      this.#onDiagnostic?.({ kind: 'precondition-retrying' })
       this.stop(server)
       try {
         await this.#updateSites(server)
@@ -525,11 +487,9 @@ export class Client {
       } catch (err) {
         const message =
           err instanceof Error ? err.message : '[non-Error thrown]'
-        log({
-          severity: 'error',
-          scope: 'pool',
-          text: 'Got an error while trying to reschedule a failed precondition',
-          data: { error: message },
+        this.#onDiagnostic?.({
+          kind: 'precondition-reschedule-failed',
+          error: message,
         })
         throw err
       } finally {
@@ -542,19 +502,14 @@ export class Client {
         responseText.length > 1000
           ? responseText.slice(0, 1000).replace(/.{3}$/, '...')
           : responseText
-      log({
-        severity: 'error',
-        scope: 'pool',
-        text: 'Failed to submit job',
-        data: { response: truncated },
-      })
-      flashError(tabId)
+      this.#onDiagnostic?.({ kind: 'submit-rejected', response: truncated })
+      this.#notifySubmitError?.(tabId)
       throw Object.assign(new Error('job submission failed'), {
         httpStatus: response.status,
         serverResponse: truncated,
       })
     }
-    flashSuccess(tabId)
+    this.#notifySubmitSuccess?.(tabId)
     return { httpStatus: response.status, serverResponse: responseText }
   }
 
@@ -610,24 +565,16 @@ export class Client {
       const body = wire as unknown as JobPollResponse
 
       if (body.refetch?.includes('sites')) {
-        log({
-          severity: 'info',
-          scope: 'pool',
-          text: 'The server requested a refetch because the sites have changed',
-        })
+        this.#onDiagnostic?.({ kind: 'sites-refetch-requested' })
         await this.#updateSites(server)
       }
 
       this.#addJobs(body.jobs)
     } catch (error) {
-      log({
-        severity: 'error',
-        scope: 'pool',
-        text: `Error polling for new jobs: ${server.name} ${error}`,
-        data: {
-          server,
-          message: error instanceof Error ? error.message : '[unknown error]',
-        },
+      this.#onDiagnostic?.({
+        kind: 'poll-failed',
+        server,
+        error: error instanceof Error ? error.message : '[unknown error]',
       })
       console.error('Error polling for jobs:', error)
       if (this.#errorCount % 3 === 0) {
@@ -739,11 +686,7 @@ export class Client {
         }
       }
     }
-    log({
-      severity: 'error',
-      scope: 'pool',
-      text: `Could not find site ${id}`,
-    })
+    this.#onDiagnostic?.({ kind: 'site-not-found', siteId: id })
     throw new Error(`Invalid site ${id}`)
   }
 }
@@ -752,7 +695,12 @@ export interface ShoalClientOptions {
   pollIntervalSeconds: number
   queueIntervalSeconds: number
   defaultServers?: ServerDefinition[]
-  cst: ContentScriptTracker
+  getJobTab(): Promise<number>
+  runJob(params: JobParameters, opts: { tabId: number }): Promise<void>
+  onSubmission?(event: SubmissionEvent): void
+  onDiagnostic?(event: DiagnosticEvent): void
+  onSubmitError?(tabId?: number): void
+  onSubmitSuccess?(tabId?: number): void
   onSitesUpdated?(server: ServerDefinition, sites: SiteSpec[]): void
   onPatches?: (result: ScrapeResult) => void
 }

@@ -15,7 +15,7 @@ import type {
 import type { PlainLog, ScrapeLog, ScrapeSource } from './shared'
 import type { EntityPatch } from './funnels/types'
 import type { ScrapeResult } from './funnels/scrape-result'
-import type { HeartbeatStatus } from './server/client'
+import type { HeartbeatStatus } from '@tide/client'
 import type {
   CaptureEntry,
   GenerationRequest,

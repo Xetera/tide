@@ -6,7 +6,7 @@ import {
   TextFieldRoot,
 } from '~/components/ui/textfield'
 import { useBrowserStorage } from '~/shared/hooks'
-import type { HeartbeatStatus } from '~/server/client'
+import type { HeartbeatStatus } from '@tide/client'
 import { JoinPoolForm } from './join-pool'
 import { SiteGrid } from './site-grid'
 

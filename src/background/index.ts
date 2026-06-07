@@ -1,5 +1,6 @@
 import { onMessage } from 'webext-bridge/background'
-import { Client } from '~/server/client'
+import { Client } from '@tide/client'
+import { extensionClientBindings } from './client-adapter'
 import { ServerAutonomy } from '@tide/spec'
 import { instagramSite } from '@tide/sites'
 import { allSites } from '@tide/sites'
@@ -274,7 +275,7 @@ log({
     const workerSecret = await storage.get('server:worker-secret', '')
 
     client = new Client({
-      cst,
+      ...extensionClientBindings(cst),
       pollIntervalSeconds: 30,
       queueIntervalSeconds: 1,
       defaultServers: [
@@ -291,6 +292,9 @@ log({
       onPatches(emission) {
         storage.set('scrape:last', emission)
       },
+    })
+    onMessage('entity-patches', ({ data, sender }) => {
+      client?.ingestPatch(data, sender.tabId)
     })
 
     resolveClient(client)

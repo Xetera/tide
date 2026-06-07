@@ -1,4 +1,4 @@
-import type { paths, components } from '~/generated/shoal-api'
+import type { paths, components } from './generated/shoal-api'
 
 type Op<P extends keyof paths, M extends keyof paths[P]> = paths[P][M]
 

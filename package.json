@@ -1,6 +1,6 @@
 {
   "name": "tide",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "",
   "license": "MIT",
   "type": "module",
@@ -13,7 +13,7 @@
     "lint": "oxlint --fix && oxfmt --write .",
     "test": "vitest --no-isolate",
     "schema": "jiti src/scripts/schema.ts",
-    "api:types": "node scripts/generate-shoal-api-types.mjs",
+    "api:types": "pnpm --filter @tide/client api:types",
     "ohm": "pnpm exec ohm generateBundles --withTypes 'src/**/*.ohm'",
     "push:android": "bash scripts/push-android.sh"
   },
@@ -28,6 +28,7 @@
     "@internationalized/number": "^3.6.5",
     "@kobalte/core": "^0.13.11",
     "@lezer/highlight": "^1.2.3",
+    "@tide/client": "workspace:*",
     "@tide/frontmatter": "workspace:*",
     "@tide/htmlegy": "workspace:*",
     "@tide/htmlegy-dom": "workspace:*",
@@ -67,7 +68,6 @@
     "jsdom": "^29.0.0",
     "kolorist": "^1.8.0",
     "msw": "^2.12.12",
-    "openapi-typescript": "^7.13.0",
     "oxfmt": "^0.41.0",
     "oxlint": "^1.61.0",
     "schema-dts": "^2.0.0",

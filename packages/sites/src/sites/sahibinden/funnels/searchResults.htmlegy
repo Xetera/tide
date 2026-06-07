@@ -3,7 +3,7 @@ name: "Search Results"
 url: "/**"
 ---
 [
-  $$(.searchResultsItem:not(.nativeAd)) {
+  @row$$(.searchResultsItem:not(.nativeAd)) {
     "_entity": "@sahibinden/listing",
     "_id": $ | data("id"),
     "_createdAt": $(.searchResultsDateValue)?
@@ -18,8 +18,30 @@ url: "/**"
     // may not exist for all tables
     "thumbnail": $(.searchResultsLargeThumbnail img:not(.searchResultThumbnailPlaceholder))?
       | media,
-    "location": $(.searchResultsLocationValue)?
-      | lines { "city": $ | at(0), "district": $ | at(1) },
+    // this field depends on what specifically the user is searching for
+    "location": match @$(#searchResultsTable .searchResultsLocationHeader)
+      | text
+      | trim {
+      "İl / İlçe" => @row$(.searchResultsLocationValue)?
+        | lines { "city": $ | at(0), "town": $ | at(1) },
+      "İlçe / Semt" => @row$(.searchResultsLocationValue)?
+        | lines {
+        "city": @$([data-address="city"] .faceted-select) | text | trim,
+        "town": $ | at(0)
+      },
+      "Semt / Mahalle" => @row$(.searchResultsLocationValue)?
+        | lines {
+        "city": @$([data-address="city"] .faceted-select) | text | trim,
+        "town": @$([data-address="town"] .faceted-select) | text | trim,
+        "quarter": $ | at(0)
+      },
+      "Mahalle" => {
+        "city": @$([data-address="city"] .faceted-select) | text | trim,
+        "town": @$([data-address="town"] .faceted-select) | text | trim,
+        "quarter": @$([data-address="quarter"] .faceted-select) | text | trim
+      }
+    },
+    // the currency from the cost should be inferred
     "price": $(.searchResultsPriceValue) | innerText | money,
     "attributes": zip(@$$(#searchResultsTable thead td:nth-child(n + 2)), $$(td:nth-child(n + 2))) {
       [$1 | text | trim]: $2 | innerText | trim

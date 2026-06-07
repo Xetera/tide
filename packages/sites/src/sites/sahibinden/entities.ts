@@ -9,8 +9,8 @@ const SahibindenImage = Image.offload().identity({
 
 const Location = Type.Object({
   city: Type.String(),
-  district: Type.String(),
-  neighborhood: Type.Optional(Type.String()),
+  town: Type.String(),
+  quarter: Type.Optional(Type.String()),
 })
 
 export const sahibindenEntities = [

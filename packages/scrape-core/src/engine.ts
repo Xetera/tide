@@ -34,7 +34,14 @@ export function createScrapeEngine(opts: ScrapeEngineOptions): ScrapeEngine {
   const pageFunnels = sites.flatMap((s) => s.getPageFunnels())
   const networkFunnels = sites.flatMap((s) => s.getNetworkFunnels())
 
-  new NetworkCapture(sites, networkFunnels, network, origin, onResult)
+  const capture = new NetworkCapture(
+    sites,
+    networkFunnels,
+    validator,
+    network,
+    origin,
+    onResult,
+  )
   const page = new HtmlPageSource(
     document,
     pageFunnels,
@@ -44,9 +51,17 @@ export function createScrapeEngine(opts: ScrapeEngineOptions): ScrapeEngine {
   )
 
   return {
-    start: () => page.start(),
-    stop: () => page.stop(),
-    updateSites: (next) =>
-      page.updateRules(next.flatMap((s) => s.getPageFunnels())),
+    start: () => {
+      page.start()
+      capture.start()
+    },
+    stop: () => {
+      page.stop()
+      capture.stop()
+    },
+    updateSites: (next) => {
+      page.updateRules(next.flatMap((s) => s.getPageFunnels()))
+      capture.updateRules(next, next.flatMap((s) => s.getNetworkFunnels()))
+    },
   }
 }

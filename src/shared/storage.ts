@@ -1,5 +1,5 @@
 import PQueue from 'p-queue'
-import type { HeartbeatStatus, ServerDefinition } from '~/server/client'
+import type { HeartbeatStatus, ServerDefinition } from '@tide/client'
 import type {
   ServerAutonomy,
 } from '@tide/spec'

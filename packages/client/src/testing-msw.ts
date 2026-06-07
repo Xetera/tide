@@ -1,7 +1,7 @@
 import { setupServer } from 'msw/node'
 import { HttpResponse, http } from 'msw'
-import type { PollResponse, WorkerSitesResponse } from './server/api'
-import { TEST_URL_ENDPOINT } from './setup-tools'
+import type { PollResponse, WorkerSitesResponse } from './api'
+import { TEST_URL_ENDPOINT } from './testing-setup'
 
 export const restHandlers = [
   http.get(`${TEST_URL_ENDPOINT}/api/pool/:poolId/workers/me/sites`, () => {

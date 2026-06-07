@@ -2,7 +2,7 @@
 import { render } from 'solid-js/web'
 import { For, Match, Show, Switch, createMemo, createSignal } from 'solid-js'
 import { useBrowserStorage } from '~/shared/hooks'
-import type { HeartbeatStatus } from '~/server/client'
+import type { HeartbeatStatus } from '@tide/client'
 import { JoinPoolForm } from './join-pool'
 import { SiteGrid } from './site-grid'
 import './app.css'

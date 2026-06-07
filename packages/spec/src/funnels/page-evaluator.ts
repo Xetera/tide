@@ -1,4 +1,4 @@
-import { isCloudflareChallengePage } from './detection'
+import { isCloudflareChallengePage, isPerimeterXChallengePage } from './detection'
 import type { PageFunnel } from './types'
 
 export class PageEvaluator {
@@ -17,6 +17,13 @@ export class PageEvaluator {
         kind: 'fail',
         reason: 'well-known-response',
         response: 'cloudflare',
+      }
+    }
+    if (isPerimeterXChallengePage(this.document)) {
+      return {
+        kind: 'fail',
+        reason: 'well-known-response',
+        response: 'perimeterx',
       }
     }
 
@@ -47,7 +54,7 @@ export type MatchingPageFunnels = {
   funnels: PageFunnel[]
 }
 
-export type WellKnownFailureProvider = 'cloudflare'
+export type WellKnownFailureProvider = 'cloudflare' | 'perimeterx'
 
 export type NoMatchFailure =
   | { kind: 'fail'; reason: 'no-matching-rule' }
