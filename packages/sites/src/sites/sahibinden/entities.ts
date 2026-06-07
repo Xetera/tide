@@ -7,6 +7,11 @@ const SahibindenImage = Image.offload().identity({
   fn: shbdn_image_identity,
 })
 
+const Breadcrumb = Type.Object({
+  id: Type.Optional(Type.String()),
+  label: Type.String()
+})
+
 const Location = Type.Object({
   city: Type.String(),
   town: Type.String(),
@@ -23,6 +28,7 @@ export const sahibindenEntities = [
     description: RichText,
     latitude: Type.Number(),
     longitude: Type.Number(),
+    breadcrumbs: Type.Array(Breadcrumb),
     attributes: Type.Record(Type.String(), Type.String(), {
       description:
         'Sahinbinden has a lot of different attributes for different kinds of listings',

@@ -24,6 +24,9 @@ url: "/ilan/:id/detay"
       "latitude": $ | data("lat") | number(locale: "en"),
       "longitude": $ | data("lon") | number(locale: "en")
     }),
+    "breadcrumbs": $$([data-search-type="category/category_breadcrumb"] .bc-item > a)+ {
+      "label": $ | text | trim
+    },
     "images": match {
       // mobile
       $$([data-extra-class="mega-image"] ul > li) => {

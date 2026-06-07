@@ -9,6 +9,10 @@ url: "/ajax/mapSearch/classified/markers"
     "_id": id,
     "latitude": lat,
     "longitude": lat,
+    "breadcrumbs": $$.breadcrumb.{
+      "id": id,
+      "label": label
+    },
     "price": $money(formattedPrice, 'TRY', 'tr')
   }
 ]
