@@ -41,7 +41,7 @@ url: "/**"
         "quarter": @$([data-address="quarter"] .faceted-select) | text | trim
       }
     },
-    "breadcrumbs": $$([data-search-type="category/category_breadcrumb"] .bc-item > a)+ {
+    "breadcrumbs": @$$([data-search-type="category/category_breadcrumb"] .bc-item > a)+ {
       "label": $ | text | trim
     },
     // the currency from the cost should be inferred
