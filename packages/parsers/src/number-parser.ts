@@ -27,27 +27,50 @@ export function localeFormatParts(locale: string): {
   }
 }
 
-export function expandLocaleSuffix(str: string, locale: string): string {
-  const suffixes = LOCALE_SUFFIXES[locale.split('-')[0]!]
+function normalizeLocaleNumber(str: string, locale: string): number {
+  const { group, decimal } = localeFormatParts(locale)
+  return parseFloat(str.replaceAll(group, '').replace(decimal, '.'))
+}
+
+function matchLocaleSuffix(
+  str: string,
+  locale: string,
+): { value: number; multiplier: number } | null {
+  const base = locale.split('-')[0]!
+  const suffixes = LOCALE_SUFFIXES[base]
   if (!suffixes) {
-    return str
+    return null
   }
+  const lowered = str.trim().toLocaleLowerCase(locale)
   const pattern = Object.keys(suffixes)
     .sort((a, b) => b.length - a.length)
     .join('|')
-  const m = str.trim().match(new RegExp(`^([\\d.,]+)\\s*(${pattern})\\b`, 'i'))
+  const m = lowered.match(new RegExp(`^([\\d.,]+)\\s*(${pattern})\\b`))
   if (!m || !m[1] || !m[2]) {
+    return null
+  }
+  return {
+    value: normalizeLocaleNumber(m[1], locale),
+    multiplier: suffixes[m[2]] ?? 1,
+  }
+}
+
+function applyMultiplier(value: number, multiplier: number): number {
+  return Math.round((value * multiplier + Number.EPSILON) * 100) / 100
+}
+
+export function expandLocaleSuffix(str: string, locale: string): string {
+  const matched = matchLocaleSuffix(str, locale)
+  if (!matched) {
     return str
   }
-  const multiplier = suffixes[m[2].toLowerCase()] ?? 1
-  const { group, decimal } = localeFormatParts(locale)
-  const n = parseFloat(m[1].replaceAll(group, '').replace(decimal, '.'))
-  return String(n * multiplier)
+  return String(applyMultiplier(matched.value, matched.multiplier))
 }
 
 export function parseLocaleNumber(str: string, locale: string): number {
-  const { group, decimal } = localeFormatParts(locale)
-  const expanded = expandLocaleSuffix(str, locale)
-  const normalized = expanded.replaceAll(group, '').replace(decimal, '.')
-  return parseFloat(normalized)
+  const matched = matchLocaleSuffix(str, locale)
+  if (matched) {
+    return applyMultiplier(matched.value, matched.multiplier)
+  }
+  return normalizeLocaleNumber(str, locale)
 }

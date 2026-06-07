@@ -28,6 +28,10 @@ describe('parseLocaleNumber', () => {
     expect(parseLocaleNumber('1.234,56', 'tr')).toBe(1234.56)
   })
 
+  it('parses a tr decimal with M suffix without float drift', () => {
+    expect(parseLocaleNumber('2,05 M', 'tr')).toBe(2050000)
+  })
+
   it('parses an integer without grouping', () => {
     expect(parseLocaleNumber('4980', 'en')).toBe(4980)
   })
@@ -48,6 +52,18 @@ describe('expandLocaleSuffix', () => {
 
   it('expands tr milyon suffix', () => {
     expect(expandLocaleSuffix('1,5 milyon', 'tr')).toBe('1500000')
+  })
+
+  it('expands tr bin suffix', () => {
+    expect(expandLocaleSuffix('500 bin', 'tr')).toBe('500000')
+  })
+
+  it('expands tr bin suffix with grouping and decimal', () => {
+    expect(expandLocaleSuffix('1.234,5 bin', 'tr')).toBe('1234500')
+  })
+
+  it('expands tr bin suffix uppercased with Turkish dotted I', () => {
+    expect(expandLocaleSuffix('500 BİN', 'tr')).toBe('500000')
   })
 
   it('prefers the longest matching suffix', () => {
