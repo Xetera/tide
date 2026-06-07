@@ -1325,16 +1325,16 @@
               "type": "object",
               "required": [
                 "city",
-                "district"
+                "town"
               ],
               "properties": {
                 "city": {
                   "type": "string"
                 },
-                "district": {
+                "town": {
                   "type": "string"
                 },
-                "neighborhood": {
+                "quarter": {
                   "type": "string"
                 }
               }
