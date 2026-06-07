@@ -18,9 +18,9 @@ import type {
   JobSource,
   SiteSpec,
   SubmitEvent,
-} from '~/funnels/types'
-import { ServerAutonomy } from '~/funnels/types'
-import type { ScrapeResult } from '~/funnels/scrape-result'
+} from '@tide/spec'
+import { ServerAutonomy } from '@tide/spec'
+import type { ScrapeResult } from '@tide/spec'
 import type {
   PollResponse,
   SyncSitesRequest,

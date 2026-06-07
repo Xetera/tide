@@ -1,8 +1,8 @@
 import { onMessage } from 'webext-bridge/background'
 import { Client } from '~/server/client'
-import { ServerAutonomy } from '~/funnels/types'
-import { instagramSite } from '~/sites/instagram'
-import { allSites } from '~/sites'
+import { ServerAutonomy } from '@tide/spec'
+import { instagramSite } from '@tide/sites'
+import { allSites } from '@tide/sites'
 import { generateUID } from '~/shared/uid'
 import { type BrowserStorageSchema, Storage } from '~/shared/storage'
 import { log } from './backend-logger'
@@ -20,20 +20,20 @@ import {
   addOptedInSite,
   removeOptedInSite,
 } from '~/shared/site-optin'
-import { toOrigin } from '~/funnels/url'
-import type { SiteSpec } from '~/funnels/types'
+import { toOrigin } from '@tide/spec'
+import type { SiteSpec } from '@tide/spec'
 import { StorageListener } from './storage-listener'
 import {
   getCaptureById,
   getCapturesForHostname,
   storeCaptureEntry,
 } from './capture'
-import { EntityValidator } from '~/funnels/entity-validator'
+import { EntityValidator } from '@tide/spec'
 import { JsonataExpression } from '@tide/jsonata'
 import type { CaptureEntry, FunnelMatchResult } from '~/generation/types'
 import { runGenerationLoop, runHtmlegyGenerationLoop } from '~/generation/llm'
 import { buildFunnelInfos } from '~/generation/funnel-info'
-import { funnelProvider } from '~/funnels/funnel-loader'
+import { funnelProvider } from '@tide/sites'
 import { getRecording, isRecordingFor, setRecording } from '~/shared/recording'
 
 const storage = new Storage<BrowserStorageSchema>()

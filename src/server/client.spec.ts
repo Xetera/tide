@@ -1,10 +1,10 @@
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { sahibindenSmallJobs } from '~/sites/sahibinden'
+import { sahibindenSmallJobs } from '@tide/sites'
 import { server } from '~/msw'
 import { TEST_URL_ENDPOINT } from '~/setup-tools'
 import { Client, type ServerDefinition } from './client'
-import { type JobPollResponse, ServerAutonomy } from '~/funnels/types'
+import { type JobPollResponse, ServerAutonomy } from '@tide/spec'
 
 const serverDefinition: ServerDefinition = {
   id: '----',

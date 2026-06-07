@@ -11,8 +11,7 @@
     "moduleResolution": "bundler",
     "paths": {
       "~gleam/*": ["gleam/build/dev/javascript/tide_shared/*"],
-      "~/*": ["src/*"],
-      "~/funnels/funnel-loader": ["src/funnels/funnel-loader.vite.ts"]
+      "~/*": ["src/*"]
     },
     "noUncheckedIndexedAccess": true,
     "resolveJsonModule": true,

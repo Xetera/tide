@@ -1,8 +1,8 @@
-import type { FunnelProvider } from '~/funnels/funnel-loader'
+import type { FunnelProvider } from '@tide/spec'
 import type {
   PageFunnelEntry,
   NetworkFunnelEntry,
-} from '~/funnels/types'
+} from '@tide/spec'
 import type { FunnelInfo } from '~/generation/types'
 
 export function buildFunnelInfos(provider: FunnelProvider): FunnelInfo[] {

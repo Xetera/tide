@@ -170,10 +170,6 @@ export default defineConfig({
         find: '~gleam/',
         replacement: `${GLEAM_DIR}/build/dev/javascript/tide_shared/`,
       },
-      {
-        find: /^~\/funnels\/funnel-loader$/,
-        replacement: resolve(r('src'), 'funnels/funnel-loader.vite.ts'),
-      },
       { find: '~/', replacement: `${r('src')}/` },
       // alias: [
       {

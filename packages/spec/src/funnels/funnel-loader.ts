@@ -1,0 +1,388 @@
+import {
+  SiteDeclaration,
+  PageFunnel,
+  NetworkFunnel,
+  NetworkFunnelGroup,
+} from './types'
+import { matchesGlob } from './glob'
+import type { RequestMatcher } from './types'
+import { parseFrontmatter } from '@tide/frontmatter'
+import type {
+  PageFunnelEntry,
+  NetworkFunnelEntry,
+  FixtureEntry,
+} from './types'
+
+export const LOADER_FLAT_RE =
+  /\/sites\/([^/]+)\/funnels\/([^/]+\.(jsonata|htmlegy))$/
+export const FIXTURE_RE =
+  /\/sites\/([^/]+)\/funnels\/([^/]+\.json)$/
+
+export function parseEntry(
+  path: string,
+  expression: string,
+): { site: string; funnel: string; file: string; path: string; expression: string; body: string; frontmatter: Record<string, unknown> } | null {
+  const { body, frontmatter } = parseFrontmatter(expression)
+  const flatMatch = path.match(LOADER_FLAT_RE)
+  if (flatMatch) {
+    const [, site, filename] = flatMatch
+    const funnel = filename!.replace(/\.(jsonata|htmlegy)$/, '')
+    return {
+      site: site!,
+      funnel: funnel!,
+      file: filename!,
+      path: `src/sites${path.split('/sites')[1]}`,
+      expression,
+      body,
+      frontmatter,
+    }
+  }
+  return null
+}
+
+export function parseAllEntries(
+  rawJsonataModules: Record<string, string>,
+  rawHtmlegyModules: Record<string, string>,
+): { page: PageFunnelEntry[]; network: NetworkFunnelEntry[] } {
+  const page = Object.entries(rawHtmlegyModules).flatMap(
+    ([path, expression]) => {
+      const entry = parseEntry(path, expression) as PageFunnelEntry | null
+      return entry ? [entry] : []
+    },
+  )
+  const network = Object.entries(rawJsonataModules).flatMap(
+    ([path, expression]) => {
+      const entry = parseEntry(path, expression) as NetworkFunnelEntry | null
+      if (!entry) {
+        return []
+      }
+      const url = entry.frontmatter.url
+      if (
+        typeof url !== 'string' &&
+        !(Array.isArray(url) && url.every((u) => typeof u === 'string'))
+      ) {
+        console.warn(`[tide] ${path}: missing required frontmatter field "url"`)
+        return []
+      }
+      return [entry]
+    },
+  )
+  return { page, network }
+}
+
+export function parseFixtures(
+  rawFixtureModules: Record<string, unknown>,
+): FixtureEntry[] {
+  return Object.entries(rawFixtureModules).flatMap(([path, data]) => {
+    const match = path.match(FIXTURE_RE)
+    if (!match) {
+      return []
+    }
+    const [, site, filename] = match
+    const funnel = filename!.replace(/\.json$/, '')
+    return [
+      {
+        site: site!,
+        funnel: funnel!,
+        path: `src/sites${path.split('/sites')[1]}`,
+        name: filename!,
+        data,
+      },
+    ]
+  })
+}
+
+export class FunnelProvider {
+  #pageEntries: PageFunnelEntry[]
+  #networkEntries: NetworkFunnelEntry[]
+  #fixtures: FixtureEntry[]
+
+  constructor(
+    pageEntries: PageFunnelEntry[],
+    networkEntries: NetworkFunnelEntry[],
+    fixtures: FixtureEntry[],
+  ) {
+    this.#pageEntries = pageEntries
+    this.#networkEntries = networkEntries
+    this.#fixtures = fixtures
+  }
+
+  getEntries(): readonly (PageFunnelEntry | NetworkFunnelEntry)[] {
+    return [...this.#pageEntries, ...this.#networkEntries]
+  }
+
+  getPageEntries(): readonly PageFunnelEntry[] {
+    return this.#pageEntries
+  }
+
+  getNetworkEntries(): readonly NetworkFunnelEntry[] {
+    return this.#networkEntries
+  }
+
+  getFixtures(): readonly FixtureEntry[] {
+    return this.#fixtures
+  }
+
+  getForSite(dir: string): readonly NetworkFunnelEntry[] {
+    return this.#networkEntries.filter((e) => e.site === dir)
+  }
+
+  getPageFunnelsForSite(
+    dir: string,
+    hostname: string | undefined,
+  ): PageFunnel[] {
+    const result: PageFunnel[] = []
+    for (const e of this.#pageEntries) {
+      if (e.site !== dir) {
+        continue
+      }
+      try {
+        const url = e.frontmatter.url
+        if (!url || (typeof url !== 'string' && !Array.isArray(url))) {
+          continue
+        }
+        result.push(
+          new PageFunnel({
+            name: e.funnel,
+            site: dir,
+            file: e.file,
+            path: e.path,
+            url: url as string | string[],
+            hostname,
+            entry: e,
+          }),
+        )
+      } catch {
+        continue
+      }
+    }
+    return result
+  }
+
+  buildNetworkFunnels(dir: string, hostname: string): NetworkFunnelGroup[] {
+    const grouped: Map<
+      string,
+      { matcher: RequestMatcher; entries: NetworkFunnelEntry[] }
+    > = new Map()
+    for (const entry of this.getForSite(dir)) {
+      const { frontmatter } = entry
+      const url = frontmatter.url as string | string[]
+      const method =
+        typeof frontmatter.method === 'string' ? frontmatter.method : 'GET'
+      const matcher: RequestMatcher = {
+        method: method as RequestMatcher['method'],
+        url,
+      }
+      const group = grouped.get(entry.funnel) ?? { matcher, entries: [] }
+      group.entries.push(entry)
+      grouped.set(entry.funnel, group)
+    }
+    const result: NetworkFunnelGroup[] = []
+    for (const [name, { matcher, entries }] of grouped) {
+      const funnels = entries.map(
+        (e) =>
+          new NetworkFunnel({
+            name,
+            file: e.file,
+            path: e.path,
+            request: matcher,
+            entry: e,
+          }),
+      )
+      result.push(
+        new NetworkFunnelGroup({
+          name,
+          hostname,
+          request: matcher,
+          funnels,
+        }),
+      )
+    }
+    return result
+  }
+
+  resolveSite(declaration: SiteDeclaration): SiteDefinition {
+    return new SiteDefinition(
+      declaration,
+      this.getPageFunnelsForSite(declaration.id, declaration.hostname),
+      this.buildNetworkFunnels(declaration.id, declaration.hostname),
+    )
+  }
+
+  resolveSites(declarations: readonly SiteDeclaration[]): SiteDefinition[] {
+    return declarations.map((d) => this.resolveSite(d))
+  }
+
+  patchEntry(path: string, content: string): boolean {
+    const page = this.#pageEntries.find((e) => e.path === `src/${path}`)
+    if (page) {
+      const { body, frontmatter } = parseFrontmatter(content)
+      page.expression = content
+      page.body = body
+      page.frontmatter = frontmatter
+      return true
+    }
+    const network = this.#networkEntries.find((e) => e.path === `src/${path}`)
+    if (network) {
+      const { body, frontmatter } = parseFrontmatter(content)
+      network.expression = content
+      network.body = body
+      network.frontmatter = frontmatter
+      return true
+    }
+    return false
+  }
+
+  addEntry(path: string, content: string): boolean {
+    const entry = parseEntry(`/${path}`, content)
+    if (!entry) {
+      return false
+    }
+    if (path.endsWith('.htmlegy')) {
+      if (this.#pageEntries.some((e) => e.path === entry.path)) {
+        return false
+      }
+      this.#pageEntries.push(entry as PageFunnelEntry)
+      return true
+    }
+    if (path.endsWith('.jsonata')) {
+      const url = entry.frontmatter.url
+      if (
+        typeof url !== 'string' &&
+        !(Array.isArray(url) && url.every((u) => typeof u === 'string'))
+      ) {
+        console.warn(
+          `[tide] ${path}: missing required frontmatter field "url"`,
+        )
+        return false
+      }
+      if (this.#networkEntries.some((e) => e.path === entry.path)) {
+        return false
+      }
+      this.#networkEntries.push(entry as NetworkFunnelEntry)
+      return true
+    }
+    return false
+  }
+
+  removeEntry(path: string): boolean {
+    const target = `src/${path}`
+    const pageIdx = this.#pageEntries.findIndex((e) => e.path === target)
+    if (pageIdx !== -1) {
+      this.#pageEntries.splice(pageIdx, 1)
+      return true
+    }
+    const networkIdx = this.#networkEntries.findIndex((e) => e.path === target)
+    if (networkIdx !== -1) {
+      this.#networkEntries.splice(networkIdx, 1)
+      return true
+    }
+    return false
+  }
+
+  buildBuiltinExamples(
+    maxCount = 3,
+  ): { funnelName: string; expression: string; fixtureSnippet: string }[] {
+    const examples: {
+      funnelName: string
+      expression: string
+      fixtureSnippet: string
+    }[] = []
+    for (const entry of this.getEntries()) {
+      const fixture = this.#fixtures.find(
+        (f) => f.site === entry.site && f.funnel === entry.funnel,
+      )
+      const fixtureSnippet = fixture
+        ? JSON.stringify(fixture.data, null, 2).slice(0, 3_000)
+        : ''
+      examples.push({
+        funnelName: entry.funnel,
+        expression: entry.expression,
+        fixtureSnippet,
+      })
+      if (examples.length >= maxCount) {
+        break
+      }
+    }
+    return examples
+  }
+}
+
+export class SiteDefinition {
+  readonly declaration: SiteDeclaration
+  readonly pageFunnels: PageFunnel[]
+  readonly networkFunnels: NetworkFunnelGroup[]
+
+  constructor(
+    declaration: SiteDeclaration,
+    pageFunnels: PageFunnel[],
+    networkFunnels: NetworkFunnelGroup[],
+  ) {
+    this.declaration = declaration
+    this.pageFunnels = pageFunnels
+    this.networkFunnels = networkFunnels
+  }
+
+  get id(): string {
+    return this.declaration.id
+  }
+
+  get hostname(): string {
+    return this.declaration.hostname
+  }
+
+  get icon(): string | undefined {
+    return this.declaration.icon
+  }
+
+  get entities() {
+    return this.declaration.entities
+  }
+
+  getPageFunnels(): PageFunnel[] {
+    return this.pageFunnels
+  }
+
+  getNetworkFunnels(): NetworkFunnelGroup[] {
+    return this.networkFunnels
+  }
+
+  matchesHostname(url: URL): boolean {
+    return this.declaration.matchesHostname(url)
+  }
+
+  matchesCapture(url: URL, method: string): boolean {
+    const upperMethod = method.toUpperCase()
+    for (const group of this.networkFunnels) {
+      if (group.request.method.toUpperCase() !== upperMethod) {
+        continue
+      }
+      const urls = Array.isArray(group.request.url)
+        ? group.request.url
+        : [group.request.url]
+      if (urls.some((u) => matchesGlob(u, url.pathname))) {
+        return true
+      }
+    }
+    return false
+  }
+}
+
+export function captureMatchesKnownFunnel(
+  sites: SiteDefinition[],
+  url: string,
+  method: string,
+): boolean {
+  let parsedUrl: URL
+  try {
+    parsedUrl = new URL(url)
+  } catch {
+    return false
+  }
+  for (const site of sites) {
+    if (site.matchesCapture(parsedUrl, method)) {
+      return true
+    }
+  }
+  return false
+}

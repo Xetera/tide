@@ -2,9 +2,9 @@ import { JsonataExpression } from '@tide/jsonata'
 import {
   EntityValidator,
   type IdentityWarning,
-} from '~/funnels/entity-validator'
-import { allSites } from '~/sites'
-import type { RawEntityPatch } from '~/funnels/types'
+} from '@tide/spec'
+import { allSites } from '@tide/sites'
+import type { RawEntityPatch } from '@tide/spec'
 import { createExpr } from '@tide/htmlegy-dom'
 import { parseFrontmatter } from '@tide/frontmatter'
 

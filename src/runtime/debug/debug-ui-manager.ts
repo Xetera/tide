@@ -1,7 +1,7 @@
 import { HighlightManager } from './highlight-manager'
 import { LegendOverlay } from './legend-overlay'
-import type { ScrapeResult } from '~/funnels/scrape-result'
-import type { NetworkFunnelGroup, Funnel } from '~/funnels/types'
+import type { ScrapeResult } from '@tide/spec'
+import type { NetworkFunnelGroup, Funnel } from '@tide/spec'
 import { scrapeSourceFunnelKey } from '~/shared/log'
 
 export class DebugUIManager {

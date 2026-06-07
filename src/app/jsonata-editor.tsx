@@ -18,7 +18,7 @@ import {
 } from '@codemirror/autocomplete'
 import { keymap } from '@codemirror/view'
 import { jsonataLanguage } from './jsonata-language'
-import { allSites } from '~/sites'
+import { allSites } from '@tide/sites'
 
 export interface ErrorPosition {
   line: number

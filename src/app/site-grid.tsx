@@ -2,8 +2,8 @@ import { For, Show, createSignal, onMount } from 'solid-js'
 import type { JSX } from 'solid-js'
 import { onMessage, sendMessage } from 'webext-bridge/popup'
 import { useBrowserStorage } from '~/shared/hooks'
-import type { SiteSpec } from '~/funnels/types'
-import { toOrigin } from '~/funnels/url'
+import type { SiteSpec } from '@tide/spec'
+import { toOrigin } from '@tide/spec'
 
 interface StatefulSite {
   hostAllowed: boolean

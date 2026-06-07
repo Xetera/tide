@@ -1,11 +1,10 @@
 import { sendMessage } from 'webext-bridge/content-script'
-import { allSites } from '~/sites'
-import { funnelProvider } from '~/funnels/funnel-loader'
+import { allSites, funnelProvider } from '@tide/sites'
+import { createScrapeEngine } from '@tide/scrape-core'
+import type { ScrapeLogger, ScrapeResult } from '@tide/scrape-core'
 import { DebugUIManager } from '~/runtime/debug/debug-ui-manager'
-import { HtmlPageSource } from '~/runtime/html-page-source'
-import { NetworkCapture } from '~/content-scripts/network-capture'
-import { EntityValidator } from '~/funnels/entity-validator'
-import type { ScrapeResult } from '~/funnels/scrape-result'
+import { sendLog } from '~/runtime/debug/content-script-log'
+import { chromeNetworkTransport } from '~/content-scripts/chrome-network-transport'
 import './stream-capture'
 
 ;(async () => {
@@ -18,21 +17,15 @@ import './stream-capture'
         'sites:opted-in': [] as string[],
       })
 
-    const networkFunnels = allSites.flatMap((s) => {
-      const funnels = s.getNetworkFunnels()
-      for (const f of funnels) {
-        console.log(
-          `[tide] network funnel: ${s.hostname} "${f.name}" → ${f.request.url}`,
-        )
-      }
-      return funnels
-    })
+    const optedInIds = optedIn as string[]
+    const optedInSites = allSites.filter((s) => optedInIds.includes(s.id))
+
+    const networkFunnels = allSites.flatMap((s) => s.getNetworkFunnels())
 
     const currentHostname = window.location.hostname
     const currentSite = allSites.find((s) => s.hostname === currentHostname)
     const isOptedIn =
-      currentSite !== undefined &&
-      (optedIn as string[]).includes(currentSite.id)
+      currentSite !== undefined && optedInIds.includes(currentSite.id)
 
     function onOptIn() {
       chrome.runtime.sendMessage({ type: 'open-popup', hostname: currentSite?.hostname })
@@ -49,38 +42,48 @@ import './stream-capture'
       debugUI.setEnabled(change.newValue as boolean)
     })
 
-    function onEmit(result: ScrapeResult) {
+    function onResult(result: ScrapeResult) {
       sendMessage('entity-patches', result)
       debugUI.onScrapeResult(result)
     }
 
+    const logger: ScrapeLogger = {
+      log: (entry) =>
+        sendLog({
+          severity: entry.severity,
+          text: entry.text,
+          data: entry.data as Record<string, unknown> | undefined,
+        }),
+    }
+
+    const engine = createScrapeEngine({
+      document,
+      sites: optedInSites,
+      logger,
+      network: chromeNetworkTransport,
+      origin: window.location.origin,
+      onResult,
+    })
+
     chrome.runtime.onMessage.addListener((message) => {
       if (message?.type === 'url-update') {
         debugUI.clear()
-        source.stop()
-        source.start()
+        engine.stop()
+        engine.start()
       }
     })
 
     console.group('[tide] running')
-    console.log('[tide] injecting page source')
-    const pageFunnels = allSites.flatMap((s) => s.getPageFunnels())
     console.log(
       '[tide] loaded sites',
       allSites.map((s) => s.hostname),
     )
     console.log(
-      '[tide] loaded page funnels',
-      pageFunnels.map((p) => p.url),
+      '[tide] opted-in sites',
+      optedInSites.map((s) => s.hostname),
     )
 
-    new NetworkCapture(allSites, networkFunnels, (result) => {
-      sendMessage('entity-patches', result)
-      debugUI.onScrapeResult(result)
-    })
-    const validator = new EntityValidator(allSites)
-    const source = new HtmlPageSource(pageFunnels, validator, onEmit)
-    source.start()
+    engine.start()
 
     if (import.meta.hot) {
       import.meta.hot.on(
@@ -90,10 +93,10 @@ import './stream-capture'
           if (!changed) {
             return
           }
-          const updatedPageFunnels = allSites.flatMap((s) =>
-            funnelProvider.getPageFunnelsForSite(s.id, s.hostname),
+          const reresolved = funnelProvider.resolveSites(
+            optedInSites.map((s) => s.declaration),
           )
-          source.updateRules(updatedPageFunnels)
+          engine.updateSites(reresolved)
           console.log(`[tide] hot-reloaded: ${path}`)
         },
       )

@@ -53,6 +53,15 @@ importers:
       '@tide/parsers':
         specifier: workspace:*
         version: link:packages/parsers
+      '@tide/scrape-core':
+        specifier: workspace:*
+        version: link:packages/scrape-core
+      '@tide/sites':
+        specifier: workspace:*
+        version: link:packages/sites
+      '@tide/spec':
+        specifier: workspace:*
+        version: link:packages/spec
       '@xetera/tide-design-tokens':
         specifier: workspace:*
         version: link:packages/design-tokens
@@ -310,6 +319,78 @@ importers:
       vitest:
         specifier: ^4.1.0
         version: 4.1.0(@types/node@25.5.0)(@vitest/ui@4.1.0)(happy-dom@20.8.4)(jsdom@29.0.0)(msw@2.12.12(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.0(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))
+
+  packages/scrape-core:
+    dependencies:
+      '@tide/htmlegy-dom':
+        specifier: workspace:*
+        version: link:../htmlegy-dom
+      '@tide/jsonata':
+        specifier: workspace:*
+        version: link:../jsonata
+      '@tide/spec':
+        specifier: workspace:*
+        version: link:../spec
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^8.0.0
+        version: 8.0.16(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.0(@types/node@25.5.0)(@vitest/ui@4.1.0)(happy-dom@20.8.4)(jsdom@29.0.0)(msw@2.12.12(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.16(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))
+
+  packages/sites:
+    dependencies:
+      '@tide/frontmatter':
+        specifier: workspace:*
+        version: link:../frontmatter
+      '@tide/jsonata':
+        specifier: workspace:*
+        version: link:../jsonata
+      '@tide/spec':
+        specifier: workspace:*
+        version: link:../spec
+      fast-glob:
+        specifier: ^3.3.3
+        version: 3.3.3
+      typebox:
+        specifier: ^1.1.15
+        version: 1.1.15
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^8.0.0
+        version: 8.0.16(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.0(@types/node@25.5.0)(@vitest/ui@4.1.0)(happy-dom@20.8.4)(jsdom@29.0.0)(msw@2.12.12(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.16(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))
+
+  packages/spec:
+    dependencies:
+      '@tide/frontmatter':
+        specifier: workspace:*
+        version: link:../frontmatter
+      '@tide/htmlegy':
+        specifier: workspace:*
+        version: link:../htmlegy
+      typebox:
+        specifier: ^1.1.15
+        version: 1.1.15
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^8.0.0
+        version: 8.0.16(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4)
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.0(@types/node@25.5.0)(@vitest/ui@4.1.0)(happy-dom@20.8.4)(jsdom@29.0.0)(msw@2.12.12(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.16(@types/node@25.5.0)(jiti@2.6.1)(terser@5.30.4)(yaml@2.8.4))
 
 packages:
 

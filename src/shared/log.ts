@@ -1,3 +1,7 @@
+import type { EntityPatch, ScrapeSource } from '@tide/spec'
+export { scrapeSourceFunnelKey } from '@tide/spec'
+export type { ScrapeSource } from '@tide/spec'
+
 export const EVENTS_KEY = 'events'
 
 export type PlainLog = {
@@ -16,21 +20,13 @@ export type PlainLog = {
 
 export type ScrapeLogStatus = 'pending' | 'submitted' | 'failed'
 
-export type ScrapeSource =
-  | { kind: 'network'; site: string; funnel: string; file: string; format: 'jsonata'; label?: string }
-  | { kind: 'page'; site: string; url: string; funnel: string; file: string; format: 'htmlegy'; label?: string }
-
-export function scrapeSourceFunnelKey(src: ScrapeSource): string | null {
-  return `${src.funnel}/${src.file}`
-}
-
 export type ScrapeLog = {
   id: string
   type: 'scrape'
   severity: 'info'
   /** unix timestamp */
   date: number
-  patches: import('../funnels/types').EntityPatch[]
+  patches: EntityPatch[]
   warnings: readonly string[]
   status: ScrapeLogStatus
   source?: ScrapeSource

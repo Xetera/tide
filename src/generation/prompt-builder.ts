@@ -1,4 +1,4 @@
-import type { Entity } from '~/funnels/types'
+import type { Entity } from '@tide/spec'
 import type { CaptureEntry } from './types'
 
 const MAX_BODY_IN_PROMPT = 8_000

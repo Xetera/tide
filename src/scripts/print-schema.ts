@@ -1,26 +1,17 @@
-import { writeFileSync, mkdirSync, readdirSync } from 'node:fs'
+import { writeFileSync, mkdirSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ImageType, VideoType, MoneyType } from '~/funnels/media-types'
-import { buildEntityRefs, entityKey } from '~/funnels/site-builder'
-import type { SiteDefinition, Entity } from '~/funnels/types'
+import { ImageType, VideoType, MoneyType } from '@tide/spec'
+import { buildEntityRefs, entityKey } from '@tide/spec'
+import type { Entity } from '@tide/spec'
+import { allSites } from '@tide/sites/node'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const sitesDir = resolve(__dirname, '../sites')
 const outDir = resolve(__dirname, '../../schemas')
 
 mkdirSync(outDir, { recursive: true })
 
-const siteDirs = readdirSync(sitesDir, { withFileTypes: true })
-  .filter((d) => d.isDirectory())
-  .map((d) => d.name)
-
-const siteModules: SiteDefinition[] = await Promise.all(
-  siteDirs.map(async (site) => {
-    const mod = await import(`~/sites/${site}/index`) as { default: SiteDefinition }
-    return mod.default
-  }),
-)
+const siteModules = allSites
 
 function collectEntityRefs(
   schema: unknown,

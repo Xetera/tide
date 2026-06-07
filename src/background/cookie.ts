@@ -1,4 +1,4 @@
-// import { originToUrl } from '~/funnels/url'
+// import { originToUrl } from '@tide/spec'
 
 // const CF_CLEARANCE = 'cf_clearance'
 

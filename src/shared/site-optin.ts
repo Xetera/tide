@@ -1,5 +1,5 @@
-import type { SiteSpec } from '~/funnels/types'
-import { toOrigin } from '~/funnels/url'
+import type { SiteSpec } from '@tide/spec'
+import { toOrigin } from '@tide/spec'
 import { Storage, type BrowserStorageSchema } from '~/shared/storage'
 
 const storage = new Storage<BrowserStorageSchema>()

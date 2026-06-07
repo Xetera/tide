@@ -1,8 +1,8 @@
-import type { Entity } from '~/funnels/types'
+import type { Entity } from '@tide/spec'
 import { JsonataExpression } from '@tide/jsonata'
 import { buildPrompt, buildHtmlegyPrompt } from './prompt-builder'
 import type { CaptureEntry, GenerationAttempt, GenerationResult } from './types'
-import type { EntityValidator } from '~/funnels/entity-validator'
+import type { EntityValidator } from '@tide/spec'
 import { createExpr } from '@tide/htmlegy-dom'
 
 type JsonSchema = {

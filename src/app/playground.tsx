@@ -11,8 +11,8 @@ import {
   useContext,
 } from 'solid-js'
 import { sendMessage } from 'webext-bridge/popup'
-import { allSites } from '~/sites'
-import { matchesGlob } from '~/funnels/glob'
+import { allSites } from '@tide/sites'
+import { matchesGlob } from '@tide/spec'
 import type {
   FunnelInfo,
   FunnelFixture,

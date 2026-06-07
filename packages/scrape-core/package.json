@@ -1,0 +1,21 @@
+{
+  "name": "@tide/scrape-core",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest --no-isolate --passWithNoTests"
+  },
+  "dependencies": {
+    "@tide/htmlegy-dom": "workspace:*",
+    "@tide/jsonata": "workspace:*",
+    "@tide/spec": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "vitest": "^4.1.0"
+  }
+}

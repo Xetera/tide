@@ -1,4 +1,4 @@
-import type { JobParameters, SiteSpec, ServerAutonomy } from '~/funnels/types'
+import type { JobParameters, SiteSpec, ServerAutonomy } from '@tide/spec'
 
 export class Job {
   readonly url: URL
