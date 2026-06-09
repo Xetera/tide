@@ -29,6 +29,10 @@
     "hostname": "www.sahibinden.com",
     "id": "sahibinden",
     "entities": [
+      "@sahibinden/real_estate",
+      "@sahibinden/vehicle",
+      "@sahibinden/job_listing",
+      "@sahibinden/accessories",
       "@sahibinden/listing",
       "@sahibinden/agency"
     ]

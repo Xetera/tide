@@ -29,6 +29,18 @@
         "$ref": "#/$defs/roblox__game"
       },
       {
+        "$ref": "#/$defs/sahibinden__real_estate"
+      },
+      {
+        "$ref": "#/$defs/sahibinden__vehicle"
+      },
+      {
+        "$ref": "#/$defs/sahibinden__job_listing"
+      },
+      {
+        "$ref": "#/$defs/sahibinden__accessories"
+      },
+      {
         "$ref": "#/$defs/sahibinden__listing"
       },
       {
@@ -1252,33 +1264,13 @@
       },
       "x-version": 0
     },
-    "sahibinden__listing": {
+    "sahibinden__real_estate": {
       "type": "object",
       "required": [
         "_entity",
         "_id"
       ],
       "properties": {
-        "id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "name": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "price": {
           "anyOf": [
             {
@@ -1301,18 +1293,6 @@
                   "pattern": "^[A-Z]{3}$"
                 }
               }
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "agency": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/EntityRef",
-              "x-cardinality": "one",
-              "x-entity": "@sahibinden/agency"
             },
             {
               "type": "null"
@@ -1379,20 +1359,28 @@
             }
           ]
         },
-        "latitude": {
+        "agency": {
           "anyOf": [
             {
-              "type": "number"
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "one",
+              "x-entity": "@sahibinden/agency"
             },
             {
               "type": "null"
             }
           ]
         },
-        "longitude": {
+        "attributes": {
           "anyOf": [
             {
-              "type": "number"
+              "type": "object",
+              "patternProperties": {
+                "^.*$": {
+                  "type": "string"
+                }
+              },
+              "description": "Sahinbinden has a lot of different attributes for different kinds of listings"
             },
             {
               "type": "null"
@@ -1423,6 +1411,179 @@
             }
           ]
         },
+        "latitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isFeatured": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "_entity": {
+          "type": "string",
+          "const": "@sahibinden/real_estate"
+        },
+        "_id": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "_createdAt": {
+          "type": "string",
+          "description": "ISO 8601 string timestamp",
+          "format": "date-time"
+        }
+      },
+      "$defs": {
+        "EntityRef": {
+          "type": "object",
+          "properties": {
+            "_id": {}
+          },
+          "required": [
+            "_id"
+          ]
+        }
+      },
+      "x-version": 0
+    },
+    "sahibinden__vehicle": {
+      "type": "object",
+      "required": [
+        "_entity",
+        "_id"
+      ],
+      "properties": {
+        "price": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "_type",
+                "amount",
+                "currency"
+              ],
+              "properties": {
+                "_type": {
+                  "type": "string",
+                  "const": "money"
+                },
+                "amount": {
+                  "type": "integer"
+                },
+                "currency": {
+                  "type": "string",
+                  "pattern": "^[A-Z]{3}$"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "location": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "city",
+                "town"
+              ],
+              "properties": {
+                "city": {
+                  "type": "string"
+                },
+                "town": {
+                  "type": "string"
+                },
+                "quarter": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "_type",
+                "content"
+              ],
+              "properties": {
+                "_type": {
+                  "type": "string",
+                  "const": "rich_text"
+                },
+                "content": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agency": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "one",
+              "x-entity": "@sahibinden/agency"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "attributes": {
           "anyOf": [
             {
@@ -1439,40 +1600,653 @@
             }
           ]
         },
-        "images": {
+        "breadcrumbs": {
           "anyOf": [
             {
               "type": "array",
               "items": {
                 "type": "object",
                 "required": [
-                  "_type",
-                  "url"
+                  "label"
                 ],
                 "properties": {
-                  "_type": {
-                    "type": "string",
-                    "const": "image"
-                  },
-                  "_id": {
+                  "id": {
                     "type": "string"
                   },
-                  "url": {
-                    "type": "string",
-                    "format": "uri"
-                  },
-                  "width": {
-                    "type": "number"
-                  },
-                  "height": {
-                    "type": "number"
+                  "label": {
+                    "type": "string"
                   }
-                },
-                "x-offload": true,
-                "x-identity": {
-                  "fn": "shbdn_image_identity"
                 }
               }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "_entity": {
+          "type": "string",
+          "const": "@sahibinden/vehicle"
+        },
+        "_id": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "_createdAt": {
+          "type": "string",
+          "description": "ISO 8601 string timestamp",
+          "format": "date-time"
+        }
+      },
+      "$defs": {
+        "EntityRef": {
+          "type": "object",
+          "properties": {
+            "_id": {}
+          },
+          "required": [
+            "_id"
+          ]
+        }
+      },
+      "x-version": 0
+    },
+    "sahibinden__job_listing": {
+      "type": "object",
+      "required": [
+        "_entity",
+        "_id"
+      ],
+      "properties": {
+        "price": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "_type",
+                "amount",
+                "currency"
+              ],
+              "properties": {
+                "_type": {
+                  "type": "string",
+                  "const": "money"
+                },
+                "amount": {
+                  "type": "integer"
+                },
+                "currency": {
+                  "type": "string",
+                  "pattern": "^[A-Z]{3}$"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "location": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "city",
+                "town"
+              ],
+              "properties": {
+                "city": {
+                  "type": "string"
+                },
+                "town": {
+                  "type": "string"
+                },
+                "quarter": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "_type",
+                "content"
+              ],
+              "properties": {
+                "_type": {
+                  "type": "string",
+                  "const": "rich_text"
+                },
+                "content": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agency": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "one",
+              "x-entity": "@sahibinden/agency"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attributes": {
+          "anyOf": [
+            {
+              "type": "object",
+              "patternProperties": {
+                "^.*$": {
+                  "type": "string"
+                }
+              },
+              "description": "Sahinbinden has a lot of different attributes for different kinds of listings"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "breadcrumbs": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "label"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "_entity": {
+          "type": "string",
+          "const": "@sahibinden/job_listing"
+        },
+        "_id": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "_createdAt": {
+          "type": "string",
+          "description": "ISO 8601 string timestamp",
+          "format": "date-time"
+        }
+      },
+      "$defs": {
+        "EntityRef": {
+          "type": "object",
+          "properties": {
+            "_id": {}
+          },
+          "required": [
+            "_id"
+          ]
+        }
+      },
+      "x-version": 0
+    },
+    "sahibinden__accessories": {
+      "type": "object",
+      "required": [
+        "_entity",
+        "_id"
+      ],
+      "properties": {
+        "price": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "_type",
+                "amount",
+                "currency"
+              ],
+              "properties": {
+                "_type": {
+                  "type": "string",
+                  "const": "money"
+                },
+                "amount": {
+                  "type": "integer"
+                },
+                "currency": {
+                  "type": "string",
+                  "pattern": "^[A-Z]{3}$"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "location": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "city",
+                "town"
+              ],
+              "properties": {
+                "city": {
+                  "type": "string"
+                },
+                "town": {
+                  "type": "string"
+                },
+                "quarter": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "_type",
+                "content"
+              ],
+              "properties": {
+                "_type": {
+                  "type": "string",
+                  "const": "rich_text"
+                },
+                "content": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agency": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "one",
+              "x-entity": "@sahibinden/agency"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attributes": {
+          "anyOf": [
+            {
+              "type": "object",
+              "patternProperties": {
+                "^.*$": {
+                  "type": "string"
+                }
+              },
+              "description": "Sahinbinden has a lot of different attributes for different kinds of listings"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "breadcrumbs": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "label"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "_entity": {
+          "type": "string",
+          "const": "@sahibinden/accessories"
+        },
+        "_id": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "_createdAt": {
+          "type": "string",
+          "description": "ISO 8601 string timestamp",
+          "format": "date-time"
+        }
+      },
+      "$defs": {
+        "EntityRef": {
+          "type": "object",
+          "properties": {
+            "_id": {}
+          },
+          "required": [
+            "_id"
+          ]
+        }
+      },
+      "x-version": 0
+    },
+    "sahibinden__listing": {
+      "type": "object",
+      "required": [
+        "_entity",
+        "_id"
+      ],
+      "properties": {
+        "price": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "_type",
+                "amount",
+                "currency"
+              ],
+              "properties": {
+                "_type": {
+                  "type": "string",
+                  "const": "money"
+                },
+                "amount": {
+                  "type": "integer"
+                },
+                "currency": {
+                  "type": "string",
+                  "pattern": "^[A-Z]{3}$"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "location": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "city",
+                "town"
+              ],
+              "properties": {
+                "city": {
+                  "type": "string"
+                },
+                "town": {
+                  "type": "string"
+                },
+                "quarter": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "_type",
+                "content"
+              ],
+              "properties": {
+                "_type": {
+                  "type": "string",
+                  "const": "rich_text"
+                },
+                "content": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agency": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef",
+              "x-cardinality": "one",
+              "x-entity": "@sahibinden/agency"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attributes": {
+          "anyOf": [
+            {
+              "type": "object",
+              "patternProperties": {
+                "^.*$": {
+                  "type": "string"
+                }
+              },
+              "description": "Sahinbinden has a lot of different attributes for different kinds of listings"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "breadcrumbs": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "label"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "type": "number"
             },
             {
               "type": "null"
