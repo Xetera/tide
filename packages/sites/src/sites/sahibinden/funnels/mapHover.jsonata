@@ -6,7 +6,7 @@ url: "/ajax/mapSearch/classified/markers/:id"
 [
   /* Map the main listing entity */
   {
-    "_entity":  "@sahibinden/listing",
+    "_entity":  "@sahibinden/real_estate",
     "_id": $string(id),
     "name": title,
     "price": $money(price, 'TRY', 'tr'),
