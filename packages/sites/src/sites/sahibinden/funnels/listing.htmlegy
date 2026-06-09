@@ -4,7 +4,13 @@ url: "/ilan/:id/detay"
 ---
 [
   {
-    "_entity": "@sahibinden/listing",
+    "_entity": match $([data-search-type="category/category_breadcrumb"] a)
+      | attr("title") {
+      "Emlak" => "@sahibinden/real_estate",
+      "Vasıta" => "@sahibinden/vehicle",
+      "Yedek Parça, Aksesuar, Donanım & Tuning" => "@sahibinden/accessories",
+      _ => "@sahibinden/listing"
+    },
     "_id": $(.classifiedId) | data("classifiedid") ?? $(#classifiedId) | text,
     "name": $(.classifiedDetailTitle h1) | text | trim,
     // the money here COULD be in euros or dollars.

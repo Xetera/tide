@@ -3,16 +3,25 @@ name: "Map"
 method: GET
 url: "/ajax/mapSearch/classified/markers"
 ---
-[
-  classifiedMarkers.{
-    "_entity": "@sahibinden/listing",
-    "_id": id,
-    "latitude": lat,
-    "longitude": lat,
-    "breadcrumbs": $$.breadcrumb[].{
-      "id": id,
-      "label": label
-    },
-    "price": $money(formattedPrice, 'TRY', 'tr')
-  }
-]
+
+(
+  /* doing a conversion a single time here is easier
+     even though the "for sale" array isn't
+     normally big enough to warrant it */
+  $featured := $merge(bigRowClassifieds.{$string($): true});
+
+  [
+    classifiedMarkers.{
+      "_entity": "@sahibinden/real_estate",
+      "_id": id,
+      "latitude": lat,
+      "longitude": lon,
+      "breadcrumbs": $$.breadcrumb[].{
+        "id": id,
+        "label": label
+      },
+      "price": $money(formattedPrice, 'TRY', 'tr'),
+      "isFeatured": $lookup($featured, id) ? true : false
+    }
+  ]
+)

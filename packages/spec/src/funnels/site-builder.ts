@@ -18,11 +18,14 @@ import { MediaBuilder } from './media-types'
 // just a type to correlate unsafe references
 type TReference = symbol
 
-const Timestamp = Type.String({ description: 'ISO 8601 string timestamp', format: 'date-time' })
+const Timestamp = Type.String({
+  description: 'ISO 8601 string timestamp',
+  format: 'date-time',
+})
 
 const EntityId = Type.Union([Type.Array(Type.String()), Type.String()])
 
-type FieldInput = Record<
+export type FieldInput = Record<
   string,
   | TUnion
   | TObject

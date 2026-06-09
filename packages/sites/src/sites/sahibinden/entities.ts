@@ -1,6 +1,6 @@
 import { Type } from 'typebox'
-import { Image, Money } from '@tide/spec'
 import { shbdn_image_identity } from '~gleam/media/identity.mjs'
+import { FieldInput, Image, Money } from '@tide/spec'
 import { EntityBuilder, One, RichText } from '@tide/spec'
 
 const SahibindenImage = Image.offload().identity({
@@ -9,7 +9,7 @@ const SahibindenImage = Image.offload().identity({
 
 const Breadcrumb = Type.Object({
   id: Type.Optional(Type.String()),
-  label: Type.String()
+  label: Type.String(),
 })
 
 const Location = Type.Object({
@@ -18,22 +18,37 @@ const Location = Type.Object({
   quarter: Type.Optional(Type.String()),
 })
 
+const SharedFields = {
+  price: Money,
+  location: Location,
+  description: RichText,
+  agency: One('@sahibinden/agency'),
+  attributes: Type.Record(Type.String(), Type.String(), {
+    description:
+      'Sahinbinden has a lot of different attributes for different kinds of listings',
+  }),
+  breadcrumbs: Type.Array(Breadcrumb),
+  latitude: Type.Number(),
+  longitude: Type.Number(),
+} satisfies FieldInput
+
 export const sahibindenEntities = [
+  new EntityBuilder('@sahibinden/real_estate').fields({
+    ...SharedFields,
+    isFeatured: Type.Boolean(),
+  }),
+  new EntityBuilder('@sahibinden/vehicle').fields({
+    ...SharedFields,
+  }),
+  new EntityBuilder('@sahibinden/job_listing').fields({
+    ...SharedFields,
+  }),
+  new EntityBuilder('@sahibinden/accessories').fields({
+    ...SharedFields,
+  }),
+  // generic?
   new EntityBuilder('@sahibinden/listing').fields({
-    id: Type.String(),
-    name: Type.String(),
-    price: Money,
-    agency: One('@sahibinden/agency'),
-    location: Location,
-    description: RichText,
-    latitude: Type.Number(),
-    longitude: Type.Number(),
-    breadcrumbs: Type.Array(Breadcrumb),
-    attributes: Type.Record(Type.String(), Type.String(), {
-      description:
-        'Sahinbinden has a lot of different attributes for different kinds of listings',
-    }),
-    images: Type.Array(SahibindenImage),
+    ...SharedFields,
   }),
   new EntityBuilder('@sahibinden/agency').fields({
     name: Type.String(),
