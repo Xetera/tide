@@ -19,3 +19,14 @@ export interface ScrapeResult {
   scrapeSource?: ScrapeSource
   source?: JobSource
 }
+
+/**
+ * The subset of {@link ScrapeResult} safe to send across a structured-clone
+ * boundary. `highlights` holds live DOM nodes and `patchCounts` is a Map; both
+ * are only meaningful to the local debug overlay, so they are dropped before
+ * messaging the background.
+ */
+export type SerializableScrapeResult = Omit<
+  ScrapeResult,
+  'highlights' | 'patchCounts'
+>

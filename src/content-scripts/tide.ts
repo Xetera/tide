@@ -43,7 +43,9 @@ import './stream-capture'
     })
 
     function onResult(result: ScrapeResult) {
-      sendMessage('entity-patches', result)
+      const { highlights: _highlights, patchCounts: _patchCounts, ...serializable } =
+        result
+      sendMessage('entity-patches', serializable)
       debugUI.onScrapeResult(result)
     }
 

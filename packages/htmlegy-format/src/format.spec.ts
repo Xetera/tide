@@ -55,11 +55,11 @@ describe('format', () => {
   })
 
   test('plain match block', () => {
-    const src = 'match { $(.a) => $ | text $(.b) => "y" _ => null }'
+    const src = 'match { $(.a) => $ | text, $(.b) => "y", _ => null }'
     expect(format(src)).toMatchInlineSnapshot(`
       "match {
-        $(.a) => $ | text
-        $(.b) => "y"
+        $(.a) => $ | text,
+        $(.b) => "y",
         _ => null
       }
       "

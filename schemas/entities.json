@@ -137,6 +137,17 @@
         "currency": {
           "type": "string",
           "pattern": "^[A-Z]{3}$"
+        },
+        "precision": {
+          "type": "object",
+          "required": [
+            "step"
+          ],
+          "properties": {
+            "step": {
+              "type": "number"
+            }
+          }
         }
       }
     },
@@ -197,7 +208,7 @@
               "x-offload": true,
               "x-ephemeral": {},
               "x-identity": {
-                "fn": "instagram_image_identity"
+                "fn": "instagramImageIdentity"
               }
             },
             {
@@ -324,6 +335,11 @@
             }
           ]
         },
+        "_url": {
+          "type": "string",
+          "description": "Canonical URL of the entity, resolved client-side",
+          "format": "uri"
+        },
         "_createdAt": {
           "type": "string",
           "description": "ISO 8601 string timestamp",
@@ -418,7 +434,7 @@
                       "x-offload": true,
                       "x-ephemeral": {},
                       "x-identity": {
-                        "fn": "instagram_video_identity"
+                        "fn": "instagramVideoIdentity"
                       }
                     }
                   }
@@ -466,7 +482,7 @@
                         "x-offload": true,
                         "x-ephemeral": {},
                         "x-identity": {
-                          "fn": "instagram_image_identity"
+                          "fn": "instagramImageIdentity"
                         }
                       }
                     }
@@ -513,7 +529,7 @@
                       "x-offload": true,
                       "x-ephemeral": {},
                       "x-identity": {
-                        "fn": "instagram_image_identity"
+                        "fn": "instagramImageIdentity"
                       }
                     }
                   }
@@ -573,6 +589,11 @@
               "type": "string"
             }
           ]
+        },
+        "_url": {
+          "type": "string",
+          "description": "Canonical URL of the entity, resolved client-side",
+          "format": "uri"
         },
         "_createdAt": {
           "type": "string",
@@ -665,6 +686,11 @@
               "type": "string"
             }
           ]
+        },
+        "_url": {
+          "type": "string",
+          "description": "Canonical URL of the entity, resolved client-side",
+          "format": "uri"
         },
         "_createdAt": {
           "type": "string",
@@ -867,6 +893,11 @@
             }
           ]
         },
+        "_url": {
+          "type": "string",
+          "description": "Canonical URL of the entity, resolved client-side",
+          "format": "uri"
+        },
         "_createdAt": {
           "type": "string",
           "description": "ISO 8601 string timestamp",
@@ -921,6 +952,11 @@
               "type": "string"
             }
           ]
+        },
+        "_url": {
+          "type": "string",
+          "description": "Canonical URL of the entity, resolved client-side",
+          "format": "uri"
         },
         "_createdAt": {
           "type": "string",
@@ -1069,6 +1105,11 @@
             }
           ]
         },
+        "_url": {
+          "type": "string",
+          "description": "Canonical URL of the entity, resolved client-side",
+          "format": "uri"
+        },
         "_createdAt": {
           "type": "string",
           "description": "ISO 8601 string timestamp",
@@ -1160,6 +1201,11 @@
             }
           ]
         },
+        "_url": {
+          "type": "string",
+          "description": "Canonical URL of the entity, resolved client-side",
+          "format": "uri"
+        },
         "_createdAt": {
           "type": "string",
           "description": "ISO 8601 string timestamp",
@@ -1245,6 +1291,11 @@
             }
           ]
         },
+        "_url": {
+          "type": "string",
+          "description": "Canonical URL of the entity, resolved client-side",
+          "format": "uri"
+        },
         "_createdAt": {
           "type": "string",
           "description": "ISO 8601 string timestamp",
@@ -1291,6 +1342,17 @@
                 "currency": {
                   "type": "string",
                   "pattern": "^[A-Z]{3}$"
+                },
+                "precision": {
+                  "type": "object",
+                  "required": [
+                    "step"
+                  ],
+                  "properties": {
+                    "step": {
+                      "type": "number"
+                    }
+                  }
                 }
               }
             },
@@ -1458,6 +1520,11 @@
             }
           ]
         },
+        "_url": {
+          "type": "string",
+          "description": "Canonical URL of the entity, resolved client-side",
+          "format": "uri"
+        },
         "_createdAt": {
           "type": "string",
           "description": "ISO 8601 string timestamp",
@@ -1504,6 +1571,17 @@
                 "currency": {
                   "type": "string",
                   "pattern": "^[A-Z]{3}$"
+                },
+                "precision": {
+                  "type": "object",
+                  "required": [
+                    "step"
+                  ],
+                  "properties": {
+                    "step": {
+                      "type": "number"
+                    }
+                  }
                 }
               }
             },
@@ -1661,6 +1739,11 @@
             }
           ]
         },
+        "_url": {
+          "type": "string",
+          "description": "Canonical URL of the entity, resolved client-side",
+          "format": "uri"
+        },
         "_createdAt": {
           "type": "string",
           "description": "ISO 8601 string timestamp",
@@ -1707,6 +1790,17 @@
                 "currency": {
                   "type": "string",
                   "pattern": "^[A-Z]{3}$"
+                },
+                "precision": {
+                  "type": "object",
+                  "required": [
+                    "step"
+                  ],
+                  "properties": {
+                    "step": {
+                      "type": "number"
+                    }
+                  }
                 }
               }
             },
@@ -1864,6 +1958,11 @@
             }
           ]
         },
+        "_url": {
+          "type": "string",
+          "description": "Canonical URL of the entity, resolved client-side",
+          "format": "uri"
+        },
         "_createdAt": {
           "type": "string",
           "description": "ISO 8601 string timestamp",
@@ -1910,6 +2009,17 @@
                 "currency": {
                   "type": "string",
                   "pattern": "^[A-Z]{3}$"
+                },
+                "precision": {
+                  "type": "object",
+                  "required": [
+                    "step"
+                  ],
+                  "properties": {
+                    "step": {
+                      "type": "number"
+                    }
+                  }
                 }
               }
             },
@@ -2067,6 +2177,11 @@
             }
           ]
         },
+        "_url": {
+          "type": "string",
+          "description": "Canonical URL of the entity, resolved client-side",
+          "format": "uri"
+        },
         "_createdAt": {
           "type": "string",
           "description": "ISO 8601 string timestamp",
@@ -2113,6 +2228,17 @@
                 "currency": {
                   "type": "string",
                   "pattern": "^[A-Z]{3}$"
+                },
+                "precision": {
+                  "type": "object",
+                  "required": [
+                    "step"
+                  ],
+                  "properties": {
+                    "step": {
+                      "type": "number"
+                    }
+                  }
                 }
               }
             },
@@ -2270,6 +2396,11 @@
             }
           ]
         },
+        "_url": {
+          "type": "string",
+          "description": "Canonical URL of the entity, resolved client-side",
+          "format": "uri"
+        },
         "_createdAt": {
           "type": "string",
           "description": "ISO 8601 string timestamp",
@@ -2346,7 +2477,7 @@
               },
               "x-offload": true,
               "x-identity": {
-                "fn": "shbdn_image_identity"
+                "fn": "shbdnImageIdentity"
               }
             },
             {
@@ -2370,6 +2501,11 @@
               "type": "string"
             }
           ]
+        },
+        "_url": {
+          "type": "string",
+          "description": "Canonical URL of the entity, resolved client-side",
+          "format": "uri"
         },
         "_createdAt": {
           "type": "string",
@@ -2529,6 +2665,11 @@
             }
           ]
         },
+        "_url": {
+          "type": "string",
+          "description": "Canonical URL of the entity, resolved client-side",
+          "format": "uri"
+        },
         "_createdAt": {
           "type": "string",
           "description": "ISO 8601 string timestamp",
@@ -2671,6 +2812,11 @@
               "type": "string"
             }
           ]
+        },
+        "_url": {
+          "type": "string",
+          "description": "Canonical URL of the entity, resolved client-side",
+          "format": "uri"
         },
         "_createdAt": {
           "type": "string",

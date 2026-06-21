@@ -19,7 +19,7 @@ export function parseInviteUrl(
 ): { serverUrl: string; poolId: string; token: string } | null {
   try {
     const url = new URL(raw)
-    const match = url.pathname.match(/^\/api\/pool\/([^/]+)\/join$/)
+    const match = url.pathname.match(/^\/api\/pools\/([^/]+)\/join$/)
     if (!match) {
       return null
     }
@@ -110,7 +110,7 @@ export function JoinPoolForm(props: JoinPoolFormProps = {}) {
         worker_id: wid,
       }
       const res = await fetch(
-        `${result.serverUrl}/api/pool/${result.poolId}/join`,
+        `${result.serverUrl}/api/pools/${result.poolId}/join`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -149,7 +149,7 @@ export function JoinPoolForm(props: JoinPoolFormProps = {}) {
       <div class='flex gap-2'>
         <TextField
           type='url'
-          placeholder='https://shoal.example.com/api/pool/.../join?token=...'
+          placeholder='https://shoal.example.com/api/pools/.../join?token=...'
           value={inviteUrl()}
           onInput={(e) => setInviteUrl(e.currentTarget.value)}
           class='flex-1'

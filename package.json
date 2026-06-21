@@ -14,7 +14,8 @@
     "schema": "jiti src/scripts/schema.ts",
     "api:types": "pnpm --filter @tide/client api:types",
     "ohm": "pnpm exec ohm generateBundles --withTypes 'src/**/*.ohm'",
-    "push:android": "bash scripts/push-android.sh"
+    "push:android": "bash scripts/push-android.sh",
+    "run:android": "bash scripts/run-android.sh"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",

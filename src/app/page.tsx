@@ -12,6 +12,7 @@ import { sendMessage } from 'webext-bridge/popup'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { Badge } from '~/components/ui/badge'
 import { useBrowserStorage } from '~/shared/hooks'
+import { sessionStorageArea } from '~/shared/storage'
 import type { Log, PlainLog, ScrapeLog } from '~/shared/log'
 import WavesHorizontal from 'lucide-solid/icons/waves-horizontal'
 import { AddServer } from './add-server'
@@ -273,10 +274,10 @@ function Page() {
   const [tab, setTab] = createSignal('dashboard')
 
   onMount(async () => {
-    const result = await chrome.storage.session.get('popup:initial-tab')
+    const result = await sessionStorageArea().get('popup:initial-tab')
     const initial = result['popup:initial-tab'] as string | undefined
     if (initial) {
-      await chrome.storage.session.remove('popup:initial-tab')
+      await sessionStorageArea().remove('popup:initial-tab')
       setTab(initial)
     }
   })

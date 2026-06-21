@@ -273,6 +273,7 @@ function printExprMatchArmBody(arm: ExprMatchArm): Doc {
 function printMatch(node: Expr & { kind: 'match' }): Doc {
   const header = node.source !== null ? `match $(${node.source}) ` : 'match '
   if (node.arms.length === 0) return text(`${header}{}`)
+  const separator = node.source !== null ? concat([]) : text(',')
   return concat([
     text(header),
     text('{'),
@@ -282,7 +283,7 @@ function printMatch(node: Expr & { kind: 'match' }): Doc {
         printSeq(
           node.arms,
           (a) => printMatchArmBody(a as MatchArm),
-          concat([]),
+          separator,
         ),
       ]),
     ),

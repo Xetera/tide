@@ -20,7 +20,7 @@ url: "/ajax/mapSearch/classified/markers"
         "id": id,
         "label": label
       },
-      "price": $money(formattedPrice, 'TRY', 'tr'),
+      "price": $money(formattedPrice, {"currency": "TRY", "locale": "tr"}) ~> $sahibinden.precision,
       "isFeatured": $lookup($featured, id) ? true : false
     }
   ]

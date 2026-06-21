@@ -329,13 +329,13 @@ describe('conditional ?', () => {
 
 describe('match expression', () => {
   it('matches the first applicable single-selector arm', async () => {
-    expect(await run('match { $(h1) =>  $ | text _ => "fallback" }', root)).toBe(
+    expect(await run('match { $(h1) =>  $ | text, _ => "fallback" }', root)).toBe(
       'Hello',
     )
   })
 
   it('falls through to fallback when no selector arm matches', async () => {
-    expect(await run('match { $(missing) =>  $ | text _ => "fallback" }', root)).toBe(
+    expect(await run('match { $(missing) =>  $ | text, _ => "fallback" }', root)).toBe(
       'fallback',
     )
   })
@@ -348,7 +348,7 @@ describe('match expression', () => {
         { tag: 'li', text: 'two' },
       ],
     }
-    expect(await run('match { $$(li) =>  $ | text _ => null }', ul)).toEqual([
+    expect(await run('match { $$(li) =>  $ | text, _ => null }', ul)).toEqual([
       'one',
       'two',
     ])

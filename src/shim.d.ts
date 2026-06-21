@@ -14,7 +14,7 @@ import type {
 } from './funnels/types'
 import type { PlainLog, ScrapeLog, ScrapeSource } from './shared'
 import type { EntityPatch } from './funnels/types'
-import type { ScrapeResult } from './funnels/scrape-result'
+import type { SerializableScrapeResult } from './funnels/scrape-result'
 import type { HeartbeatStatus } from '@tide/client'
 import type {
   CaptureEntry,
@@ -45,7 +45,7 @@ declare module 'webext-bridge' {
       | Omit<ScrapeLog, 'date' | 'id' | 'status'>
     sites: ProtocolWithReturn<unknown, SiteSpec[]>
     'set-schema': ProtocolWithReturn<SiteSpec[], void>
-    'entity-patches': ScrapeResult
+    'entity-patches': SerializableScrapeResult
     'raw-capture': {
       url: string
       method: string

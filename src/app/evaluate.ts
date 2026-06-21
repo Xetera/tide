@@ -33,8 +33,9 @@ export async function evaluate(
     })
     const raw = await expr.evaluate(input)
     const { patches: rawPatches, errors } = validator.parsePatches(raw ?? [])
-    const { patches, warnings: identityWarnings } =
+    const { patches: withIdentity, warnings: identityWarnings } =
       validator.applyIdentityExprs(rawPatches)
+    const patches = validator.applyCanonicalUrls(withIdentity)
     const validationErrors = errors.map(
       (e) => `${e.entity}${e.path}: ${e.message}`,
     )

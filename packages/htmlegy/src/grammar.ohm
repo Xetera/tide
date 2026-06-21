@@ -24,7 +24,7 @@ HTMLegy {
   Match
     = "match" SingleSelector "{" ScopedMatchArm* "}"   -- scoped
     | "match" MatchScrutinee "{" ListOf<ExprMatchArm, ","> ","? "}"  -- expr
-    | "match" "{" MatchArm* "}"                        -- plain
+    | "match" "{" ListOf<MatchArm, ","> ","? "}"       -- plain
 
   MatchScrutinee = MatchChain ("??" MatchChain)?
 

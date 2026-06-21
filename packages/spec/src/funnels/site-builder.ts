@@ -82,6 +82,12 @@ export class EntityBuilder {
         ...fields,
         _entity: Type.Literal(this.#entityName),
         _id: EntityId,
+        _url: Type.Optional(
+          Type.String({
+            description: 'Canonical URL of the entity, resolved client-side',
+            format: 'uri',
+          }),
+        ),
         _createdAt: Type.Optional(Timestamp),
       },
       { $defs: buildEntityRefs() },
@@ -107,12 +113,18 @@ export class EntityBuilder {
 export function resolveCanonicalUrl(
   template: string,
   patch: import('./types').RawEntityPatch,
-): string {
-  return template.replace(/\{(\w+)\}/g, (_, key) => {
+): string | null {
+  let missing = false
+  const resolved = template.replace(/\{(\w+)\}/g, (_, key) => {
     const value =
       key === 'id' ? patch._id : (patch as Record<string, unknown>)[key]
-    return value != null ? String(Array.isArray(value) ? value[0] : value) : ''
+    if (value == null) {
+      missing = true
+      return ''
+    }
+    return String(Array.isArray(value) ? value[0] : value)
   })
+  return missing ? null : resolved
 }
 
 export function entityKey(entityName: string): string {

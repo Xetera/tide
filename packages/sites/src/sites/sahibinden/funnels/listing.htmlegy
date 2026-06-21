@@ -4,7 +4,7 @@ url: "/ilan/:id/detay"
 ---
 [
   {
-    "_entity": match $([data-search-type="category/category_breadcrumb"] a)
+    "_entity": match $([data-search-type="category/category_breadcrumb"] a[title])
       | attr("title") {
       "Emlak" => "@sahibinden/real_estate",
       "Vasıta" => "@sahibinden/vehicle",
@@ -12,11 +12,18 @@ url: "/ilan/:id/detay"
       _ => "@sahibinden/listing"
     },
     "_id": $(.classifiedId) | data("classifiedid") ?? $(#classifiedId) | text,
-    "name": $(.classifiedDetailTitle h1) | text | trim,
+    "name": $(.classified-title) | text | trim,
     // the money here COULD be in euros or dollars.
     // The parser automatically handles that
-    "price": $(.classified-price-wrapper) | text | money,
-    "description": $(#classifiedDescription) | rich_text,
+    "price": match {
+      $(.classified-price-wrapper) => $ | text | money,
+      // mobile
+      $(.classified-price) => $ | text | money
+    },
+    "description": match {
+      $(.detail-content) => $ | rich_text,
+      $(#classifiedDescription) => $ | rich_text
+    },
     "location": $(h2:has([data-click-label^="Adres"])) {
       "city": $$(a) | at(0) | text | trim,
       "town": $$(a) | at(1) | text | trim,
@@ -35,10 +42,10 @@ url: "/ilan/:id/detay"
     },
     "images": match {
       // mobile
-      $$([data-extra-class="mega-image"] ul > li) => {
+      $$([data-extra-class="mega-image"] ul > li:has(.avif-source)) => {
         "_type": "image",
-        "url": $(source[type="image/png"]) | attr("srcset") | url
-      }
+        "url": $(.avif-source) | attr("srcset") | url
+      },
       // desktop
       $$(.megaPhotoThmbItem) => {
         "_type": "image",

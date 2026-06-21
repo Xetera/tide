@@ -87,10 +87,21 @@ export function SiteGrid(props: SiteGridProps) {
   })
 
   async function toggleSite(siteSpec: SiteSpec, enabled: boolean) {
-    if (enabled) {
-      await chrome.permissions.request({ origins: [toOrigin(siteSpec)] })
-    } else {
-      await chrome.permissions.remove({ origins: [toOrigin(siteSpec)] })
+    const origin = toOrigin(siteSpec)
+    try {
+      if (enabled) {
+        const granted = await chrome.permissions.request({ origins: [origin] })
+        console.log('[tide] permissions.request', origin, 'granted:', granted)
+        if (!granted) {
+          return
+        }
+      } else {
+        const removed = await chrome.permissions.remove({ origins: [origin] })
+        console.log('[tide] permissions.remove', origin, 'removed:', removed)
+      }
+    } catch (err) {
+      console.error('[tide] permissions toggle failed', origin, err)
+      return
     }
     setStatefulSites(
       await buildStatefulSites(statefulSites().map((s) => s.site)),

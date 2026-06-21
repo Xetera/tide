@@ -78,10 +78,15 @@ export const CURRENCY_SYMBOLS: Record<string, string> = {
   kr: 'SEK',
 }
 
+export interface Precision {
+  step: number
+}
+
 export interface MoneyValue {
   _type: 'money'
   amount: number
   currency: string
+  precision?: Precision
 }
 
 const SYMBOL_KEYS_BY_LENGTH = Object.keys(CURRENCY_SYMBOLS).sort(

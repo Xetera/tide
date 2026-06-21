@@ -28,6 +28,11 @@ import {
   relativeTime,
   type EvalResult,
 } from './evaluate'
+import {
+  getRecording,
+  onRecordingChanged,
+  setRecording,
+} from '~/shared/recording'
 import './app.css'
 import './scrape-viewer.css'
 
@@ -1276,30 +1281,8 @@ function Playground() {
       chrome.storage.local.onChanged.removeListener(onStorageChanged),
     )
 
-    const onSessionChanged = (
-      changes: Record<string, chrome.storage.StorageChange>,
-    ) => {
-      if (changes['recording:state']) {
-        setRecordingState(
-          (changes['recording:state'].newValue as {
-            hostname: string
-            enabled: boolean
-          } | null) ?? null,
-        )
-      }
-    }
-    chrome.storage.session.onChanged.addListener(onSessionChanged)
-    onCleanup(() =>
-      chrome.storage.session.onChanged.removeListener(onSessionChanged),
-    )
-    chrome.storage.session.get({ 'recording:state': null }).then((res) => {
-      setRecordingState(
-        (res['recording:state'] as {
-          hostname: string
-          enabled: boolean
-        } | null) ?? null,
-      )
-    })
+    onCleanup(onRecordingChanged((value) => setRecordingState(value)))
+    getRecording().then((value) => setRecordingState(value))
 
     const tabs = await chrome.tabs.query({ windowType: 'normal' })
     const extensionOrigin = new URL(chrome.runtime.getURL('')).origin
@@ -1834,9 +1817,7 @@ function Playground() {
       }
       const next =
         !(recordingState()?.enabled && recordingState()?.hostname === host)
-      void chrome.storage.session.set({
-        'recording:state': { hostname: host, enabled: next },
-      })
+      void setRecording({ hostname: host, enabled: next })
     },
   }
 

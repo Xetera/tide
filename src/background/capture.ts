@@ -1,16 +1,17 @@
 import type { CaptureEntry } from '~/generation/types'
+import { sessionStorageArea } from '~/shared/storage'
 
 const CAPTURE_RING_MAX = 10
 
 async function getCaptureIndex(hostname: string): Promise<string[]> {
-  const result = await chrome.storage.session.get({
+  const result = await sessionStorageArea().get({
     [`capture-index:${hostname}`]: [],
   })
   return result[`capture-index:${hostname}`] as string[]
 }
 
 export async function getCaptureById(id: string): Promise<CaptureEntry | undefined> {
-  const result = await chrome.storage.session.get(`capture:${id}`)
+  const result = await sessionStorageArea().get(`capture:${id}`)
   return result[`capture:${id}`] as CaptureEntry | undefined
 }
 
@@ -27,11 +28,11 @@ export async function storeCaptureEntry(entry: CaptureEntry): Promise<void> {
     CAPTURE_RING_MAX,
   )
   const evicted = ids.filter((id) => !next.includes(id))
-  await chrome.storage.session.set({
+  await sessionStorageArea().set({
     [`capture:${entry.id}`]: entry,
     [`capture-index:${entry.hostname}`]: next,
   })
   if (evicted.length > 0) {
-    await chrome.storage.session.remove(evicted.map((id) => `capture:${id}`))
+    await sessionStorageArea().remove(evicted.map((id) => `capture:${id}`))
   }
 }

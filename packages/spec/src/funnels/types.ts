@@ -207,6 +207,7 @@ export interface RawEntityPatch {
   _id: EntityId
   [key: string]: unknown
   // optional
+  _url?: string
   _createdAt?: string
 }
 

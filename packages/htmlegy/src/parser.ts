@@ -163,11 +163,11 @@ const exprActions: HTMLegyActionDict<AstResult> = {
     } satisfies Bare<Field>
   },
 
-  Match_plain(_kw, _l, arms, _r) {
+  Match_plain(_kw, _l, arms, _trailing, _r) {
     return {
       kind: 'match',
       source: null,
-      arms: arms.children.map((c) => toAst(c) as MatchArm),
+      arms: arms.asIteration().children.map((c) => toAst(c) as MatchArm),
     } satisfies Bare<Expr>
   },
   Match_scoped(_kw, sel, _l, arms, _r) {

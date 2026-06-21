@@ -25,7 +25,7 @@ export interface HTMLegyActionDict<T> extends BaseActionDict<T> {
   Field?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   Match_scoped?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode, arg3: IterationNode, arg4: TerminalNode) => T;
   Match_expr?: (this: NonterminalNode, arg0: TerminalNode, arg1: NonterminalNode, arg2: TerminalNode, arg3: NonterminalNode, arg4: IterationNode, arg5: TerminalNode) => T;
-  Match_plain?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: IterationNode, arg3: TerminalNode) => T;
+  Match_plain?: (this: NonterminalNode, arg0: TerminalNode, arg1: TerminalNode, arg2: NonterminalNode, arg3: IterationNode, arg4: TerminalNode) => T;
   Match?: (this: NonterminalNode, arg0: NonterminalNode) => T;
   MatchScrutinee?: (this: NonterminalNode, arg0: NonterminalNode, arg1: IterationNode, arg2: IterationNode) => T;
   MatchChain?: (this: NonterminalNode, arg0: NonterminalNode, arg1: IterationNode) => T;

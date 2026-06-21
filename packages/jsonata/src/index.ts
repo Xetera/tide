@@ -34,15 +34,11 @@ export interface JsonataContext {
 
 export class JsonataExpression {
   #expr: ReturnType<typeof jsonata>
+  #context: JsonataContext
 
   constructor(expression: string, context: JsonataContext = {}) {
     this.#expr = JsonataExpression.evaluator(expression)
-    if (context.request) {
-      this.#expr.assign('request', context.request)
-    }
-    if (context.response) {
-      this.#expr.assign('response', context.response)
-    }
+    this.#context = context
   }
 
   static default(expression: string) {
@@ -50,23 +46,25 @@ export class JsonataExpression {
   }
 
   static evaluator(expression: string) {
-    const evaluator = jsonata(expression)
+    return jsonata(expression)
+  }
 
-    evaluator.assign('image', (url: unknown): MediaRef | null => {
+  static bindings: Record<string, unknown> = {
+    image(url: unknown): MediaRef | null {
       if (typeof url !== 'string') {
         return null
       }
       return { _type: 'image', url }
-    })
+    },
 
-    evaluator.assign('video', (url: unknown): MediaRef | null => {
+    video(url: unknown): MediaRef | null {
       if (typeof url !== 'string') {
         return null
       }
       return { _type: 'video', url }
-    })
+    },
 
-    evaluator.assign('unique_id', (obj: unknown, id: unknown) => {
+    unique_id(obj: unknown, id: unknown) {
       // it's ok if id is undefined or null here
       if (id == null) {
         return null
@@ -76,19 +74,16 @@ export class JsonataExpression {
       }
       id = String(id)
       return { _id: id, ...obj }
-    })
+    },
 
-    evaluator.assign(
-      'with_dimensions',
-      (media: unknown, width: unknown, height: unknown) => {
-        if (media === null || typeof media !== 'object') {
-          return media
-        }
-        return { ...media, width, height }
-      },
-    )
+    with_dimensions(media: unknown, width: unknown, height: unknown) {
+      if (media === null || typeof media !== 'object') {
+        return media
+      }
+      return { ...media, width, height }
+    },
 
-    evaluator.assign('ref', (id: unknown): EntityRef | EntityRef[] | null => {
+    ref(id: unknown): EntityRef | EntityRef[] | null {
       if (id == null) {
         return null
       }
@@ -96,54 +91,45 @@ export class JsonataExpression {
         return id.map((id) => ({ _type: 'ref', _id: String(id) }))
       }
       return { _type: 'ref', _id: String(id) }
-    })
+    },
 
-    evaluator.assign(
-      'number',
-      (value: unknown, locale: unknown): number | null => {
-        if (value == null) {
-          return null
-        }
-        const result = parseLocaleNumber(
-          String(value),
-          typeof locale === 'string' ? locale : 'en',
-        )
-        return Number.isNaN(result) ? null : result
-      },
-    )
+    number(value: unknown, locale: unknown): number | null {
+      if (value == null) {
+        return null
+      }
+      const result = parseLocaleNumber(
+        String(value),
+        typeof locale === 'string' ? locale : 'en',
+      )
+      return Number.isNaN(result) ? null : result
+    },
 
-    evaluator.assign(
-      'money',
-      (
-        value: unknown,
-        currency: unknown,
-        locale: unknown,
-      ): MoneyValue | null => {
-        if (value == null) {
-          return null
-        }
-        return parseMoney(
-          String(value),
-          typeof locale === 'string' ? locale : 'en',
-          typeof currency === 'string' ? currency : null,
-        )
-      },
-    )
+    money(value: unknown, options: unknown): MoneyValue | null {
+      if (value == null) {
+        return null
+      }
+      const config =
+        typeof options === 'object' && options !== null
+          ? (options as { currency?: unknown; locale?: unknown })
+          : {}
+      return parseMoney(
+        String(value),
+        typeof config.locale === 'string' ? config.locale : 'en',
+        typeof config.currency === 'string' ? config.currency : null,
+      )
+    },
 
-    evaluator.assign(
-      'expand_suffix',
-      (value: unknown, locale: unknown): string | null => {
-        if (value == null) {
-          return null
-        }
-        return expandLocaleSuffix(
-          String(value),
-          typeof locale === 'string' ? locale : 'en',
-        )
-      },
-    )
+    expand_suffix(value: unknown, locale: unknown): string | null {
+      if (value == null) {
+        return null
+      }
+      return expandLocaleSuffix(
+        String(value),
+        typeof locale === 'string' ? locale : 'en',
+      )
+    },
 
-    evaluator.assign('query_param', (url: unknown, param: unknown) => {
+    query_param(url: unknown, param: unknown) {
       if (typeof url !== 'string' || typeof param !== 'string') {
         return null
       }
@@ -152,9 +138,9 @@ export class JsonataExpression {
       } catch {
         return null
       }
-    })
+    },
 
-    evaluator.assign('timestamp', (value: unknown) => {
+    timestamp(value: unknown) {
       let timestamp: Date
       if (typeof value === 'number') {
         timestamp = new Date(value)
@@ -170,12 +156,52 @@ export class JsonataExpression {
         throw new Error('Invalid time: ' + value)
       }
       return timestamp.toISOString()
-    })
-    return evaluator
+    },
+
+    // site-specific functionality
+    sahibinden: {
+      // Sahibinden's map markers only expose abbreviated prices ("15,2 M",
+      // "120 bin", "1.213 M"), never the exact value. The display rounds to
+      // 3 significant figures and the suffix slides with magnitude, but the
+      // suffix is capped at millions ("M"): once the value reaches billions it
+      // stays on "M" with a longer mantissa ("1.213 M") rather than switching
+      // to a finer-than-millions grain. The displayed value therefore only
+      // pins the real amount to a round-to-nearest step equal to the place
+      // value of its least significant shown digit. That step is the 3rd-sig-
+      // fig grain, never finer than the millions cap of the suffix bucket.
+      precision(money: unknown): MoneyValue {
+        JsonataExpression.assertMoney(money)
+        const amount = Math.abs(money.amount)
+        if (amount <= 0) {
+          return money
+        }
+        const SIG_FIGS = 3
+        const MILLIONS = 1_000_000
+        const sigFigStep =
+          10 ** (Math.floor(Math.log10(amount)) - (SIG_FIGS - 1))
+        const step = Math.min(sigFigStep, MILLIONS)
+        return { ...money, precision: { step } }
+      },
+    },
+  }
+
+  static assertMoney(value: unknown): asserts value is MoneyValue {
+    if (
+      typeof value !== 'object' ||
+      value === null ||
+      (value as { _type?: unknown })._type !== 'money' ||
+      typeof (value as { amount?: unknown }).amount !== 'number'
+    ) {
+      throw new Error(`${JSON.stringify(value)} is not a valid money type`)
+    }
   }
 
   async evaluate(input: unknown): Promise<unknown> {
-    return this.#expr.evaluate(input as Record<string, unknown>)
+    return this.#expr.evaluate(input as Record<string, unknown>, {
+      ...JsonataExpression.bindings,
+      ...(this.#context.request ? { request: this.#context.request } : {}),
+      ...(this.#context.response ? { response: this.#context.response } : {}),
+    })
   }
 }
 
@@ -187,6 +213,9 @@ export class CompiledJsonata {
   }
 
   async evaluate(input: unknown): Promise<unknown> {
-    return this.#expr.evaluate(input as Record<string, unknown>)
+    return this.#expr.evaluate(
+      input as Record<string, unknown>,
+      JsonataExpression.bindings,
+    )
   }
 }

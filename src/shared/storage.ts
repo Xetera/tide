@@ -11,6 +11,17 @@ import type {
   GenerationResult,
 } from '~/generation/types'
 
+/**
+ * Resolves the session storage area, falling back to local storage where
+ * `chrome.storage.session` is unimplemented (Firefox for Android does not
+ * support it: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage/session#browser_compatibility).
+ * The fallback persists across browser restarts rather than clearing per
+ * session, which is acceptable for the ephemeral keys we keep here.
+ */
+export function sessionStorageArea(): chrome.storage.StorageArea {
+  return chrome.storage.session ?? chrome.storage.local
+}
+
 export class Storage<T extends Record<string, unknown>> {
   #q = new PQueue()
 

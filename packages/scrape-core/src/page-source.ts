@@ -43,8 +43,9 @@ class PageRuleRunner {
         return
       }
       const { patches, errors } = this.#validator.parsePatches(value)
-      const { patches: validated, warnings } =
+      const { patches: withIdentity, warnings } =
         this.#validator.applyIdentityExprs(patches)
+      const validated = this.#validator.applyCanonicalUrls(withIdentity)
 
       const patchCounts = new Map<string, number>()
       for (const patch of validated) {

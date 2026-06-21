@@ -6,6 +6,7 @@ import type {
   SiteDeclaration,
 } from './types'
 import { identityRegistry, type IdentityFn } from './media-types'
+import { resolveCanonicalUrl } from './site-builder'
 
 function isIdentityTarget(
   value: unknown,
@@ -236,6 +237,23 @@ export class EntityValidator {
       ) as EntityPatch
     })
     return { patches: result, warnings }
+  }
+
+  applyCanonicalUrls(patches: EntityPatch[]): EntityPatch[] {
+    return patches.map((patch) => {
+      if (patch._url != null) {
+        return patch
+      }
+      const entity = this.#entities.get(patch._entity)
+      if (!entity?.canonicalUrl) {
+        return patch
+      }
+      const url = resolveCanonicalUrl(entity.canonicalUrl, patch)
+      if (url == null) {
+        return patch
+      }
+      return { ...patch, _url: url }
+    })
   }
 
   static isEntityPatch(item: unknown): item is RawEntityPatch {

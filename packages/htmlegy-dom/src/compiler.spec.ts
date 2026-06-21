@@ -447,7 +447,7 @@ describe('match', () => {
   it('uses the first matching branch', async () => {
     const html = '<video src="blob:x"></video>'
     const result = await run(
-      '{ "media": match { $(video[src^=blob]) => { "type": "video" } $([role=presentation]) => { "type": "carousel" } } }',
+      '{ "media": match { $(video[src^=blob]) => { "type": "video" }, $([role=presentation]) => { "type": "carousel" } } }',
       html,
     )
     expect(result).toEqual({ media: { type: 'video' } })
@@ -456,7 +456,7 @@ describe('match', () => {
   it('skips non-matching branches', async () => {
     const html = '<ul role="presentation"><li></li></ul>'
     const result = await run(
-      '{ "media": match { $(video[src^=blob]) => { "type": "video" } $([role=presentation]) => { "type": "carousel" } } }',
+      '{ "media": match { $(video[src^=blob]) => { "type": "video" }, $([role=presentation]) => { "type": "carousel" } } }',
       html,
     )
     expect(result).toEqual({ media: { type: 'carousel' } })
@@ -465,7 +465,7 @@ describe('match', () => {
   it('falls back to last arm when nothing matches', async () => {
     const html = '<div></div>'
     const result = await run(
-      '{ "count": match { $(span.enabled) => { "tag": "count_enabled" } _ => { "tag": "count_disabled" } } }',
+      '{ "count": match { $(span.enabled) => { "tag": "count_enabled" }, _ => { "tag": "count_disabled" } } }',
       html,
     )
     expect(result).toEqual({ count: { tag: 'count_disabled' } })
@@ -474,7 +474,7 @@ describe('match', () => {
   it('match with scalar branch result', async () => {
     const html = '<span aria-label="Carousel"></span>'
     const result = await run(
-      '{ "kind": match { $([aria-label=Carousel]) => "carousel" $([aria-label=Clip]) => "clip" _ => null } }',
+      '{ "kind": match { $([aria-label=Carousel]) => "carousel", $([aria-label=Clip]) => "clip", _ => null } }',
       html,
     )
     expect(result).toEqual({ kind: 'carousel' })

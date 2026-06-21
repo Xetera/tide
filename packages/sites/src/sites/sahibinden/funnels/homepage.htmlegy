@@ -5,7 +5,8 @@ url: "/"
 [
   $$(.vitrin-list > li:has(a[href*="/ilan/"]), #interestingAds > li) {
     "_entity": "@sahibinden/listing",
-    "_id": $(a) | attr("href") | url,
+    "_id": $(a) | attr("href") | regex("([0-9]+)/detay", 1),
+    "_url": $(a) | attr("href") | url,
     "name": $(a > span) | text,
     "image": $(a img) | media
   }

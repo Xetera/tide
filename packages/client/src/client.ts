@@ -180,7 +180,7 @@ export class Client {
     let url: URL
     try {
       url = new URL(
-        `/api/pool/${server.poolId}/workers/me/heartbeat`,
+        `/api/pools/${server.poolId}/workers/me/heartbeat`,
         server.url,
       )
     } catch (err) {
@@ -284,7 +284,7 @@ export class Client {
     }
     try {
       const request = await this.#requestBase(
-        new Request(new URL(`/api/pool/${server.poolId}/workers/me/sites`, server.url), {
+        new Request(new URL(`/api/pools/${server.poolId}/workers/me/sites`, server.url), {
           method: 'PUT',
           body: JSON.stringify({ opted_in: optedIn } satisfies SyncSitesRequest),
           headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -626,13 +626,13 @@ export class Client {
   }
 
   #requestSites(base: string, poolId: string) {
-    return new Request(new URL(`/api/pool/${poolId}/workers/me/sites`, base), {
+    return new Request(new URL(`/api/pools/${poolId}/workers/me/sites`, base), {
       method: 'GET',
     })
   }
 
   #requestJobs(base: string, poolId: string, options: JobPollParameters) {
-    const url = new URL(`/api/pool/${poolId}/workers/me/jobs`, base)
+    const url = new URL(`/api/pools/${poolId}/workers/me/jobs`, base)
     url.searchParams.set('autonomy', options.autonomy)
     return new Request(url, { method: 'GET' })
   }
@@ -643,7 +643,7 @@ export class Client {
     resourceHash: string,
     data: JobResult,
   ) {
-    return new Request(new URL(`/api/pool/${poolId}/workers/me/jobs`, base), {
+    return new Request(new URL(`/api/pools/${poolId}/workers/me/jobs`, base), {
       method: 'POST',
       body: JSON.stringify(data),
       headers: {

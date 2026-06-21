@@ -5,7 +5,11 @@ import { ServerAutonomy } from '@tide/spec'
 import { instagramSite } from '@tide/sites'
 import { allSites } from '@tide/sites'
 import { generateUID } from '~/shared/uid'
-import { type BrowserStorageSchema, Storage } from '~/shared/storage'
+import {
+  type BrowserStorageSchema,
+  Storage,
+  sessionStorageArea,
+} from '~/shared/storage'
 import { log } from './backend-logger'
 import { ContentScriptTracker } from './content-script-tracker'
 import {
@@ -39,12 +43,35 @@ import { getRecording, isRecordingFor, setRecording } from '~/shared/recording'
 
 const storage = new Storage<BrowserStorageSchema>()
 
+async function openOnboardingIfNeeded(): Promise<void> {
+  const completed = await storage.get('onboarding:completed', false)
+  if (completed) {
+    return
+  }
+  chrome.tabs.create({ url: chrome.runtime.getURL('views/onboarding.html') })
+}
+
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason !== 'install') {
     return
   }
-  chrome.tabs.create({ url: chrome.runtime.getURL('views/onboarding.html') })
+  void openOnboardingIfNeeded()
 })
+
+void openOnboardingIfNeeded()
+
+async function setupAndroidActionFallback(): Promise<void> {
+  const platform = await chrome.runtime.getPlatformInfo()
+  if (platform.os !== 'android') {
+    return
+  }
+  await chrome.action.setPopup({ popup: '' })
+  chrome.action.onClicked.addListener(() => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('views/index.html') })
+  })
+}
+
+void setupAndroidActionFallback()
 
 console.log(
   '[tide] funnelEntries:',
@@ -200,7 +227,7 @@ chrome.runtime.onMessage.addListener((message) => {
     const hostname: string | undefined = message.hostname
     const open = () => chrome.action.openPopup().catch(() => {})
     if (hostname) {
-      chrome.storage.session
+      sessionStorageArea()
         .set({ 'optin:pending-hostname': hostname })
         .then(open)
     } else {
@@ -241,12 +268,14 @@ log({
       scope: 'pool',
       text: 'background: init IIFE entered',
     })
-    try {
-      await chrome.storage.session.setAccessLevel({
-        accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS',
-      })
-    } catch (err) {
-      console.warn('[tide] failed to widen session storage access', err)
+    if (chrome.storage.session?.setAccessLevel) {
+      try {
+        await chrome.storage.session.setAccessLevel({
+          accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS',
+        })
+      } catch (err) {
+        console.warn('[tide] failed to widen session storage access', err)
+      }
     }
     const cst = new ContentScriptTracker()
 
