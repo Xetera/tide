@@ -18,44 +18,44 @@ type ResponseBody<
   : never
 
 export type JoinRequest = RequestBody<
-  Op<'/api/pools/{pool_id}/join', 'post'>
+  Op<'/api/pool/{pool_id}/join', 'post'>
 >
 export type JoinResponse = ResponseBody<
-  Op<'/api/pools/{pool_id}/join', 'post'>,
+  Op<'/api/pool/{pool_id}/join', 'post'>,
   201
 >
 
 
 export type WorkerSitesResponse = ResponseBody<
-  Op<'/api/pools/{pool_id}/workers/me/sites', 'get'>,
+  Op<'/api/pool/{pool_id}/workers/me/sites', 'get'>,
   200
 >
 
 export type PollResponse = ResponseBody<
-  Op<'/api/pools/{pool_id}/workers/me/jobs', 'get'>,
+  Op<'/api/pool/{pool_id}/workers/me/jobs', 'get'>,
   200
 >
 
 export type SubmitRequest = RequestBody<
-  Op<'/api/pools/{pool_id}/workers/me/jobs', 'post'>
+  Op<'/api/pool/{pool_id}/workers/me/jobs', 'post'>
 >
 
 export type SubmitResponse = ResponseBody<
-  Op<'/api/pools/{pool_id}/workers/me/jobs', 'post'>,
+  Op<'/api/pool/{pool_id}/workers/me/jobs', 'post'>,
   201
 >
 
 export type HeartbeatResponse = ResponseBody<
-  Op<'/api/pools/{pool_id}/workers/me/heartbeat', 'get'>,
+  Op<'/api/pool/{pool_id}/workers/me/heartbeat', 'get'>,
   200
 >
 
 export type SyncSitesRequest = RequestBody<
-  Op<'/api/pools/{pool_id}/workers/me/sites', 'put'>
+  Op<'/api/pool/{pool_id}/workers/me/sites', 'put'>
 >
 
 export type SyncSitesResponse = ResponseBody<
-  Op<'/api/pools/{pool_id}/workers/me/sites', 'put'>,
+  Op<'/api/pool/{pool_id}/workers/me/sites', 'put'>,
   200
 >
 

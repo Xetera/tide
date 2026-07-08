@@ -1,7 +1,7 @@
 /**
  * Auto-generated from Shoal's OpenAPI spec. Do not edit by hand.
  * Regenerate with: pnpm api:types
- * Source: http://localhost:4000/api/openapi
+ * Source: https://joinshoal.org/api/openapi
  */
 
 export interface paths {
@@ -73,25 +73,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pools": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List pools */
-        get: operations["PoolController.index"];
-        put?: never;
-        /** Create a pool */
-        post: operations["PoolController.create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/pools/{pool_id}": {
+    "/api/pool/{pool_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -108,7 +90,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pools/{pool_id}/api_keys": {
+    "/api/pool/{pool_id}/api_keys": {
         parameters: {
             query?: never;
             header?: never;
@@ -125,7 +107,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pools/{pool_id}/assets/{sha256}": {
+    "/api/pool/{pool_id}/assets/{sha256}": {
         parameters: {
             query?: never;
             header?: never;
@@ -142,7 +124,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pools/{pool_id}/entities/batch_get": {
+    "/api/pool/{pool_id}/entities/batch_get": {
         parameters: {
             query?: never;
             header?: never;
@@ -159,7 +141,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pools/{pool_id}/invites": {
+    "/api/pool/{pool_id}/invites": {
         parameters: {
             query?: never;
             header?: never;
@@ -176,7 +158,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pools/{pool_id}/join": {
+    "/api/pool/{pool_id}/join": {
         parameters: {
             query?: never;
             header?: never;
@@ -193,7 +175,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pools/{pool_id}/sites": {
+    "/api/pool/{pool_id}/sites": {
         parameters: {
             query?: never;
             header?: never;
@@ -211,7 +193,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pools/{pool_id}/workers": {
+    "/api/pool/{pool_id}/workers": {
         parameters: {
             query?: never;
             header?: never;
@@ -228,7 +210,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pools/{pool_id}/workers/me/heartbeat": {
+    "/api/pool/{pool_id}/workers/me/heartbeat": {
         parameters: {
             query?: never;
             header?: never;
@@ -245,7 +227,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pools/{pool_id}/workers/me/jobs": {
+    "/api/pool/{pool_id}/workers/me/jobs": {
         parameters: {
             query?: never;
             header?: never;
@@ -263,7 +245,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pools/{pool_id}/workers/me/sites": {
+    "/api/pool/{pool_id}/workers/me/sites": {
         parameters: {
             query?: never;
             header?: never;
@@ -281,7 +263,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pools/{pool_id}/workers/{worker_id}": {
+    "/api/pool/{pool_id}/workers/{worker_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -292,6 +274,24 @@ export interface paths {
         get: operations["PoolWorkerController.show"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List pools */
+        get: operations["PoolController.index"];
+        put?: never;
+        /** Create a pool */
+        post: operations["PoolController.create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -314,26 +314,6 @@ export interface components {
             /** Format: uuid */
             id: string;
             key: string;
-        };
-        /**
-         * AssetUploadRequest
-         * @description An asset the worker must upload. `source` tells the worker how to resolve the bytes: `url` echoes a URL from the submitted payload; `asset` carries a (site, asset_id) the worker resolves from its local store for URLs withheld at submit time.
-         */
-        AssetUploadRequest: {
-            /** @description SHA-256 hex digest of the asset. Present for the `url` source; null for the `asset` source, whose hash is unknown until the worker fetches the bytes. */
-            hash?: string | null;
-            source: {
-                /** @enum {string} */
-                kind: "url";
-                url: string;
-            } | {
-                asset_id: string;
-                /** @enum {string} */
-                kind: "asset";
-                site: string;
-            };
-            /** @description Upload token. Bound to the hash for the `url` source and to (site, asset_id) for the `asset` source. */
-            token: string;
         };
         /** EntityBatchGetRequest */
         EntityBatchGetRequest: {
@@ -427,7 +407,7 @@ export interface components {
         /** SubmitAssetsResult */
         SubmitAssetsResult: {
             offloading: string[];
-            upload_required: components["schemas"]["AssetUploadRequest"][];
+            upload_required: string[];
         };
         /** SubmitEntityError */
         SubmitEntityError: {
@@ -633,62 +613,6 @@ export interface operations {
             };
         };
     };
-    "PoolController.index": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Pool list */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PoolListResponse"];
-                };
-            };
-        };
-    };
-    "PoolController.create": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Pool params */
-        requestBody: {
-            content: {
-                "application/json": {
-                    name: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Pool created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PoolResponse"];
-                };
-            };
-            /** @description Validation error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorsResponse"];
-                };
-            };
-        };
-    };
     "PoolController.delete": {
         parameters: {
             query?: never;
@@ -815,10 +739,6 @@ export interface operations {
             header?: {
                 /** @description Upload token (alternative to query param) */
                 "x-upload-token"?: string;
-                /** @description Asset site for worker-offload uploads whose token is bound to (site, asset_id) */
-                "x-asset-site"?: string;
-                /** @description Asset id for worker-offload uploads whose token is bound to (site, asset_id) */
-                "x-asset-id"?: string;
             };
             path: {
                 /** @description Pool ID */
@@ -1350,6 +1270,62 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    "PoolController.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pool list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolListResponse"];
+                };
+            };
+        };
+    };
+    "PoolController.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Pool params */
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Pool created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorsResponse"];
                 };
             };
         };
