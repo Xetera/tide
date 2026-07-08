@@ -1,7 +1,7 @@
 ---
 name: "User Profile"
 method: POST
-url: "/graphql/query"
+url: "/api/graphql"
 ---
 data.user and data.viewer ?
 [
